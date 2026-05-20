@@ -24,23 +24,23 @@ const Sidebar = ({
             </Link>
           </li>
           <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/about" onClick={toggle}>
-              <p>About</p>
+            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/class-schedules" onClick={toggle}>
+              <p>Class Schedules</p>
             </Link>
           </li>
           <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/blend-iq" onClick={toggle}>
-              <p>BlendIQ</p>
+            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/staff" onClick={toggle}>
+              <p>Staff</p>
             </Link>
           </li>
           <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/supply-house" onClick={toggle}>
-              <p>Supply House</p>
+            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/reminders" onClick={toggle}>
+              <p>Reminders</p>
             </Link>
           </li>
           <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/contact" onClick={toggle}>
-              <p>Contact</p>
+            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/tumbling" onClick={toggle}>
+              <p>Tumbling</p>
             </Link>
           </li>
         </ul>

@@ -4,17 +4,28 @@ const Footer = () => {
       <div className="mx-auto px-36 py-8 grid gap-20 md:grid-cols-2">
         
         {/* Brand */}
-        <div className="flex flex-col items-center justify-center">
-          <h3 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Fusion - Limitless Cheer Co.
-          </h3>
-          <button className="mt-4 px-4 py-2 bg-linear-to-r from-purple-700 to-purple-500 text-white rounded hover:from-purple-500 hover:to-purple-700 transition hover:border hover:border-purple-600">
-            Contact Us
-          </button>
+        <div className="flex flex-row items-center gap-8">
+          <div className="flex flex-col items-center justify-center">
+            <h3 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+              Fusion - Limitless Cheer Co.
+            </h3>
+            <button className="mt-4 px-4 py-2 font-bold bg-linear-to-r from-purple-700 to-purple-500 text-white rounded hover:from-purple-500 hover:to-purple-700 transition hover:border hover:border-purple-600">
+              Contact Us
+            </button>
+          </div>
+          <iframe 
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3146.707103994628!2d-86.75748580987452!3d37.937242089047814!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x886efdb65aa1b891%3A0x511c8f60edb5e7c9!2sFusion!5e0!3m2!1sen!2sus!4v1779291902757!5m2!1sen!2sus"
+            width="200" 
+            height="200" 
+            style={{ border: 2, borderColor: '#4B5563', borderRadius: 12 }} 
+            allowFullScreen={false} 
+            loading="lazy" 
+            referrerPolicy="no-referrer-when-downgrade">
+          </iframe>
         </div>
 
         {/* Navigation */}
-        <div className="flex flex-col items-start">
+        <div className="flex flex-col items-center">
           <h4 className="text-sm font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-200">
             Explore
           </h4>

@@ -18,7 +18,7 @@ const SocialLinks = () => {
   }, []);
 
   return (
-    <div className="flex gap-4 px-8">
+    <div className="flex gap-4">
       <Link href="https://www.facebook.com/fusioncheerpride/" target="_blank">
         <Image
           src="https://faz3a5hyuexckfo1.private.blob.vercel-storage.com/logos/facebook_logo.png?vercel-blob-delegation=eyJzdG9yZUlkIjoic3RvcmVfZkF6M2E1SHlVRVhjS2ZPMSIsIm93bmVySWQiOiJ0ZWFtX1RZT1VTOXg2SVVkcXhJWGUxeXhPNUx2TCIsInBhdGhuYW1lIjoiKiIsIm9wZXJhdGlvbnMiOlsiZ2V0IiwiaGVhZCJdLCJ2YWxpZFVudGlsIjoxNzc5Mjg0OTI0NDE0LCJpYXQiOjE3NzkyNDE3MjQ0NjV9.uLhwKXro4Iu5vGVRCaAbRPPHS_w_dV5SOl3-bS4uH0M&vercel-blob-signature=2R2AwviTwWS9Tlq835flFHStQlw8CejrnwbUJDnkn8M"
