@@ -5,10 +5,10 @@ const Footer = () => {
         
         {/* Brand */}
         <div className="flex flex-col items-center justify-center">
-          <h3 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h3 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Fusion - Limitless Cheer Co.
           </h3>
-          <button className="mt-4 px-4 py-2 bg-linear-to-r from-purple-700 to-purple-500 text-white rounded hover:from-purple-500 hover:to-purple-700 transition hover:border-1 hover:border-purple-600">
+          <button className="mt-4 px-4 py-2 bg-linear-to-r from-purple-700 to-purple-500 text-white rounded hover:from-purple-500 hover:to-purple-700 transition hover:border hover:border-purple-600">
             Contact Us
           </button>
         </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Logo from "./Logo";
 import { ModeToggle } from "./theme_selector";
+import SocialLinks from "./social_links";
 
 const Navbar = ({ toggle }: { toggle: () => void }) => {
   return (
@@ -31,7 +32,7 @@ const Navbar = ({ toggle }: { toggle: () => void }) => {
                 </Link>
               </li>
               <li>
-                <Link href="/jackrabbit" className="font-bold text-zinc-800 dark:text-zinc-200">
+                <Link href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310" className="font-bold text-zinc-800 dark:text-zinc-200">
                   <p>JackRabbit</p>
                 </Link>
               </li>
@@ -59,6 +60,7 @@ const Navbar = ({ toggle }: { toggle: () => void }) => {
                   />
                 </svg>
               </button>
+              <SocialLinks />
               <ModeToggle />
             </div>
           </div>
