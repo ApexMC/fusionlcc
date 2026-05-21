@@ -17,13 +17,13 @@ function TeamCard({
   console.log("member.slug:", member.slug, "member.name:", member.name);
   return (
     <Link
-      href={`/about/${member.slug}`}
+      href={`/staff/${member.slug}`}
       onClick={() => window.scrollTo({ top: 0, behavior: "auto" })}
       className={`group block cursor-pointer relative p-4 isolate ${offsetClass ?? ""}`}>
       {/* Underglow gradient */}
-      <span className="pointer-events-none absolute inset-0 rounded-2xl bg-linear-to-r from-pink-400 via-yellow-400 to-pink-400 opacity-0 blur-2xl transition-all duration-300 group-hover:opacity-60 will-change-transform" style={{ transform: 'translateZ(0)' }} />
+      <span className="pointer-events-none absolute inset-0 rounded-2xl bg-linear-to-r from-pink-300 via-pink-200 to-pink-300 opacity-0 blur-2xl transition-all duration-300 group-hover:opacity-60 will-change-transform" style={{ transform: 'translateZ(0)' }} />
 
-      <div className="relative z-10 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200 transition-all duration-300 hover:shadow-md dark:bg-zinc-900 dark:ring-zinc-800">
+      <div className="relative z-10 overflow-hidden rounded-2xl bg-white shadow-sm ring-2 ring-zinc-200 transition-all duration-300 hover:shadow-md dark:bg-black dark:ring-zinc-900">
         {/* Image */}
         <div className="relative aspect-4/5 overflow-hidden">
           <Image

@@ -36,10 +36,10 @@ const Logo = () => {
     <>
       <Link href="/" style={{ display: showButton ? "none" : "block" }}>
         <Image
-          src="https://faz3a5hyuexckfo1.private.blob.vercel-storage.com/logos/limitless_logo.png?vercel-blob-delegation=eyJzdG9yZUlkIjoic3RvcmVfZkF6M2E1SHlVRVhjS2ZPMSIsIm93bmVySWQiOiJ0ZWFtX1RZT1VTOXg2SVVkcXhJWGUxeXhPNUx2TCIsInBhdGhuYW1lIjoiKiIsIm9wZXJhdGlvbnMiOlsiZ2V0IiwiaGVhZCJdLCJ2YWxpZFVudGlsIjoxNzc5Mjc0OTMxMjIwLCJpYXQiOjE3NzkyMzE3MzEyNjl9.ZYOZuRkltz9yj2Y2ZyhrgR4k1yVD-p4pN6-SUS9GY2A&vercel-blob-signature=_2RT3cIJjwFiT_Bxo5dT9fKzke0727RGsk2fHA_wroI"
+          src="/images/logos/limitless_logo.png"
           alt="Logo"
-          width={width < 1024 ? "75" : "75"}
-          height={width < 1024 ? "75" : "75"}
+          width={width < 1024 ? "85" : "85"}
+          height={width < 1024 ? "85" : "85"}
           className="relative"
         />
       </Link>

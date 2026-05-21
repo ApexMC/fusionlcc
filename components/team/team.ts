@@ -5,63 +5,64 @@ export type TeamMember = {
   title: string;
   img: string;
   bio: string;
-  education: string[];
 };
 
 export const team: TeamMember[] = [
   {
-    name: "Amanda Dowell",
-    team: "Beauty Ambassadors",
-    title: "CEO & Education Director",
-    img: "https://srsntfksbi7e9pli.public.blob.vercel-storage.com/images/headshots/Amanda_Headshot.png",
-    slug: "amanda",
-    bio: "Hey Hey, Friends! I’m Amanda and I’m so grateful that the many haircuts my Barbies endured were worth it! My heart fell for the beauty industry at an early age and my passion has been growing ever since.\n\nThis industry is full of opportunities that are inspiring to everyone and being able to witness learning moments in people that share the same goal as you is adrenalizing! So thankful you’re here!",
-    education: ["Redken Artist", "Redken Color Certified", "Licensed Cosmetologist", "Licensed Beauty Culture Educator", "The Salon Professional Academy - Graduate", "Licensed Stylist Since 2019"]
+    name: "Kelsey Ramsey",
+    team: "Coaching Staff",
+    title: "Owner & Coach",
+    img: "/images/headshots/kelsey_headshot.png",
+    slug: "kelsey",
+    bio: "Hi everyone! My name is Kelsey, and I am the owner and coach at Limitless Cheer Co. I have over 10 years of experience in cheerleading and 3 years of coaching experience working with athletes of all ages and skill levels. I am a positive, high-energy coach who is passionate about helping athletes grow both on and off the mat. I truely care about each athlete and strive to create a supportive, motivating, and fun environment where every child can build confidence, skills, and love for the sport!",
   },
   {
-    name: "Lyn White",
-    team: "Beauty Ambassadors",
-    title: "Co-Founder & Education Director",
-    img: "https://srsntfksbi7e9pli.public.blob.vercel-storage.com/images/headshots/Lyn_Headshot.png",
-    slug: "lyn",
-    bio: "Hello Friends! I’m Lyn and I’m so blessed I have this opportunity to provide you with all things skincare, beauty, and anything glitz and glam to help you grow the self confidence that you want for this industry!\n\nBeauty will forever and always have my heart and I cannot wait to see all of the learning moments we have together! We are so lucky to have you here!",
-    education: ["Licensed Cosmetologist", "Licensed Esthetician ", "Licensed Beauty Culture Educator", "The Salon Professional Academy - Graduate"]
-  },
-  {
-    name: "LaDonna Minnis",
-    team: "Beauty Ambassadors",
-    title: "Educator",
-    img: "https://srsntfksbi7e9pli.public.blob.vercel-storage.com/images/headshots/Ladonna_Headshot1.png",
-    slug: "ladonna",
-    bio: "Hi, I’m Ladonna and one thing you should know about me is that I believe technical excellence leads to artistic freedom. I’m known as a bit of a pixie-cutting queen, precision, shape and confidence are my love language. I’ve spent 20+ years in this industry as a licensed educator; growing behind the chair, educating for Moroccanoil, and educating at beauty schools because education fuels me. My goal is simple, to help every beauty professional to feel empowered, skilled and excited to level up! I’m excited for us to transform together while you remember why you choose this industry in the first place. So glad you are here!",
-    education: ["Redken Color Certified", "Licensed Beauty Culture Instructor", "Licensed Cosmetologist", "Graduate of Tri-State Beauty School", "Licensed Stylist since 2003"]
-  },
-  {
-    name: "Chris Bybee",
-    team: "Technical Operations",
-    title: "Software / Web Developer & Database Administrator",
-    img: "https://srsntfksbi7e9pli.public.blob.vercel-storage.com/images/headshots/Chris_Headshot.png",
-    slug: "chris",
-    bio: "Howdy! I’m Chris, resident jack of all tech…blending the latest in beauty technique and education with modern, user friendly technical design to develop mobile, desktop, and web based software solutions to help stylists…ya know…live their best life!",
-    education: ["Bachelors of Science in Computer Science"]
-  },
-  {
-    name: "Caden Potts",
-    team: "Technical Operations",
-    title: "Video / Photo Editor",
-    img: "https://srsntfksbi7e9pli.public.blob.vercel-storage.com/images/headshots/Caden_Headshot.jpg",
-    slug: "caden",
+    name: "Wynne Curtsinger",
+    team: "Coaching Staff",
+    title: "Assistant Cheer Director & Coach",
+    img: "/images/headshots/wynne_headshot.jpg",
+    slug: "wynne",
     bio: "",
-    education: []
   },
   {
-    name: "Morgan",
-    team: "Technical Operations",
-    title: "Hooman Resources / Mascot",
-    img: "https://srsntfksbi7e9pli.public.blob.vercel-storage.com/images/headshots/Morgan_Headshot.png",
-    slug: "morgan",
-    bio: "Bork.",
-    education: ["Certified Sniffer", "Bachelors of Borking (Backyard University)"]
+    name: "Kayla Parker",
+    team: "Coaching Staff",
+    title: "Assistant Cheer Director & Coach",
+    img: "/images/headshots/kayla_headshot.png",
+    slug: "kayla",
+    bio: "With over 14 years of cheerleading experience, I bring passion, leadership, and dedication to every athlete I coach. My background includes 3 years of coaching experience during high school and begn to coach 2 years ago after graduating from college. My passion is helping athletes grow both on and off the mat. My goal is to create a positive and encouraging environment. I strive to build confidence, teamwork, and resilience. I believe strong athletes are built through support, communication, discipline, and encouragement.",
+  },
+  {
+    name: "Hannah Myler",
+    team: "Coaching Staff",
+    title: "Assistant Cheer Director & Coach",
+    img: "/images/headshots/hannah_headshot.png",
+    slug: "hannah",
+    bio: "With 17 years of competitive cheer experience and 12 years of coaching and instruction, I am dedicated to my carrer deeloping athletes of all ages and skill levels. I have coached teams ranging from tiny athletes through senior divisions; focusing on building strong tequnique, confidence, discipline, and teamwork. Passionate about athlete growth, I bring energy, leadership, and experience to every practice and performance.",
+  },
+  {
+    name: "Cami Boling",
+    team: "Coaching Staff",
+    title: "Coach",
+    img: "/images/headshots/cami_headshot.png",
+    slug: "cami",
+    bio: "Hi I'm coach Cami! My life has always been around cheer. I grew up in cheer. I was a gymnastics instructor, and have been the minis' instructor for 7 years.",
+  },
+  {
+    name: "Madison Newby",
+    team: "Coaching Staff",
+    title: "Coach",
+    img: "/images/headshots/madison_headshot.png",
+    slug: "madison",
+    bio: "Hi I'm coach Madison! I bring 14 years of cheer experience and a true passion for the sport. Throughout my cheer journey I have participated in competitive cheer at multiple levels, as well as high school competitive and sideline cheerleading. As a new addition to the program last year, I am excited to begin my first full season with the team! I love encourging and supporting my athletes both on and off the mat. I am dedicated to helping each cheerleader build confidence, delop their skills, and reach their full potential. As a coach, I strive to be a positive role model and create an encironemtn where every athlete feels motivated, valued, and empowered to succeed.",
+  },
+  {
+    name: "Lanie Mullis",
+    team: "Coaching Staff",
+    title: "Coach",
+    img: "/images/headshots/lanie_headshot.png",
+    slug: "lanie",
+    bio: "My name is Lanie Mullis, and I have been coaching for about four years. This year I retired from cheering as an athlete and moved fully into coaching. Cheerleading has shaped my passion, discipline, and love for for teamwork. As a coach, I focus on building confidence, skills, and a strong team environment. I'm grateful for my time as an athlete and am excited for this new chapter in coaching.",
   },
 ];
 

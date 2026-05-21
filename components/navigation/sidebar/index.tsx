@@ -43,6 +43,11 @@ const Sidebar = ({
               <p>Tumbling</p>
             </Link>
           </li>
+          <li>
+            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310" onClick={toggle}>
+              <p>JackRabbit</p>
+            </Link>
+          </li>
         </ul>
       </div>
     </>
