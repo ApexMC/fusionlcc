@@ -12,7 +12,7 @@ import ClassCard from "@/components/classes/class_card";
 export default function ClassSchedules() {
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans">
-      <main className="flex min-h-[50vh] flex-1 w-full flex-col items-center py-16 px-16 justify-center bg-zinc-100 dark:bg-zinc-900">
+      <main className="flex min-h-[50vh] flex-1 w-full flex-col items-center py-16 px-8 md:px-16 justify-center bg-zinc-100 dark:bg-zinc-900">
         <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 text-center mx-auto">
           Classes
         </h1>
