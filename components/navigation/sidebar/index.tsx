@@ -24,8 +24,8 @@ const Sidebar = ({
             </Link>
           </li>
           <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/class-schedules" onClick={toggle}>
-              <p>Class Schedules</p>
+            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/classes" onClick={toggle}>
+              <p>Classes</p>
             </Link>
           </li>
           <li>

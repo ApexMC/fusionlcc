@@ -14,10 +14,6 @@ export default function ContactForm() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const lightSrc = "https://srsntfksbi7e9pli.public.blob.vercel-storage.com/images/logos/QBG_Logo.png";
-  const darkSrc = "https://srsntfksbi7e9pli.public.blob.vercel-storage.com/images/logos/QBG_Logo_White.png";
-  const src = !mounted ? lightSrc : (theme === "light" ? lightSrc : darkSrc);
-
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("sending");
@@ -58,14 +54,14 @@ export default function ContactForm() {
         onSubmit={onSubmit}
         className="mt-10 space-y-5 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <Image
-          src={src}
+          src="/images/logos/limitless_logo.png"
           alt="Contact"
           width={125}
           height={125}
           className="mx-auto"
         />
         <div className="mb-8 mx-auto flex justify-center" aria-hidden="true">
-            <div className="h-1.5 w-sm rounded-full bg-linear-to-r from-pink-500 via-red-500 to-yellow-500" />
+            <div className="h-1.5 w-sm rounded-full bg-linear-to-r from-purple-600 to-purple-600" />
         </div>
         <div className="grid gap-5 md:grid-cols-2">
         <div>
@@ -75,7 +71,7 @@ export default function ContactForm() {
             <input
             name="name"
             required
-            className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-pink-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+            className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
             />
         </div>
 
@@ -87,7 +83,7 @@ export default function ContactForm() {
             name="email"
             type="email"
             required
-            className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-pink-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+            className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
             />
         </div>
         </div>
@@ -99,7 +95,7 @@ export default function ContactForm() {
         <input
             name="subject"
             required
-            className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-pink-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+            className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
         />
         </div>
 
@@ -111,16 +107,16 @@ export default function ContactForm() {
             name="message"
             required
             rows={6}
-            className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-pink-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+            className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
         />
         </div>
 
         <button
-        type="submit"
-        disabled={status === "sending"}
-        className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-        >
-        {status === "sending" ? "Sending..." : "Send message"}
+          type="submit"
+          disabled={status === "sending"}
+          className="inline-flex items-center justify-center rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60 dark:text-white dark:hover:bg-purple-700"
+          >
+          {status === "sending" ? "Sending..." : "Send message"}
         </button>
 
         {message ? (

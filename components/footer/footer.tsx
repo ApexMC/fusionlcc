@@ -19,9 +19,9 @@ const Footer = () => {
             <h3 className="text-2xl font-semibold text-center tracking-tight text-zinc-900 dark:text-zinc-50">
               Fusion - Limitless Cheer Co.
             </h3>
-            <button className="mt-4 px-4 py-2 font-bold bg-linear-to-r from-purple-700 to-purple-500 text-white rounded hover:from-purple-500 hover:to-purple-700 transition hover:border hover:border-purple-600">
+            <a href="/contact" className="mt-4 px-4 py-2 font-bold bg-linear-to-r from-purple-700 to-purple-500 text-white rounded hover:from-purple-500 hover:to-purple-700 transition hover:border hover:border-purple-600">
               Contact Us
-            </button>
+            </a>
             <h1 className="text-center text-zinc-700 dark:text-zinc-200 mt-8">
               218 US Highway 66, Tell City, IN 47586
             </h1>

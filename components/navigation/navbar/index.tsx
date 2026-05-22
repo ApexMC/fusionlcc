@@ -17,8 +17,8 @@ const Navbar = ({ toggle }: { toggle: () => void }) => {
                 </Link>
               </li>
               <li>
-                <Link href="/class-schedules" className="font-bold text-zinc-800 dark:text-zinc-200">
-                  <p>Class Schedules</p>
+                <Link href="/classes" className="font-bold text-zinc-800 dark:text-zinc-200">
+                  <p>Classes</p>
                 </Link>
               </li>
               <li>
