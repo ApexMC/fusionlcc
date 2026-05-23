@@ -27,10 +27,10 @@ export default function RegistrationForm() {
       parentName: String(formData.get("parentName") || ""),
       childName: String(formData.get("childName") || ""),
       childDOB: String(formData.get("childDOB") || ""),
-      requestedClass: String(formData.get("requestedClass") || ""),
       email: String(formData.get("email") || ""),
       phoneNumber: String(formData.get("phoneNumber") || ""),
       address: String(formData.get("address") + ", " + formData.get("city") + ", " + formData.get("state") + " " + formData.get("zipCode") || ""),
+      requestedClass: String(formData.get("requestedClass") || ""),
     };
 
     try {
@@ -154,7 +154,7 @@ export default function RegistrationForm() {
                     name="address"
                     required
                     rows={1}
-                    className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-pink-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                    className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
                 />
             </div>
             <div>
@@ -165,7 +165,7 @@ export default function RegistrationForm() {
                     name="city"
                     required
                     rows={1}
-                    className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-pink-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                    className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
                 />
             </div>
         </div>
@@ -178,7 +178,7 @@ export default function RegistrationForm() {
                 <select 
                     name="state"
                     required
-                    className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-pink-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50">
+                    className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50">
                     <option value="">Choose a state</option>
 
                     {US_STATES.map((state) => (
@@ -199,7 +199,7 @@ export default function RegistrationForm() {
                     inputMode="numeric"
                     pattern="\d*"
                     maxLength={10}
-                    className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-pink-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                    className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
                 />
             </div>
             <div>

@@ -89,7 +89,7 @@ export default function ClassSchedules() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-75">Class</TableHead>
-                <TableHead className="w-25">Duration</TableHead>
+                <TableHead className="w-25 md:w-45">Duration</TableHead>
                 <TableHead className="w-15 text-center">Price</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
