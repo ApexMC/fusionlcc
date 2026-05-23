@@ -14,8 +14,8 @@ export async function POST(req: Request) {
   });
 
   await transporter.sendMail({
-    from: process.env.REGISTRATION_FROM_EMAIL!,
-    to: process.env.CONTACT_TO_EMAIL!,
+    from: process.env.REGISTRATION_FROM_EMAIL,
+    to: process.env.CONTACT_TO_EMAIL,
     subject: `LCC New Athlete Registration: ${parentName}`,
     text: `Parent Name: ${parentName}\nChild Name: ${childName}\nChild DOB: ${childDOB}\nEmail: ${email}\nPhone Number: ${phoneNumber}\nAddress: ${address}\nRequested Class: ${requestedClass}`,
     replyTo: email,
