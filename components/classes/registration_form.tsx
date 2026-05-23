@@ -20,24 +20,29 @@ export default function RegistrationForm() {
     setStatus("sending");
     setMessage("");
 
-    const form = e.currentTarget;
-    const formData = new FormData(form);
+    const register = e.currentTarget;
+    const registerData = new FormData(register);
 
-    const payload = {
-      parentName: String(formData.get("parentName") || ""),
-      childName: String(formData.get("childName") || ""),
-      childDOB: String(formData.get("childDOB") || ""),
-      email: String(formData.get("email") || ""),
-      phoneNumber: String(formData.get("phoneNumber") || ""),
-      address: String(formData.get("address") + ", " + formData.get("city") + ", " + formData.get("state") + " " + formData.get("zipCode") || ""),
-      requestedClass: String(formData.get("requestedClass") || ""),
+    const registerPayload = {
+      email: String(registerData.get("email") || ""),
+      subject: `LCC New Athlete Registration: ${String(registerData.get("childName") || "")}`,
+      message: [
+        `Parent Name: ${String(registerData.get("parentName") || "")}`,
+        `Child Name: ${String(registerData.get("childName") || "")}`,
+        `Child DOB: ${String(registerData.get("childDOB") || "")}`,
+        `Requested Class: ${String(registerData.get("requestedClass") || "")}`,
+        ``,
+        `Address: ${String(registerData.get("address") || "")}, ${String(registerData.get("city") || "")}, ${String(registerData.get("state") || "")} ${String(registerData.get("zipCode") || "")}`,
+        `Phone Number: ${String(registerData.get("phoneNumber") || "")}`,
+        `Email: ${String(registerData.get("email") || "")}`,
+      ].join("\n"),
     };
 
     try {
-      const res = await fetch("/api/register", {
+      const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(registerPayload),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -46,7 +51,7 @@ export default function RegistrationForm() {
 
       setStatus("success");
       setMessage("Thanks! Your registration has been submitted.");
-      form.reset();
+      register.reset();
     } catch (err: any) {
       setStatus("error");
       setMessage(err?.message || "Something went wrong. Please try again.");

@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 
 export async function POST(req: Request) {
-  const { name, email, subject, message } = await req.json();
+  const { email, subject, message } = await req.json();
 
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -14,10 +14,10 @@ export async function POST(req: Request) {
   });
 
   await transporter.sendMail({
-    from: process.env.CONTACT_FROM_EMAIL!,
-    to: process.env.CONTACT_TO_EMAIL!,
-    subject: `LCC Contact Form: ${subject}`,
-    text: `Name: ${name}\nEmail: ${email}\n\n${message}`,
+    from: process.env.CONTACT_FROM_EMAIL,
+    to: process.env.CONTACT_TO_EMAIL,
+    subject: `${subject}`,
+    text: `${message}`,
     replyTo: email,
   });
 

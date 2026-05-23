@@ -14,19 +14,18 @@ export default function ContactForm() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function onSubmit(a: React.FormEvent<HTMLFormElement>) {
+    a.preventDefault();
     setStatus("sending");
     setMessage("");
 
-    const form = e.currentTarget;
+    const form = a.currentTarget;
     const formData = new FormData(form);
 
     const payload = {
-      name: String(formData.get("name") || ""),
       email: String(formData.get("email") || ""),
-      subject: String(formData.get("subject") || ""),
-      message: String(formData.get("message") || ""),
+      subject: `LCC Contact Form: ${String(formData.get("subject") || "")}`,
+      message: String("Name: " + formData.get("name") + "\n" + "Email: " + formData.get("email") + "\n\n" + "Message: " + formData.get("message") || ""),
     };
 
     try {
