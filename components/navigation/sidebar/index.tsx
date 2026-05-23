@@ -34,8 +34,8 @@ const Sidebar = ({
             </Link>
           </li>
           <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/reminders" onClick={toggle}>
-              <p>Reminders</p>
+            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/faq" onClick={toggle}>
+              <p>FAQ</p>
             </Link>
           </li>
           <li>

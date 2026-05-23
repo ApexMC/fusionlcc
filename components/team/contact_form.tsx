@@ -60,9 +60,6 @@ export default function ContactForm() {
           height={125}
           className="mx-auto"
         />
-        <div className="mb-8 mx-auto flex justify-center" aria-hidden="true">
-            <div className="h-1.5 w-sm rounded-full bg-linear-to-r from-purple-600 to-purple-600" />
-        </div>
         <div className="grid gap-5 md:grid-cols-2">
         <div>
             <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">

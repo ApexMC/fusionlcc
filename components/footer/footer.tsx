@@ -34,9 +34,9 @@ const Footer = () => {
             Explore
           </h4>
           <ul className="mt-4 space-y-2 text-sm text-zinc-700 dark:text-zinc-200 text-center md:text-start">
-            <li><a href="/class-schedules" className="hover:text-purple-600 transition">Class Schedules</a></li>
+            <li><a href="/class-schedules" className="hover:text-purple-600 transition">Classes</a></li>
             <li><a href="/staff" className="hover:text-purple-600 transition">Staff</a></li>
-            <li><a href="/reminders" className="hover:text-purple-600 transition">Reminders</a></li>
+            <li><a href="/faq" className="hover:text-purple-600 transition">FAQ</a></li>
             <li><a href="/tumbling" className="hover:text-purple-600 transition">Tumbling</a></li>
             <li><a href="/jackrabbit" className="hover:text-purple-600 transition">JackRabbit</a></li>
           </ul>

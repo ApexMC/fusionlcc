@@ -90,62 +90,135 @@ export default function ClassSchedules() {
               <TableRow>
                 <TableHead className="w-75">Class</TableHead>
                 <TableHead className="w-25">Duration</TableHead>
-                <TableHead className="text-right">Price</TableHead>
+                <TableHead className="w-15 text-center">Price</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <TableRow>
                 <TableCell className="font-medium">Me + 1 (2yr)</TableCell>
-                <TableCell>40 min</TableCell>
-                <TableCell className="text-right">$48.00</TableCell>
+                <TableCell>30 min</TableCell>
+                <TableCell>$48.00</TableCell>
+                <TableCell className="text-right">
+                  <a
+                    href='/classes/register'
+                    className="inline-block px-3 py-1.5 bg-purple-500 text-white rounded hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    Register
+                  </a>
+                </TableCell>
               </TableRow>
 
               <TableRow>
                 <TableCell className="font-medium">Me + 1 (3-4yr)</TableCell>
                 <TableCell>30 min</TableCell>
-                <TableCell className="text-right">$48.00</TableCell>
+                <TableCell>$48.00</TableCell>
+                <TableCell className="text-right">
+                  <a
+                    href='/classes/register'
+                    className="inline-block px-3 py-1.5 bg-purple-500 text-white rounded hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    Register
+                  </a>
+                </TableCell>
               </TableRow>
 
               <TableRow>
                 <TableCell className="font-medium">Pre-School</TableCell>
                 <TableCell>40 min</TableCell>
-                <TableCell className="text-right">$48.00</TableCell>
+                <TableCell>$48.00</TableCell>
+                <TableCell className="text-right">
+                  <a
+                    href='/classes/register'
+                    className="inline-block px-3 py-1.5 bg-purple-500 text-white rounded hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    Register
+                  </a>
+                </TableCell>
               </TableRow>
 
               <TableRow>
                 <TableCell className="font-medium">Beginner / Level 1</TableCell>
                 <TableCell>55 min</TableCell>
-                <TableCell className="text-right">$59.00</TableCell>
+                <TableCell>$59.00</TableCell>
+                <TableCell className="text-right">
+                  <a
+                    href='/classes/register'
+                    className="inline-block px-3 py-1.5 bg-purple-500 text-white rounded hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    Register
+                  </a>
+                </TableCell>
               </TableRow>
 
               <TableRow>
                 <TableCell className="font-medium">Advanced Beginner / Level 1.5</TableCell>
                 <TableCell>55 min</TableCell>
-                <TableCell className="text-right">$59.00</TableCell>
+                <TableCell>$59.00</TableCell>
+                <TableCell className="text-right">
+                  <a
+                    href='/classes/register'
+                    className="inline-block px-3 py-1.5 bg-purple-500 text-white rounded hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    Register
+                  </a>
+                </TableCell>
               </TableRow>
 
               <TableRow>
                 <TableCell className="font-medium">Intermediate / Level 2</TableCell>
                 <TableCell>55 min</TableCell>
-                <TableCell className="text-right">$64.00</TableCell>
+                <TableCell>$64.00</TableCell>
+                <TableCell className="text-right">
+                  <a
+                    href='/classes/register'
+                    className="inline-block px-3 py-1.5 bg-purple-500 text-white rounded hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    Register
+                  </a>
+                </TableCell>
               </TableRow>
 
               <TableRow>
                 <TableCell className="font-medium">Advanced / Level 3</TableCell>
                 <TableCell>55 min</TableCell>
-                <TableCell className="text-right">$64.00</TableCell>
+                <TableCell>$64.00</TableCell>
+                <TableCell className="text-right">
+                  <a
+                    href='/classes/register'
+                    className="inline-block px-3 py-1.5 bg-purple-500 text-white rounded hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    Register
+                  </a>
+                </TableCell>
               </TableRow>
 
               <TableRow>
                 <TableCell className="font-medium">Elite / Level 4</TableCell>
                 <TableCell>1 Hr</TableCell>
-                <TableCell className="text-right">$64.00</TableCell>
+                <TableCell>$64.00</TableCell>
+                <TableCell className="text-right">
+                  <a
+                    href='/classes/register'
+                    className="inline-block px-3 py-1.5 bg-purple-500 text-white rounded hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    Register
+                  </a>
+                </TableCell>
               </TableRow>
 
               <TableRow>
                 <TableCell className="font-medium">Competitive Cheer</TableCell>
                 <TableCell>-</TableCell>
-                <TableCell className="text-right">Contact</TableCell>
+                <TableCell>Contact</TableCell>
+                <TableCell className="text-right">
+                  <a
+                    href="/contact"
+                    className="inline-block px-3 py-1.5 bg-zinc-300 text-black rounded hover:bg-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-300"
+                  >
+                    Contact
+                  </a>
+                </TableCell>
               </TableRow>
             </TableBody>
           </Table>

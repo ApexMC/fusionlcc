@@ -12,7 +12,7 @@ export default async function TeamMemberPage({
   if (!member) return notFound();
 
   return (
-    <div className="min-h-[75vh]] bg-zinc-50 dark:bg-black relative z-0">
+    <div className="min-h-[75vh]] bg-zinc-50 dark:bg-zinc-900 relative z-0">
       <main className="mx-auto w-full max-w-4xl px-6 py-16">
         <div className="grid gap-10 md:grid-cols-[240px_1fr]">
           <div>
