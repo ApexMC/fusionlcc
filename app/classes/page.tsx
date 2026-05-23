@@ -152,7 +152,7 @@ export default function ClassSchedules() {
               </TableRow>
 
               <TableRow>
-                <TableCell className="font-medium">Advanced Beginner / Level 1.5</TableCell>
+                <TableCell className="font-medium">Adv. Beginner / Level 1.5</TableCell>
                 <TableCell>55 min</TableCell>
                 <TableCell>$59.00</TableCell>
                 <TableCell className="text-right">
