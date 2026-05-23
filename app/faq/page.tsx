@@ -22,7 +22,7 @@ export default function FAQ() {
         />
         <FAQCard 
           question="What if my child misses a class?"
-          answer="If your child misses a class for any reason, they are welcome to attend any make-up class at their level at any time in the current schedule. If you know your child will miss a class in advance, please notify us as soon as possible so we can find the next available make-up class for them."
+          answer={<span>If your child misses a class for any reason, they are welcome to attend any make-up class at their level at any time in the current schedule. If you know your child will miss a class in advance, please <a className="text-purple-400" href="/contact">notify</a> us as soon as possible so we can find the next available make-up class for them.</span>}
         />
       </main>
     </div>

@@ -14,7 +14,7 @@ export default function FAQCard({ question, answer }: FAQCardProps) {
     <div className="bg-white dark:bg-black rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden mb-4">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-6 py-4 text-left flex items-center justify-between gap-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+        className="w-full px-6 py-4 text-left flex items-center justify-between gap-4"
         aria-expanded={isOpen}
       >
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
