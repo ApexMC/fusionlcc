@@ -38,7 +38,7 @@ const Footer = () => {
             <li><a href="/staff" className="hover:text-purple-600 transition">Staff</a></li>
             <li><a href="/faq" className="hover:text-purple-600 transition">FAQ</a></li>
             <li><a href="/tumbling" className="hover:text-purple-600 transition">Tumbling</a></li>
-            <li><a href="/jackrabbit" className="hover:text-purple-600 transition">JackRabbit</a></li>
+            <li><a href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310" className="hover:text-purple-600 transition">JackRabbit</a></li>
           </ul>
         </div>
       </div>

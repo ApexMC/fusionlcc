@@ -14,7 +14,6 @@ function TeamCard({
   };
   offsetClass?: string;
 }) {
-  console.log("member.slug:", member.slug, "member.name:", member.name);
   return (
     <Link
       href={`/staff/${member.slug}`}
