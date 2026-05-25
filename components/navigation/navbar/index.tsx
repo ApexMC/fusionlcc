@@ -32,8 +32,8 @@ const Navbar = ({ toggle }: { toggle: () => void }) => {
                 </Link>
               </li>
               <li>
-                <Link href="/tumbling" className="font-bold text-zinc-800 dark:text-zinc-200">
-                  <p>Tumbling</p>
+                <Link href="/competitive-cheer" className="font-bold text-zinc-800 dark:text-zinc-200">
+                  <p>Competitive Cheer</p>
                 </Link>
               </li>
               <li>

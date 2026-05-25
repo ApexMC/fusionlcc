@@ -37,7 +37,7 @@ const Footer = () => {
             <li><a href="/class-schedules" className="hover:text-purple-600 transition">Classes</a></li>
             <li><a href="/staff" className="hover:text-purple-600 transition">Staff</a></li>
             <li><a href="/faq" className="hover:text-purple-600 transition">FAQ</a></li>
-            <li><a href="/tumbling" className="hover:text-purple-600 transition">Tumbling</a></li>
+            <li><a href="/competitive-cheer" className="hover:text-purple-600 transition">Competitive Cheer</a></li>
             <li><a href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310" className="hover:text-purple-600 transition">JackRabbit</a></li>
           </ul>
         </div>
