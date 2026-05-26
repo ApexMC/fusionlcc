@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 
-export default function RegistrationForm() {
+export default function RegistrationForm({ requestedClass }: { requestedClass?: string }) {
   const [status, setStatus] = useState<
     "idle" | "sending" | "success" | "error"
   >("idle");
@@ -134,12 +134,13 @@ export default function RegistrationForm() {
             <select 
                 className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
                 name="requestedClass"
+                defaultValue={requestedClass ?? ""}
             >
                 <option value="Me + 1 (2yr)">Me + 1 (2yr)</option>
                 <option value="Me + 1 (3-4yr)">Me + 1 (3-4yr)</option>
                 <option value="Preschool">Preschool</option>
                 <option value="Beginner / Level 1">Beginner / Level 1</option>
-                <option value="Advanced Beginner / Level 1.5">Advanced Beginner / Level 1.5</option>
+                <option value="Adv. Beginner / Level 1.5">Advanced Beginner / Level 1.5</option>
                 <option value="Intermediate / Level 2">Intermediate / Level 2</option>
                 <option value="Advanced / Level 3">Advanced / Level 3</option>
                 <option value="Elite / Level 4">Elite / Level 4</option>
