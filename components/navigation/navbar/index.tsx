@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Logo from "./Logo";
 import { ModeToggle } from "./theme_selector";
+import AuthButton from "./AuthButton";
 import SocialLinks from "./social_links";
 
 const Navbar = ({ toggle }: { toggle: () => void }) => {
@@ -45,6 +46,7 @@ const Navbar = ({ toggle }: { toggle: () => void }) => {
             <div className="flex justify-center items-center gap-4 h-full">
               <SocialLinks />
               <ModeToggle />
+              <AuthButton />
               <button
                 type="button"
                 className="inline-flex items-center md:hidden text-zinc-800 dark:text-zinc-200"

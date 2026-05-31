@@ -29,6 +29,7 @@ function TeamCard({
             src={member.img}
             alt={`${member.name} headshot`}
             fill
+            sizes=""
             className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-black/60 to-transparent" />
