@@ -15,6 +15,7 @@ export async function GET() {
   
   data?.forEach((parent) => {
     parent.phone = formatPhoneNumber(parent.phone);
+    parent.balance = parent.balance ? `$${parent.balance.toFixed(2)}` : "$0.00";
   });
 
   return NextResponse.json(data ?? []);

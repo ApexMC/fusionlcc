@@ -6,6 +6,7 @@ import { useState, FormEvent, useEffect } from "react";
 import createClient from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes"
+import US_STATES from "@/utils/us_states";
 
 export default function SignInPage() {
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
@@ -13,6 +14,10 @@ export default function SignInPage() {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -66,6 +71,10 @@ export default function SignInPage() {
             first_name: firstName,
             last_name: lastName,
             phone: phone,
+            address: address,
+            city: city,
+            state: state,
+            zip_code: zipCode,
           },
         },
       });
@@ -180,7 +189,7 @@ export default function SignInPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {loading ? "Signing In..." : "Sign In"}
               </button>
@@ -237,6 +246,84 @@ export default function SignInPage() {
                   />
                 </div>
               </div>
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                    <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                        Home Address
+                    </label>
+                    <textarea
+                        name="address"
+                        required
+                        rows={1}
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                    />
+                </div>
+                <div>
+                    <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                        City
+                    </label>
+                    <textarea
+                        name="city"
+                        required
+                        rows={1}
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                    />
+                </div>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-3">
+                <div>
+                    <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                        State
+                    </label>
+                    <select 
+                        name="state"
+                        required
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50">
+                        <option value="">Choose a state</option>
+
+                        {US_STATES.map((state) => (
+                            <option key={state.value} value={state.value}>
+                            {state.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                        Zip Code
+                    </label>
+                    <input
+                        name="zipCode"
+                        required
+                        type="text"
+                        value={zipCode}
+                        onChange={(e) => setZipCode(e.target.value)}
+                        inputMode="numeric"
+                        pattern="\d*"
+                        maxLength={10}
+                        className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                    />
+                </div>
+                <div>
+                    <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                        Country
+                    </label>
+                    <input
+                        name="country"
+                        readOnly
+                        value="United States"
+                        type="text"
+                        className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                    />
+                </div>
+            </div>
               <div>
                 <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                   Phone
@@ -293,7 +380,7 @@ export default function SignInPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {loading ? "Signing Up..." : "Sign Up"}
               </button>

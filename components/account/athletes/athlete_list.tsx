@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Phone, Shirt, Cake} from "lucide-react";
 import { formatPhoneNumber } from "@/functions/shared_functions";

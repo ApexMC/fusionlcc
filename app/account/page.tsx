@@ -1,12 +1,12 @@
-import createClient from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Phone, Mail, MapPin, Pencil } from "lucide-react";
-import AthleteList from "@/components/account/athletes/athlete_list";
-import { formatPhoneNumber } from "@/functions/shared_functions";
-import ParentList from "@/components/account/parents/parent_list";
-import { ChartPieDonutText } from "@/components/account/charts/outstanding_clients";
 import AddAthleteCard from "@/components/account/athletes/add_athlete";
+import AthleteList from "@/components/account/athletes/athlete_list";
+import ParentList from "@/components/account/parents/parent_list";
+import createClient from "@/lib/supabase/server";
+import { ChartPieDonutText } from "@/components/account/charts/outstanding_clients";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatPhoneNumber } from "@/functions/shared_functions";
+import { Phone, Mail, MapPin, Pencil } from "lucide-react";
+import { redirect } from "next/navigation";
 
 type Parent = {
     id?: string | number | null;
@@ -107,9 +107,7 @@ export default async function AccountPage() {
                     <h1 className="text-3xl font-bold">
                         Athletes
                     </h1>
-                    {/*
-                    <AddAthleteCard />
-                    */}
+                    <AddAthleteCard userId={userId} />
                 </div>
                 <AthleteList athletes={athletes ?? []} />
             </div>

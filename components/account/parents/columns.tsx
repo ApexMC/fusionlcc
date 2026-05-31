@@ -43,12 +43,9 @@ export const columns: ColumnDef<Parent>[] = [
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(parent.parent_id.toString())}
-            >
-              Edit parent
+              onClick={() => navigator.clipboard.writeText(parent.parent_id.toString())}>
+              View athletes
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>View athletes</DropdownMenuItem>
             <DropdownMenuItem>View payment details</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem><span className="text-red-500">Delete parent</span></DropdownMenuItem>
