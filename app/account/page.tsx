@@ -1,12 +1,12 @@
-import AddAthleteCard from "@/components/account/athletes/add_athlete";
 import AthleteList from "@/components/account/athletes/athlete_list";
 import ParentList from "@/components/account/parents/parent_list";
 import createClient from "@/lib/supabase/server";
 import { ChartPieDonutText } from "@/components/account/charts/outstanding_clients";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPhoneNumber } from "@/functions/shared_functions";
-import { Phone, Mail, MapPin, Pencil } from "lucide-react";
+import { Phone, Mail, MapPin, Pencil, Plus } from "lucide-react";
 import { redirect } from "next/navigation";
+import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
 
 type Parent = {
     id?: string | number | null;
@@ -54,7 +54,6 @@ export default async function AccountPage() {
         .select(
             "athlete_id, first_name, last_name, dob, phone, shirt_size")
         .eq("user_id", userId);
-        console.log("Athletes:", athletes);
 
         return (
         <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans">
@@ -107,9 +106,9 @@ export default async function AccountPage() {
                     <h1 className="text-3xl font-bold">
                         Athletes
                     </h1>
-                    <AddAthleteCard userId={userId} />
+                    <ManageAthleteCard userId={userId} icon={<Plus className="w-4 h-4 text-white" />} />
                 </div>
-                <AthleteList athletes={athletes ?? []} />
+                <AthleteList userId={userId} athletes={athletes ?? []} />
             </div>
         </main>
         </div>
@@ -120,7 +119,7 @@ export default async function AccountPage() {
     else if (isAdmin || isOwner) {
         return (
         <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans w-full">
-            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-16 px-16 justify-center bg-zinc-100 dark:bg-zinc-900">
+            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-16 px-6 justify-center bg-zinc-100 dark:bg-zinc-900">
                 <div className="flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans w-full">
                     <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-4">
                         Dashboard
