@@ -23,11 +23,13 @@ import {
 import { Card } from "@/components/ui/card"
 
 interface DataTableProps<TData, TValue> {
+  title: string
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
 }
 
 export function DataTable<TData, TValue>({
+  title,
   columns,
   data,
 }: DataTableProps<TData, TValue>) {
@@ -53,7 +55,7 @@ export function DataTable<TData, TValue>({
     <div className="w-full flex flex-col items-start max-h-125">
       <Card className="w-full border p-4 flex flex-col">
         <h1 className="text-2xl font-bold">
-          Customer Accounts
+          {title}
         </h1>
         <div className="flex flex-row gap-3 items-center mb-2">
           <Input

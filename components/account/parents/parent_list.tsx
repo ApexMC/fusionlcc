@@ -40,7 +40,7 @@ export default function ParentList() {
 
   return (
     <div className="w-full">
-      <DataTable columns={columns} data={parents} />
+      <DataTable title="Customer Accounts" columns={columns} data={parents} />
     </div>
   );
 }

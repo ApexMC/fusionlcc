@@ -4,6 +4,15 @@ import US_STATES from "@/utils/us_states";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import createClient from "@/lib/supabase/client";
+
+const supabase = await createClient();
+const { data: claims } = await supabase.auth.getClaims();
+const userId = claims?.claims.sub;
+const { data: athletes } = await supabase
+    .from("Athletes")
+    .select("athlete_id, first_name, last_name")
+    .eq("user_id", userId);
 
 export default function RegistrationForm({ requestedClass }: { requestedClass?: string }) {
   const [status, setStatus] = useState<
@@ -83,13 +92,19 @@ export default function RegistrationForm({ requestedClass }: { requestedClass?: 
 
         <div>
             <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-            Child Name
+            Athlete Name
             </label>
-            <input
+            <select
             name="childName"
             required
             className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-            />
+            >
+            {athletes?.map((athlete) => (
+                <option key={athlete.athlete_id} value={athlete.first_name + " " + athlete.last_name}>
+                {athlete.first_name} {athlete.last_name}
+                </option>
+            ))}
+            </select>
         </div>
         </div>
 

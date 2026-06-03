@@ -8,6 +8,16 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes"
 import US_STATES from "@/utils/us_states";
 
+function formatPhoneInput(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  const national = digits.startsWith("1") ? digits.slice(1, 11) : digits.slice(0, 10);
+
+  if (!national) return "";
+  if (national.length < 4) return `+1 (${national}`;
+  if (national.length < 7) return `+1 (${national.slice(0, 3)}) ${national.slice(3)}`;
+  return `+1 (${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6)}`;
+}
+
 export default function SignInPage() {
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
   const [firstName, setFirstName] = useState("");
@@ -24,6 +34,10 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPhone(formatPhoneInput(e.target.value));
+  };
 
   const handleSignIn = async (e: FormEvent) => {
     e.preventDefault();
@@ -53,14 +67,12 @@ export default function SignInPage() {
   const handleSignUp = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
 
     setLoading(true);
-
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -70,7 +82,7 @@ export default function SignInPage() {
             full_name: firstName + " " + lastName,
             first_name: firstName,
             last_name: lastName,
-            phone: phone,
+            phone: phone.replace(/[^0-9+]/g, ''),
             address: address,
             city: city,
             state: state,
@@ -333,7 +345,9 @@ export default function SignInPage() {
                   type="tel"
                   required
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={handlePhoneChange}
+                  placeholder="+1 (555) 123-4567"
+                  inputMode="tel"
                   className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
                 />
               </div>

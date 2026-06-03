@@ -36,7 +36,7 @@ const chartConfig = {
   },
   outstanding: {
     label: "Outstanding",
-    color: "#f59e0b",
+    color: "#e27aff",
   },
 } satisfies ChartConfig
 

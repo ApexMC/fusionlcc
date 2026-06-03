@@ -1,4 +1,3 @@
-import AthleteList from "@/components/account/athletes/athlete_list";
 import ParentList from "@/components/account/parents/parent_list";
 import createClient from "@/lib/supabase/server";
 import { ChartPieDonutText } from "@/components/account/charts/outstanding_clients";
@@ -7,6 +6,8 @@ import { formatPhoneNumber } from "@/functions/shared_functions";
 import { Phone, Mail, MapPin, Pencil, Plus } from "lucide-react";
 import { redirect } from "next/navigation";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
+import AthleteCardList from "@/components/account/athletes/athlete_card";
+import ManageAccountCard from "@/components/account/manage_account";
 
 type Parent = {
     id?: string | number | null;
@@ -15,6 +16,9 @@ type Parent = {
     phone?: string | null;
     email?: string | null;
     address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zip_code?: string | null;
     balance?: number | null;
     [key: string]: unknown;
 };
@@ -51,10 +55,9 @@ export default async function AccountPage() {
 
         const { data: athletes } = await supabase
         .from("Athletes")
-        .select(
-            "athlete_id, first_name, last_name, dob, phone, shirt_size")
+        .select("athlete_id, first_name, last_name, dob, phone, shirt_size")
         .eq("user_id", userId);
-
+            
         return (
         <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans">
         <main className="flex flex-col md:flex-row flex-1 min-h-[50vh] w-full gap-6 items-center md:items-start py-20 px-8 justify-center bg-zinc-100 dark:bg-zinc-900">
@@ -65,11 +68,9 @@ export default async function AccountPage() {
                 {(parents as Parent[] | null)?.map((parent) => (
                     <Card key={String(parent.parent_id)} className="mx-auto bg-white dark:bg-black shadow-md hover:shadow-lg transition-all duration-200 h-full mt-2">
                         <CardHeader>
-                            <CardTitle className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                                <div className="flex flex-row items-center">
-                                    {parent.first_name} {parent.last_name}
-                                    <Pencil className="relative left-20 w-4 h-4 text-zinc-500 dark:text-zinc-400" />
-                                </div>
+                            <CardTitle className="text-xl font-bold flex flex-row items-center justify-between gap-2">
+                                {parent.first_name} {parent.last_name}
+                                <ManageAccountCard userId={userId} phone={parent.phone ?? undefined} address={parent.address ?? undefined} city={parent.city ?? undefined} state={parent.state ?? undefined} zip_code={parent.zip_code ?? undefined} />
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
@@ -106,9 +107,9 @@ export default async function AccountPage() {
                     <h1 className="text-3xl font-bold">
                         Athletes
                     </h1>
-                    <ManageAthleteCard userId={userId} icon={<Plus className="w-4 h-4 text-white" />} />
+                    <ManageAthleteCard userId={userId} icon={<Plus className="w-4 h-4 text-white font-bold" />} />
                 </div>
-                <AthleteList userId={userId} athletes={athletes ?? []} />
+                <AthleteCardList userId={userId} athletes={athletes ?? []} />
             </div>
         </main>
         </div>

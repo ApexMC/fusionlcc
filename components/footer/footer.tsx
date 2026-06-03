@@ -44,7 +44,7 @@ const Footer = () => {
       </div>
 
       <div className="border-t border-zinc-200 dark:border-zinc-800 py-6 text-center text-sm text-zinc-700 dark:text-zinc-200">
-        © {new Date().getFullYear()} Fusion - Limitless Cheer Co. All rights reserved.
+        © {new Date().getFullYear()} Limitless Cheer Co. All rights reserved.
       </div>
     </footer>
   );

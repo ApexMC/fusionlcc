@@ -9,12 +9,16 @@ export default function FAQ() {
           Frequently Asked Questions
         </h1>
         <FAQCard
-          question="What is your inclement weather policy?"
-          answer="In the event of inclement weather, classes at Limitless Cheer and Gymnastics will be cancelled if Tell City Schools cancel their classes due to weather."
+          question="How do I register for classes?"
+          answer="Regstering for classes requires creating an account and adding at least one athlete to your profile. Navigate to the Classes page and click the 'Register' button on the class you want to register for. Complete the registration form and submit. Our staff will review your registration and reach out if any additional information is needed. Once your registration is approved, you will receive a confirmation email with details about the class schedule and next steps."
         />
         <FAQCard 
           question="How do I pay for classes?"
           answer={<span>Currently our payments are processed through <a className="text-purple-400" href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310">JackRabbit</a>. Visit the link to access your account and make payments through their platform. We are working on integrating payments directly through our website for a smoother experience.</span>}
+        />
+        <FAQCard
+          question="What is your inclement weather policy?"
+          answer="In the event of inclement weather, classes at Limitless Cheer and Gymnastics will be cancelled if Tell City Schools cancel their classes due to weather."
         />
         <FAQCard 
           question="What class should I enroll my child in?"

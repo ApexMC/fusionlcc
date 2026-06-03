@@ -1,16 +1,23 @@
 import { getClassSchedule } from "@/components/classes/class_schedules";
 import RegistrationForm from "@/components/classes/registration_form";
 import { notFound } from "next/navigation";
+import createClient from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 export default async function Register({
   params,
 }: {
   params: Promise<{className : string }>;
 }) {
+  const supabase = await createClient();
+  const { data: claims, error: claimsError } = await supabase.auth.getClaims();
+  if (claimsError || !claims?.claims?.sub) {
+      redirect("/login")
+  }
+
   const { className } = await params;
-    console.log("className:", className);
-    const classSchedule = getClassSchedule(className);
-    if (!classSchedule) return notFound();
+  const classSchedule = getClassSchedule(className);
+  if (!classSchedule) return notFound();
   return (
     <div className="flex flex-col flex-1 items-center justify-start bg-zinc-100 dark:bg-zinc-900 font-sans">
       <main className="flex flex-1 min-h-[50vh] w-full max-w-3xl flex-col items-center py-16 px-16 justify-center bg-zinc-100 dark:bg-zinc-900">

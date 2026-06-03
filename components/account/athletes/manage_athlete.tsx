@@ -118,7 +118,7 @@ export default function ManageAthleteCard({
                     </Field>
                     <Field>
                     <Label htmlFor="dob-1">Date of Birth</Label>
-                    <Input id="dob-1" name="dob" defaultValue={dob ?? ""} placeholder="MM/DD/YYYY"/>
+                    <Input id="dob-1" name="dob" type="date" defaultValue={dob ?? ""} placeholder="MM/DD/YYYY"/>
                     </Field>
                     <Field>
                     <Label htmlFor="shirt-1">Shirt Size</Label>
