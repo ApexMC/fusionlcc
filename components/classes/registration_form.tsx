@@ -87,7 +87,7 @@ export default function RegistrationForm({ classId, requestedClass }: { classId?
         subject: `LCC New Athlete Registration: ${selectedAthleteName}`,
         message: [
           `Parent Name: ${parent?.first_name} ${parent?.last_name}`,
-          `Child Name: ${selectedAthleteName}`,
+          `Athlete Name: ${selectedAthleteName}`,
           `Requested Class: ${requestedClass || ""}`,
           ``,
           `Address: ${parent?.address}, ${parent?.city}, ${parent?.state} ${parent?.zip_code}`,
