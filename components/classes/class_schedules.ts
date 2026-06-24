@@ -12,6 +12,7 @@ export type WeekTimes = {
 };
 
 export type ClassSchedule = {
+  id: number;
   slug: string;
   name: string;
   schedule: WeekTimes[]; // keep as array of week entries if needed
@@ -19,6 +20,7 @@ export type ClassSchedule = {
 
 export const schedule: ClassSchedule[] = [
   {
+    id: 1,
     name: "Me + 1 (2yr)",
     slug: "me-1-2yr",
     schedule: [
@@ -34,6 +36,7 @@ export const schedule: ClassSchedule[] = [
     ],
   },
   {
+    id: 2,
     name: "Me + 1 (3-4yr)",
     slug: "me-1-3-4yr",
     schedule: [
@@ -49,6 +52,7 @@ export const schedule: ClassSchedule[] = [
     ],
   },
   {
+    id: 3,
     name: "Preschool",
     slug: "preschool",
     schedule: [
@@ -64,6 +68,7 @@ export const schedule: ClassSchedule[] = [
     ],
   },
   {
+    id: 4,
     name: "Beginner / Level 1",
     slug: "beginner-level-1",
     schedule: [
@@ -78,7 +83,8 @@ export const schedule: ClassSchedule[] = [
       },
     ],
   },
-  {
+  { 
+    id: 5,
     name: "Adv. Beginner / Level 1.5",
     slug: "adv-beginner-level-1-5",
     schedule: [
@@ -94,6 +100,7 @@ export const schedule: ClassSchedule[] = [
     ],
   },
   {
+    id: 6,
     name: "Intermediate / Level 2",
     slug: "intermediate-level-2",
     schedule: [
@@ -109,6 +116,7 @@ export const schedule: ClassSchedule[] = [
     ],
   },
   {
+    id: 7,
     name: "Advanced / Level 3",
     slug: "advanced-level-3",
     schedule: [
@@ -124,6 +132,7 @@ export const schedule: ClassSchedule[] = [
     ],
   },
   {
+    id: 8,
     name: "Elite / Level 4",
     slug: "elite-level-4",
     schedule: [

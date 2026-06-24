@@ -24,7 +24,7 @@ export default async function Register({
         <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-4 text-center">
           Register for Classes
         </h1>
-        <RegistrationForm requestedClass={classSchedule.name}/>
+        <RegistrationForm classId={classSchedule.id} requestedClass={classSchedule.name}/>
       </main>
     </div>
   );

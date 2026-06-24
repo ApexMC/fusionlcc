@@ -6,23 +6,53 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 import createClient from "@/lib/supabase/client";
 
-const supabase = await createClient();
-const { data: claims } = await supabase.auth.getClaims();
-const userId = claims?.claims.sub;
-const { data: athletes } = await supabase
-    .from("Athletes")
-    .select("athlete_id, first_name, last_name")
-    .eq("user_id", userId);
-
-export default function RegistrationForm({ requestedClass }: { requestedClass?: string }) {
-  const [status, setStatus] = useState<
-    "idle" | "sending" | "success" | "error"
-  >("idle");
+export default function RegistrationForm({ classId, requestedClass }: { classId?: number; requestedClass?: string }) {
+  const classOptions = [
+  { id: 1, label: "Me + 1 (2yr)" },
+  { id: 2, label: "Me + 1 (3-4yr)" },
+  { id: 3, label: "Preschool" },
+  { id: 4, label: "Beginner / Level 1" },
+  { id: 5, label: "Adv. Beginner / Level 1.5" },
+  { id: 6, label: "Intermediate / Level 2" },
+  { id: 7, label: "Advanced / Level 3" },
+  { id: 8, label: "Elite / Level 4" },
+];
+  const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
-
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [athletes, setAthletes] = useState<Array<{ athlete_id: string; first_name: string; last_name: string }>>([]);
+  const [parent, setParent] = useState<any>(null);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    setMounted(true);
+    
+    async function fetchData() {
+      const supabase = await createClient();
+      const { data: claims } = await supabase.auth.getClaims();
+      const uid = claims?.claims.sub;
+      setUserId(uid);
+
+      if (uid) {
+        const { data: athletesData } = await supabase
+          .from("Athletes")
+          .select("athlete_id, first_name, last_name")
+          .eq("user_id", uid);
+        
+        const { data: parentData } = await supabase
+          .from("Parents")
+          .select("parent_id, first_name, last_name, phone, email, address, city, state, zip_code")
+          .eq("user_id", uid)
+          .single();
+
+        setAthletes(athletesData || []);
+        setParent(parentData);
+      }
+    }
+
+    fetchData();
+  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,36 +61,54 @@ export default function RegistrationForm({ requestedClass }: { requestedClass?: 
 
     const register = e.currentTarget;
     const registerData = new FormData(register);
-
-    const registerPayload = {
-      email: String(registerData.get("email") || ""),
-      subject: `LCC New Athlete Registration: ${String(registerData.get("childName") || "")}`,
-      message: [
-        `Parent Name: ${String(registerData.get("parentName") || "")}`,
-        `Child Name: ${String(registerData.get("childName") || "")}`,
-        `Child DOB: ${String(registerData.get("childDOB") || "")}`,
-        `Requested Class: ${String(registerData.get("requestedClass") || "")}`,
-        ``,
-        `Address: ${String(registerData.get("address") || "")}, ${String(registerData.get("city") || "")}, ${String(registerData.get("state") || "")} ${String(registerData.get("zipCode") || "")}`,
-        `Phone Number: ${String(registerData.get("phoneNumber") || "")}`,
-        `Email: ${String(registerData.get("email") || "")}`,
-      ].join("\n"),
-    };
+    const supabase = await createClient();
 
     try {
+      // Get athlete_id from selected athlete name
+      const selectedAthleteName = String(registerData.get("childName") || "");
+      const selectedAthlete = athletes.find(
+        (a) => `${a.first_name} ${a.last_name}` === selectedAthleteName
+      );
+
+      // Insert enrollment record
+      const { error: dbError } = await supabase
+        .from("Enrollments")
+        .insert([{
+          athlete_id: selectedAthlete?.athlete_id,
+          class_id: classId,
+          status: "pending",
+        }]);
+
+      if (dbError) throw new Error("Failed to save enrollment: " + dbError.message);
+
+      // Send confirmation email
+      const emailPayload = {
+        email: parent?.email || "",
+        subject: `LCC New Athlete Registration: ${selectedAthleteName}`,
+        message: [
+          `Parent Name: ${parent?.first_name} ${parent?.last_name}`,
+          `Child Name: ${selectedAthleteName}`,
+          `Requested Class: ${requestedClass || ""}`,
+          ``,
+          `Address: ${parent?.address}, ${parent?.city}, ${parent?.state} ${parent?.zip_code}`,
+          `Phone Number: ${parent?.phone}`,
+          `Email: ${parent?.email}`,
+        ].join("\n"),
+      };
+
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(registerPayload),
+        body: JSON.stringify(emailPayload),
       });
 
       const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) throw new Error(data?.error || "Failed to send message.");
+      if (!res.ok) throw new Error(data?.error || "Failed to send email.");
 
       setStatus("success");
       setMessage("Thanks! Your registration has been submitted.");
       register.reset();
+
     } catch (err: any) {
       setStatus("error");
       setMessage(err?.message || "Something went wrong. Please try again.");
@@ -78,186 +126,68 @@ export default function RegistrationForm({ requestedClass }: { requestedClass?: 
           height={125}
           className="mx-auto"
         />
-        <div className="grid gap-5 md:grid-cols-2">
-        <div>
-            <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-            Parent / Guardian Name
-            </label>
-            <input
-            name="parentName"
-            required
-            className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-            />
-        </div>
-
-        <div>
-            <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-            Athlete Name
-            </label>
-            <select
-            name="childName"
-            required
-            className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-            >
-            {athletes?.map((athlete) => (
-                <option key={athlete.athlete_id} value={athlete.first_name + " " + athlete.last_name}>
-                {athlete.first_name} {athlete.last_name}
-                </option>
-            ))}
-            </select>
-        </div>
-        </div>
-
-        <div>
-        <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-            Childs Date of Birth
-        </label>
-        <input
-            name="childDOB"
-            type="date"
-            required
-            className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-        />
-        </div>
-
-        <div>
-        <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-            Phone Number
-        </label>
-        <input
-            name="phoneNumber"
-            required
-            className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-        />
-        </div>
-
-        <div>
-        <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-            Email Address
-        </label>
-        <input
-            name="email"
-            required
-            className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-        />
-        </div>
-
-        <div>
-        <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-            Requested Class
-        </label>
-            <select 
-                className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-                name="requestedClass"
-                defaultValue={requestedClass ?? ""}
-            >
-                <option value="Me + 1 (2yr)">Me + 1 (2yr)</option>
-                <option value="Me + 1 (3-4yr)">Me + 1 (3-4yr)</option>
-                <option value="Preschool">Preschool</option>
-                <option value="Beginner / Level 1">Beginner / Level 1</option>
-                <option value="Adv. Beginner / Level 1.5">Advanced Beginner / Level 1.5</option>
-                <option value="Intermediate / Level 2">Intermediate / Level 2</option>
-                <option value="Advanced / Level 3">Advanced / Level 3</option>
-                <option value="Elite / Level 4">Elite / Level 4</option>
-            </select>
-        </div>
-
-        <div className="mt-10 mb-8 mx-auto flex justify-center" aria-hidden="true">
+        <div className="mt-4 mb-8 mx-auto flex justify-center" aria-hidden="true">
             <div className="h-1.5 w-sm rounded-full bg-linear-to-r from-purple-600 to-purple-600" />
         </div>
-
         <div className="grid gap-5 md:grid-cols-2">
             <div>
                 <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                    Home Address
+                    Athlete Name
                 </label>
-                <textarea
-                    name="address"
+                <select
+                    name="childName"
                     required
-                    rows={1}
-                    className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-                />
+                    className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                >
+                {athletes?.map((athlete) => (
+                    <option key={athlete.athlete_id} value={athlete.first_name + " " + athlete.last_name}>
+                    {athlete.first_name} {athlete.last_name}
+                    </option>
+                ))}
+                </select>
             </div>
-            <div>
-                <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                    City
-                </label>
-                <textarea
-                    name="city"
-                    required
-                    rows={1}
-                    className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-                />
-            </div>
-        </div>
 
-        <div className="grid gap-5 md:grid-cols-3">
             <div>
                 <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                    State
+                    Requested Class
                 </label>
                 <select 
-                    name="state"
-                    required
-                    className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50">
-                    <option value="">Choose a state</option>
-
-                    {US_STATES.map((state) => (
-                        <option key={state.value} value={state.value}>
-                        {state.label}
+                    className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                    name="requestedClass"
+                    defaultValue={classId ? classId - 1 : ""}
+                >
+                    {classOptions.map((option, index) => (
+                        <option key={option.id} value={index}>
+                        {option.label}
                         </option>
                     ))}
                 </select>
             </div>
-            <div>
-                <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                    Zip Code
-                </label>
-                <input
-                    name="zipCode"
-                    required
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d*"
-                    maxLength={10}
-                    className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-                />
-            </div>
-            <div>
-                <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                    Country
-                </label>
-                <input
-                    name="country"
-                    readOnly
-                    value="United States"
-                    type="text"
-                    className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-                />
-            </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={status === "sending"}
-          className="mt-4 inline-flex items-center justify-center rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-60 dark:text-white dark:hover:bg-purple-700"
-          >
-          {status === "sending" ? "Sending..." : "Register"}
-        </button>
+        <div className="flex flex-col gap-3 items-center justify-center">
+            <button
+                type="submit"
+                disabled={status === "sending"}
+                className="mt-4 inline-flex items-center justify-center mx-auto rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-60 dark:text-white dark:hover:bg-purple-700"
+                >
+                {status === "sending" ? "Sending..." : "Request Enrollment"}
+            </button>
 
-        {message ? (
-        <p
-            className={`text-sm ${
-            status === "success"
-                ? "text-emerald-600 dark:text-emerald-400"
-                : status === "error"
-                ? "text-red-600 dark:text-red-400"
-                : "text-zinc-600 dark:text-zinc-400"
-            }`}
-        >
-            {message}
-        </p>
-        ) : null}
+            {message ? (
+            <p
+                className={`text-sm ${
+                status === "success"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : status === "error"
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-zinc-600 dark:text-zinc-400"
+                }`}
+            >
+                {message}
+            </p>
+            ) : null}
+        </div>
     </form>
   );
 }

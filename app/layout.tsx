@@ -9,12 +9,14 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
   title: "Limitless Cheer & Gymnastics",
   description: "Limitless Cheer & Gymnastics, a premier cheerleading and gymnastics gym located in the heart of Tell City.",
+  applicationName: "Limitless Cheer & Gymnastics",
+  authors: [{ name: "Limitless Cheer & Gymnastics LLC" }],
+  metadataBase: new URL("https://fusionlcc.com"),
   icons: {
     icon: [
       { url: "/icon0.png", sizes: "32x32", type: "image/png" },
