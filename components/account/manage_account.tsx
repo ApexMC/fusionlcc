@@ -63,7 +63,7 @@ export default function ManageAccountCard({
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button className="bg-transparent hover:bg-zinc-400 text-white font-bold" type="button" variant="outline"><Pencil className="w-4 h-4" /></Button>
+                <Button className="bg-transparent hover:bg-zinc-300 text-white font-bold" type="button" variant="outline"><Pencil className="w-4 h-4 text-zinc-500 dark:text-zinc-400" /></Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-sm">
                 <form onSubmit={handleSubmit}>

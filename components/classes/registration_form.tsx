@@ -1,6 +1,5 @@
 "use client";
 
-import US_STATES from "@/utils/us_states";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
@@ -24,12 +23,15 @@ export default function RegistrationForm({ classId, requestedClass }: { classId?
   const [athletes, setAthletes] = useState<Array<{ athlete_id: string; first_name: string; last_name: string }>>([]);
   const [parent, setParent] = useState<any>(null);
   const [userId, setUserId] = useState<string | undefined>(undefined);
+  const supabase = createClient();
+  const [selectedClassId, setSelectedClassId] = useState<number | "">(
+    classId ? classId - 1 : ""
+  );
 
   useEffect(() => {
     setMounted(true);
     
     async function fetchData() {
-      const supabase = await createClient();
       const { data: claims } = await supabase.auth.getClaims();
       const uid = claims?.claims.sub;
       setUserId(uid);
@@ -61,11 +63,11 @@ export default function RegistrationForm({ classId, requestedClass }: { classId?
 
     const register = e.currentTarget;
     const registerData = new FormData(register);
-    const supabase = await createClient();
 
     try {
       // Get athlete_id from selected athlete name
       const selectedAthleteName = String(registerData.get("childName") || "");
+      const selectedClassName = classOptions[selectedClassId as number]?.label || "";
       const selectedAthlete = athletes.find(
         (a) => `${a.first_name} ${a.last_name}` === selectedAthleteName
       );
@@ -75,7 +77,7 @@ export default function RegistrationForm({ classId, requestedClass }: { classId?
         .from("Enrollments")
         .insert([{
           athlete_id: selectedAthlete?.athlete_id,
-          class_id: classId,
+          class_id: Number(selectedClassId) + 1,
           status: "pending",
         }]);
 
@@ -88,7 +90,7 @@ export default function RegistrationForm({ classId, requestedClass }: { classId?
         message: [
           `Parent Name: ${parent?.first_name} ${parent?.last_name}`,
           `Athlete Name: ${selectedAthleteName}`,
-          `Requested Class: ${requestedClass || ""}`,
+          `Requested Class: ${selectedClassName}`,
           ``,
           `Address: ${parent?.address}, ${parent?.city}, ${parent?.state} ${parent?.zip_code}`,
           `Phone Number: ${parent?.phone}`,
@@ -107,7 +109,6 @@ export default function RegistrationForm({ classId, requestedClass }: { classId?
 
       setStatus("success");
       setMessage("Thanks! Your registration has been submitted.");
-      register.reset();
 
     } catch (err: any) {
       setStatus("error");
@@ -154,11 +155,12 @@ export default function RegistrationForm({ classId, requestedClass }: { classId?
                 <select 
                     className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
                     name="requestedClass"
-                    defaultValue={classId ? classId - 1 : ""}
+                    onChange={(e) => setSelectedClassId(Number(e.target.value))}
+                    value={selectedClassId}
                 >
                     {classOptions.map((option, index) => (
                         <option key={option.id} value={index}>
-                        {option.label}
+                            {option.label}
                         </option>
                     ))}
                 </select>

@@ -3,6 +3,20 @@
 import { Field, FieldGroup } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button";
 import createClient from "@/lib/supabase/client"
 import { useState } from "react"
@@ -39,6 +53,7 @@ export default function ManageAthleteCard({
     const supabase = createClient()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [shirtSize, setShirtSize] = useState<string | undefined>(shirt_size)
     const [error, setError] = useState<string | null>(null)
     
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -51,7 +66,7 @@ export default function ManageAthleteCard({
     const last_name = form.get("last_name")?.toString() ?? ""
     const phone = form.get("phone")?.toString() ?? ""
     const dob = form.get("dob")?.toString() ?? ""
-    const shirt_size = form.get("shirt")?.toString() ?? ""
+    const shirt_size = shirtSize ?? ""
     const user_id = userId
 
     const { data, error } = athleteId ? await supabase
@@ -91,7 +106,7 @@ export default function ManageAthleteCard({
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button className={athleteId ? "bg-transparent hover:bg-zinc-400 text-white font-bold" : "bg-purple-500 dark:bg-purple-500 dark:hover:bg-purple-600 hover:bg-purple-600 text-white font-bold"} type="button" variant="outline">{icon}</Button>
+                <Button className={athleteId ? "bg-transparent hover:bg-zinc-300 text-white font-bold" : "bg-purple-500 dark:bg-purple-500 dark:hover:bg-purple-600 hover:bg-purple-600 text-white font-bold"} type="button" variant="outline">{icon}</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-sm">
                 <form onSubmit={handleSubmit}>
@@ -122,7 +137,19 @@ export default function ManageAthleteCard({
                     </Field>
                     <Field>
                     <Label htmlFor="shirt-1">Shirt Size</Label>
-                    <Input id="shirt-1" name="shirt" defaultValue={shirt_size ?? ""} placeholder="M" />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline">{shirtSize ?? "Select Size"}</Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuGroup>
+                                <DropdownMenuItem onClick={() => setShirtSize("S")}>S</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setShirtSize("M")}>M</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setShirtSize("L")}>L</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setShirtSize("XL")}>XL</DropdownMenuItem>
+                            </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     </Field>
                 </FieldGroup>
                 {error && <div className="text-sm text-red-600 mb-2">{error}</div>}

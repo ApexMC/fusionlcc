@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Card } from "@/components/ui/card"
+import AddParentCard from "@/components/account/parents/add_parent"
 
 interface DataTableProps<TData, TValue> {
   title: string
@@ -57,21 +58,24 @@ export function DataTable<TData, TValue>({
         <h1 className="text-2xl font-bold">
           {title}
         </h1>
-        <div className="flex flex-row gap-3 items-center mb-2">
-          <Input
-            placeholder="Filter by last name..."
-            value={(table.getColumn("last_name")?.getFilterValue() as string) ?? ""}
-            onChange={(event) =>
-              table.getColumn("last_name")?.setFilterValue(event.target.value)
-            }
-            className="max-w-sm"
-          />
-          {table.getRowModel().rows?.length ? (
-            <p className="text-sm text-muted-foreground">
-              {table.getFilteredRowModel().rows.length} of{" "}
-              {table.getCoreRowModel().rows.length} results
-            </p>
-          ) : null}
+        <div className="flex flex-row gap-3 justify-between mb-2">
+          <div className="flex flex-row gap-3 items-center">
+            <Input
+              placeholder="Filter by last name..."
+              value={(table.getColumn("last_name")?.getFilterValue() as string) ?? ""}
+              onChange={(event) =>
+                table.getColumn("last_name")?.setFilterValue(event.target.value)
+              }
+              className="max-w-sm"
+            />
+            {table.getRowModel().rows?.length ? (
+              <p className="text-sm text-muted-foreground">
+                {table.getFilteredRowModel().rows.length} of{" "}
+                {table.getCoreRowModel().rows.length} results
+              </p>
+            ) : null}
+          </div>
+          <AddParentCard />
         </div>
         <div className="flex-1 overflow-auto rounded-md border">
           <Table>
