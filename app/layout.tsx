@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme/theme-provider"
 import Banner from "@/components/banner/banner";
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { ToastProvider } from "@/components/ui/toast";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 const inter = Inter({ subsets: ["latin"] });
@@ -40,10 +41,12 @@ export default function RootLayout({
           defaultTheme="dark"
           enableSystem
         >
-          <Banner />
-          <Navigation />
-          {children}
-          <Footer />
+          <ToastProvider>
+            <Banner />
+            <Navigation />
+            {children}
+            <Footer />
+          </ToastProvider>
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />

@@ -54,7 +54,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="w-full flex flex-col items-start max-h-125">
-      <Card className="w-full border p-4 flex flex-col">
+      <Card className="w-full bg-white dark:bg-black p-4 flex flex-col">
         <h1 className="text-2xl font-bold">
           {title}
         </h1>

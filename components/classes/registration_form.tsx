@@ -2,10 +2,22 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { useTheme } from "next-themes";
 import createClient from "@/lib/supabase/client";
+import { requestEnrollment } from "@/app/actions/enrollments";
 
-export default function RegistrationForm({ classId, requestedClass }: { classId?: number; requestedClass?: string }) {
+type Parent = {
+  parent_id: string | number;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+}
+
+export default function RegistrationForm({ classId }: { classId?: number }) {
   const classOptions = [
   { id: 1, label: "Me + 1 (2yr)" },
   { id: 2, label: "Me + 1 (3-4yr)" },
@@ -18,23 +30,17 @@ export default function RegistrationForm({ classId, requestedClass }: { classId?
 ];
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [athletes, setAthletes] = useState<Array<{ athlete_id: string; first_name: string; last_name: string }>>([]);
-  const [parent, setParent] = useState<any>(null);
-  const [userId, setUserId] = useState<string | undefined>(undefined);
-  const supabase = createClient();
+  const [parent, setParent] = useState<Parent | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<number | "">(
     classId ? classId - 1 : ""
   );
 
   useEffect(() => {
-    setMounted(true);
-    
     async function fetchData() {
+      const supabase = createClient();
       const { data: claims } = await supabase.auth.getClaims();
       const uid = claims?.claims.sub;
-      setUserId(uid);
 
       if (uid) {
         const { data: athletesData } = await supabase
@@ -72,16 +78,18 @@ export default function RegistrationForm({ classId, requestedClass }: { classId?
         (a) => `${a.first_name} ${a.last_name}` === selectedAthleteName
       );
 
-      // Insert enrollment record
-      const { error: dbError } = await supabase
-        .from("Enrollments")
-        .insert([{
-          athlete_id: selectedAthlete?.athlete_id,
-          class_id: Number(selectedClassId) + 1,
-          status: "pending",
-        }]);
+      if (!selectedAthlete || selectedClassId === "") {
+        throw new Error("Please choose an athlete and class.");
+      }
 
-      if (dbError) throw new Error("Failed to save enrollment: " + dbError.message);
+      const enrollmentResult = await requestEnrollment({
+        athleteId: String(selectedAthlete.athlete_id),
+        classId: Number(selectedClassId) + 1,
+      });
+
+      if (!enrollmentResult.ok) {
+        throw new Error(enrollmentResult.message);
+      }
 
       // Send confirmation email
       const emailPayload = {
@@ -110,9 +118,9 @@ export default function RegistrationForm({ classId, requestedClass }: { classId?
       setStatus("success");
       setMessage("Thanks! Your registration has been submitted.");
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus("error");
-      setMessage(err?.message || "Something went wrong. Please try again.");
+      setMessage(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     }
   }
 

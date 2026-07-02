@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
-import createClient from "@/lib/supabase/server";
 import { formatPhoneNumber } from "@/functions/shared_functions";
+import { getAccountSession, requireAdminSession } from "@/lib/account/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET() {
-  const supabase = await createClient();
+  try {
+    requireAdminSession(await getAccountSession());
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("Parents")
     .select("*")
