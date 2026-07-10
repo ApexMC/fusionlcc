@@ -7,13 +7,19 @@ export function EnrollmentStatusBadge({
 }) {
   const normalized = (status ?? "unknown").toLowerCase()
   const variant =
-    normalized === "approved" || normalized === "active"
+    normalized === "approved" ||
+    normalized === "active" ||
+    normalized === "paid" ||
+    normalized === "trialing"
       ? "success"
-      : normalized === "pending"
+      : normalized === "pending" || normalized === "ready_to_pay"
         ? "warning"
         : normalized === "denied" ||
             normalized === "canceled" ||
-            normalized === "payment_failed"
+            normalized === "payment_failed" ||
+            normalized === "past_due" ||
+            normalized === "unpaid" ||
+            normalized === "incomplete"
           ? "destructive"
           : "outline"
 

@@ -1,14 +1,31 @@
 import ParentList from "@/components/account/parents/parent_list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { formatPhoneNumber } from "@/functions/shared_functions";
-import { Phone, Mail, MapPin, Plus } from "lucide-react";
+import {
+    BarChart3,
+    CalendarDays,
+    ClipboardCheck,
+    CreditCard,
+    ListChecks,
+    Phone,
+    Mail,
+    MapPin,
+    Plus,
+    UserRound,
+    Users,
+} from "lucide-react";
 import { redirect } from "next/navigation";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
 import AthleteCardList from "@/components/account/athletes/athlete_card";
 import ManageAccountCard from "@/components/account/manage_account";
 import { AdminMetrics } from "@/components/account/admin/admin_metrics";
 import { AdminCharts } from "@/components/account/admin/admin_charts";
-import { PendingEnrollmentReview } from "@/components/account/admin/pending_enrollment_review";
+import { OperationsSummary } from "@/components/account/admin/operations_summary";
+import { EnrollmentManagement } from "@/components/account/admin/enrollment_management";
+import { ClassBillingManager } from "@/components/account/admin/class_billing_manager";
+import { ClassScheduleManager } from "@/components/account/admin/class_schedule_manager";
+import { ClassSessionReview } from "@/components/account/admin/class_session_review";
 import { ParentEnrollments } from "@/components/account/parent_enrollments";
 import { getAccountSession, getParentForUser } from "@/lib/account/auth";
 import {
@@ -17,6 +34,49 @@ import {
 } from "@/lib/account/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ParentRecord } from "@/lib/account/types";
+
+const adminDashboardSections = [
+    {
+        id: "operations",
+        label: "Operations",
+        icon: ListChecks,
+    },
+    {
+        id: "metrics",
+        label: "Metrics",
+        icon: BarChart3,
+    },
+    {
+        id: "charts",
+        label: "Charts",
+        icon: BarChart3,
+    },
+    {
+        id: "enrollments",
+        label: "Enrollments",
+        icon: Users,
+    },
+    {
+        id: "billing",
+        label: "Billing",
+        icon: CreditCard,
+    },
+    {
+        id: "schedules",
+        label: "Schedules",
+        icon: CalendarDays,
+    },
+    {
+        id: "sessions",
+        label: "Sessions",
+        icon: ClipboardCheck,
+    },
+    {
+        id: "customers",
+        label: "Customers",
+        icon: UserRound,
+    },
+];
 
 export default async function AccountPage() {
     const session = await getAccountSession();
@@ -43,7 +103,7 @@ export default async function AccountPage() {
             ...athlete,
             athlete_id: Number(athlete.athlete_id),
         }));
-        const athleteEnrollments = await getParentAthleteEnrollments(session.userId);
+        const parentEnrollmentData = await getParentAthleteEnrollments(session.userId);
             
         return (
         <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans">
@@ -100,7 +160,9 @@ export default async function AccountPage() {
                     <AthleteCardList userId={session.userId} athletes={athleteCards} />
                 </div>
             </div>
-            <ParentEnrollments athletes={athleteEnrollments} />
+            <ParentEnrollments
+                athletes={parentEnrollmentData.athletes}
+            />
         </main>
         </div>
         );
@@ -117,15 +179,65 @@ export default async function AccountPage() {
                     <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-4">
                         Dashboard
                     </h1>
-                    <AdminMetrics metrics={dashboardData.metrics} />
-                    <AdminCharts
-                        statusBreakdown={dashboardData.statusBreakdown}
-                        monthlyTrend={dashboardData.monthlyTrend}
-                    />
-                    <PendingEnrollmentReview enrollments={dashboardData.pendingEnrollments} />
-                    <div className="flex flex-col items-center justify-center gap-6 w-full">
+                    <nav
+                        aria-label="Dashboard sections"
+                        className="sticky top-2 z-20 flex w-full flex-wrap items-center justify-center gap-2 rounded-lg p-2 shadow-sm backdrop-blur dark:bg-black/90"
+                    >
+                        {adminDashboardSections.map((section) => {
+                            const Icon = section.icon;
+
+                            return (
+                                <Button
+                                    key={section.id}
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                >
+                                    <a href={`#${section.id}`}>
+                                        <Icon />
+                                        {section.label}
+                                    </a>
+                                </Button>
+                            );
+                        })}
+                    </nav>
+                    <section id="operations" className="w-full scroll-mt-24">
+                        <OperationsSummary actionItems={dashboardData.actionItems} />
+                    </section>
+                    <section id="metrics" className="w-full scroll-mt-24">
+                        <AdminMetrics metrics={dashboardData.metrics} />
+                    </section>
+                    <section id="charts" className="w-full scroll-mt-24">
+                        <AdminCharts
+                            statusBreakdown={dashboardData.statusBreakdown}
+                            monthlyTrend={dashboardData.monthlyTrend}
+                        />
+                    </section>
+                    <section id="enrollments" className="w-full scroll-mt-24">
+                        <EnrollmentManagement
+                            enrollments={dashboardData.allEnrollments}
+                            athletes={dashboardData.enrollmentAthletes}
+                            classes={dashboardData.classBilling}
+                        />
+                    </section>
+                    <section id="billing" className="w-full scroll-mt-24">
+                        <ClassBillingManager classes={dashboardData.classBilling} />
+                    </section>
+                    <section id="schedules" className="w-full scroll-mt-24">
+                        <ClassScheduleManager
+                            schedules={dashboardData.classSchedules}
+                            classes={dashboardData.classBilling}
+                        />
+                    </section>
+                    <section id="sessions" className="w-full scroll-mt-24">
+                        <ClassSessionReview sessions={dashboardData.classSessions} />
+                    </section>
+                    <section
+                        id="customers"
+                        className="flex w-full scroll-mt-24 flex-col items-center justify-center gap-6"
+                    >
                         <ParentList />
-                    </div>
+                    </section>
                 </div>
             </main>
         </div>

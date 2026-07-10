@@ -4,8 +4,8 @@ import { Field, FieldGroup } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button";
-import createClient from "@/lib/supabase/client"
 import { useState } from "react"
+import { createParent } from "@/app/actions/parents"
 import {
   Dialog,
   DialogClose,
@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { useToast } from "@/components/ui/toast"
 import { Plus } from "lucide-react";
 
 export default function AddParentCard({
@@ -23,7 +24,6 @@ export default function AddParentCard({
     ,last_name
     ,email
     ,phone
-    ,dob
     ,address
     ,city
     ,state
@@ -33,16 +33,15 @@ export default function AddParentCard({
     ,last_name?: string
     ,email?: string
     ,phone?: string
-    ,dob?: string
     ,address?: string
     ,city?: string
     ,state?: string
     ,zip_code?: string}
     ) {
-    const supabase = createClient()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const { toast } = useToast()
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -53,33 +52,58 @@ export default function AddParentCard({
         const first_name = form.get("first_name")?.toString() ?? ""
         const last_name = form.get("last_name")?.toString() ?? ""
         const email = form.get("email")?.toString() ?? ""
-        const dob = form.get("dob")?.toString() ?? ""
         const phone = form.get("phone")?.toString() ?? ""
         const address = form.get("address")?.toString() ?? ""
         const city = form.get("city")?.toString() ?? ""
         const state = form.get("state")?.toString() ?? ""
         const zip_code = form.get("zip_code")?.toString() ?? ""
 
-        const { data, error } = await supabase
-        .from("Parents")
-        .insert([{
-          first_name
-          ,last_name
-          ,phone
-          ,email
-          ,dob
-          ,address
-          ,city
-          ,state
-          ,zip_code
-        }]);
-        // close dialog and refresh current route so lists update
+        try {
+            const result = await createParent({
+                firstName: first_name,
+                lastName: last_name,
+                phone,
+                email,
+                address,
+                city,
+                state,
+                zipCode: zip_code,
+            })
+
+            if (!result.ok) {
+                setError(result.message)
+                toast({
+                    title: "Parent create failed",
+                    description: result.message,
+                    variant: "error",
+                })
+                return
+            }
+
+            toast({
+                title: "Parent created",
+                description: result.message,
+                variant: "success",
+            })
+        } catch (caughtError) {
+            const message =
+                caughtError instanceof Error ? caughtError.message : "Please try again."
+            setError(message)
+            toast({
+                title: "Parent create failed",
+                description: message,
+                variant: "error",
+            })
+            return
+        } finally {
+            setLoading(false)
+        }
         setOpen(false)
         window.location.reload()
     }
 
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button className="bg-transparent hover:bg-zinc-300 text-white font-bold" type="button" variant="outline"><Plus className="w-4 h-4 text-zinc-500 dark:text-zinc-400" /></Button>
             </DialogTrigger>
@@ -107,10 +131,6 @@ export default function AddParentCard({
                     <Field>
                         <Label htmlFor="phone-1">Phone</Label>
                         <Input id="phone-1" name="phone" defaultValue={phone ?? ""} placeholder="(123) 456-7890"/>
-                    </Field>
-                    <Field>
-                        <Label htmlFor="dob-1">Date of Birth</Label>
-                        <Input id="dob-1" name="dob" defaultValue={dob ?? ""} placeholder="YYYY-MM-DD"/>
                     </Field>
                     <Field>
                         <Label htmlFor="address-1">Address</Label>

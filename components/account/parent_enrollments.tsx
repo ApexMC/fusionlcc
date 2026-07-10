@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { CreditCard, Eye, Settings } from "lucide-react"
+import { CreditCard, Eye, Settings, X } from "lucide-react"
+import { useRouter } from "next/navigation"
 
+import { cancelEnrollmentRequest } from "@/app/actions/enrollments"
 import { EnrollmentStatusBadge } from "@/components/account/enrollment_status_badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -50,6 +52,7 @@ export function ParentEnrollments({
   const [busyKey, setBusyKey] = React.useState<string | null>(null)
   const [selectedEnrollment, setSelectedEnrollment] =
     React.useState<EnrollmentDisplayRecord | null>(null)
+  const router = useRouter()
   const { toast } = useToast()
 
   async function openStripeSession(
@@ -83,6 +86,39 @@ export function ParentEnrollments({
           error instanceof Error ? error.message : "Please try again.",
         variant: "error",
       })
+      setBusyKey(null)
+    }
+  }
+
+  async function cancelRequest(enrollment: EnrollmentDisplayRecord) {
+    setBusyKey(`cancel-${enrollment.enrollmentId}`)
+
+    try {
+      const result = await cancelEnrollmentRequest(enrollment.enrollmentId)
+
+      if (!result.ok) {
+        toast({
+          title: "Cancel failed",
+          description: result.message,
+          variant: "error",
+        })
+        return
+      }
+
+      toast({
+        title: "Request canceled",
+        description: result.message,
+        variant: "success",
+      })
+      router.refresh()
+    } catch (error) {
+      toast({
+        title: "Cancel failed",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "error",
+      })
+    } finally {
       setBusyKey(null)
     }
   }
@@ -177,6 +213,21 @@ export function ParentEnrollments({
                                 {busyKey === `portal-${enrollment.enrollmentId}`
                                   ? "Opening"
                                   : "Manage"}
+                              </Button>
+                            ) : null}
+                            {enrollment.status === "pending" ? (
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                disabled={Boolean(busyKey)}
+                                onClick={() => cancelRequest(enrollment)}
+                              >
+                                <X />
+                                {busyKey ===
+                                `cancel-${enrollment.enrollmentId}`
+                                  ? "Canceling"
+                                  : "Cancel"}
                               </Button>
                             ) : null}
                           </div>

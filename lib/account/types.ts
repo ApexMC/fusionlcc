@@ -110,7 +110,13 @@ export type TrendDatum = {
 
 export type AdminDashboardData = {
   metrics: EnrollmentMetric[]
+  actionItems: OperationsActionItem[]
   pendingEnrollments: EnrollmentDisplayRecord[]
+  allEnrollments: EnrollmentDisplayRecord[]
+  enrollmentAthletes: AdminEnrollmentAthleteOption[]
+  classBilling: ClassBillingRecord[]
+  classSchedules: ClassScheduleDisplayRecord[]
+  classSessions: ClassSessionDisplayRecord[]
   statusBreakdown: ChartDatum[]
   monthlyTrend: TrendDatum[]
 }
@@ -120,3 +126,84 @@ export type ParentAthleteEnrollment = {
   athleteName: string
   enrollments: EnrollmentDisplayRecord[]
 }
+
+export type AdminEnrollmentAthleteOption = {
+  athleteId: string
+  athleteName: string
+  parentName: string
+  parentId: string | null
+  parentEmail: string | null
+}
+
+export type OperationsActionItem = {
+  label: string
+  value: string
+  detail: string
+  tone: "default" | "warning" | "danger" | "success"
+}
+
+export type ClassBillingRecord = {
+  classId: string
+  className: string
+  classType: string | null
+  programType: string | null
+  billingDay: number | null
+  stripePriceId: string | null
+  createdAt: string | null
+  source: "database" | "schedule"
+}
+
+export type ClassOption = {
+  classId: string
+  className: string
+  classType: string | null
+  programType: string | null
+  billingDay: number | null
+  scheduleSummary: string | null
+  stripePriceId: string | null
+}
+
+export type ClassScheduleDisplayRecord = {
+  scheduleId: string
+  classId: string | null
+  className: string
+  dayOfWeek: string
+  startTime: string | null
+  endTime: string | null
+  isActive: boolean
+  createdAt: string | null
+  scheduleLabel: string
+}
+
+export type ClassSessionExpectedAthlete = {
+  athleteId: string
+  athleteName: string
+  enrollmentId: string
+  enrollmentStatus: string
+  parentName: string
+  parentEmail: string | null
+  attendanceStatus: ClassSessionAttendanceStatus | null
+  attendanceNotes: string | null
+  attendanceReviewedAt: string | null
+  attendanceReviewedBy: string | null
+}
+
+export type ClassSessionDisplayRecord = {
+  sessionId: string
+  classId: string | null
+  className: string
+  scheduleId: string | null
+  scheduleLabel: string | null
+  sessionDate: string | null
+  startsAt: string | null
+  endsAt: string | null
+  status: string
+  expectedAthletes: ClassSessionExpectedAthlete[]
+}
+
+export type ClassSessionAttendanceStatus =
+  | "present"
+  | "absent"
+  | "excused"
+  | "late"
+  | string

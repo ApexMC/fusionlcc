@@ -5,12 +5,20 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getStripe } from "@/lib/stripe/server"
 import type {
   AdminDashboardData,
+  AdminEnrollmentAthleteOption,
   AthleteRecord,
+  ClassBillingRecord,
+  ClassOption,
   ChartDatum,
   ClassRecord,
+  ClassSessionAttendanceStatus,
+  ClassScheduleDisplayRecord,
+  ClassSessionDisplayRecord,
+  ClassSessionExpectedAthlete,
   EnrollmentDisplayRecord,
   EnrollmentMetric,
   EnrollmentRecord,
+  OperationsActionItem,
   ParentAthleteEnrollment,
   ParentRecord,
   TrendDatum,
@@ -55,12 +63,109 @@ const enrollmentSelectBase = `
   Classes(class_id, class_name, type)
 `
 
+type ClassScheduleRow = {
+  schedule_id: string | number
+  class_id?: string | number | null
+  day_of_week?: string | number | null
+  start_time?: string | null
+  end_time?: string | null
+  is_active?: boolean | null
+  created_at?: string | null
+}
+
+type ClassSessionRow = {
+  session_id: string | number
+  class_id?: string | number | null
+  schedule_id?: string | number | null
+  session_date?: string | null
+  starts_at?: string | null
+  ends_at?: string | null
+  status?: string | null
+}
+
+type ClassSessionAttendanceRow = {
+  attendance_id?: string | number
+  session_id?: string | number | null
+  enrollment_id?: string | number | null
+  athlete_id?: string | number | null
+  attendance_status?: ClassSessionAttendanceStatus | null
+  notes?: string | null
+  reviewed_at?: string | null
+  reviewed_by?: string | null
+}
+
+const dayOrder = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+]
+
 function firstRelation<T>(value: T | T[] | null | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
 
 function toId(value: string | number | null | undefined) {
   return value === null || value === undefined ? null : String(value)
+}
+
+function normalizeDay(value: string | number | null | undefined) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (value === 0 || value === 7) {
+      return "sunday"
+    }
+
+    return dayOrder[value - 1] ?? String(value)
+  }
+
+  const normalized = String(value ?? "").trim().toLowerCase()
+  const numericDay = Number(normalized)
+
+  if (normalized && Number.isInteger(numericDay)) {
+    return normalizeDay(numericDay)
+  }
+
+  return normalized
+}
+
+function formatDay(value: string | number | null | undefined) {
+  const normalized = normalizeDay(value)
+
+  if (!normalized) {
+    return "Unscheduled"
+  }
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
+function formatTime(value: string | null | undefined) {
+  if (!value) {
+    return "Time TBD"
+  }
+
+  const [hourText, minuteText = "00"] = value.split(":")
+  const hour = Number(hourText)
+  const minute = Number(minuteText)
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) {
+    return value
+  }
+
+  const period = hour >= 12 ? "PM" : "AM"
+  const displayHour = hour % 12 || 12
+
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`
+}
+
+function formatScheduleLabel(
+  dayOfWeek: string | number | null | undefined,
+  startTime: string | null | undefined,
+  endTime: string | null | undefined
+) {
+  return `${formatDay(dayOfWeek)} ${formatTime(startTime)} - ${formatTime(endTime)}`
 }
 
 function getLocalClassName(classId: string | number | null | undefined) {
@@ -72,6 +177,28 @@ function getLocalClassName(classId: string | number | null | undefined) {
     schedule.find((classSchedule) => classSchedule.id === Number(classId))
       ?.name ?? `Class #${classId}`
   )
+}
+
+function getScheduleSummary(classId: string | number | null | undefined) {
+  if (classId === null || classId === undefined) {
+    return null
+  }
+
+  const classSchedule = schedule.find((item) => item.id === Number(classId))
+  const week = classSchedule?.schedule[0]
+
+  if (!week) {
+    return null
+  }
+
+  return Object.entries(week)
+    .filter(([, times]) => times.some((time) => time !== "—" && time !== "-"))
+    .flatMap(([day, times]) =>
+      times
+        .filter((time) => time !== "—" && time !== "-")
+        .map((time) => `${day.slice(0, 3)} ${time}`)
+    )
+    .join(", ")
 }
 
 function normalizeProgramType(value: string | null | undefined) {
@@ -126,8 +253,7 @@ export function toDisplayEnrollment(
   const parentName = [parent?.first_name, parent?.last_name]
     .filter(Boolean)
     .join(" ")
-  const className =
-    classRecord?.class_name ?? getLocalClassName(enrollment.class_id)
+  const className = classRecord?.class_name ?? getLocalClassName(enrollment.class_id)
   const programType = normalizeProgramType(
     classRecord?.program_type ?? classRecord?.type ?? null
   )
@@ -239,13 +365,346 @@ async function fetchAthletes() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("Athletes")
+    .select(
+      "athlete_id,user_id,parent_id,first_name,last_name,Parents(parent_id,first_name,last_name,email)"
+    )
+
+  if (!error) {
+    return (data ?? []) as AthleteRecord[]
+  }
+
+  const { data: fallbackData, error: fallbackError } = await supabase
+    .from("Athletes")
     .select("athlete_id,user_id,parent_id,first_name,last_name")
+
+  if (fallbackError) {
+    throw new Error(fallbackError.message)
+  }
+
+  return (fallbackData ?? []) as AthleteRecord[]
+}
+
+function buildAdminEnrollmentAthleteOptions(
+  athletes: AthleteRecord[]
+): AdminEnrollmentAthleteOption[] {
+  return athletes
+    .map((athlete) => {
+      const parent = firstRelation(athlete.Parents)
+      const athleteName = [athlete.first_name, athlete.last_name]
+        .filter(Boolean)
+        .join(" ")
+      const parentName = [parent?.first_name, parent?.last_name]
+        .filter(Boolean)
+        .join(" ")
+
+      return {
+        athleteId: String(athlete.athlete_id),
+        athleteName: athleteName || `Athlete #${athlete.athlete_id}`,
+        parentId: toId(athlete.parent_id ?? parent?.parent_id),
+        parentName: parentName || "No parent linked",
+        parentEmail: parent?.email ?? null,
+      }
+    })
+    .sort((first, second) =>
+      first.athleteName.localeCompare(second.athleteName)
+    )
+}
+
+async function fetchClasses() {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("Classes")
+    .select("class_id,class_name,type,program_type,billing_day,stripe_price_id,created_at")
+    .order("class_id", { ascending: true })
+
+  if (!error) {
+    return (data ?? []) as ClassRecord[]
+  }
+
+  const { data: fallbackData, error: fallbackError } = await supabase
+    .from("Classes")
+    .select("class_id,class_name,type,created_at")
+    .order("class_id", { ascending: true })
+
+  if (fallbackError) {
+    throw new Error(fallbackError.message)
+  }
+
+  return (fallbackData ?? []) as ClassRecord[]
+}
+
+async function fetchClassScheduleRows() {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("ClassSchedules")
+    .select("schedule_id,class_id,day_of_week,start_time,end_time,is_active,created_at")
+    .order("day_of_week", { ascending: true })
+    .order("start_time", { ascending: true })
 
   if (error) {
     throw new Error(error.message)
   }
 
-  return (data ?? []) as AthleteRecord[]
+  return (data ?? []) as ClassScheduleRow[]
+}
+
+async function fetchClassSessionRows() {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("ClassSessions")
+    .select("session_id,class_id,schedule_id,session_date,starts_at,ends_at,status")
+    .order("session_date", { ascending: false })
+    .order("starts_at", { ascending: true })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return (data ?? []) as ClassSessionRow[]
+}
+
+function isMissingAttendanceTableError(error: { code?: string; message?: string }) {
+  return (
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    /ClassSessionAttendance|schema cache|does not exist/i.test(
+      error.message ?? ""
+    )
+  )
+}
+
+async function fetchClassSessionAttendanceRows() {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("ClassSessionAttendance")
+    .select(
+      "attendance_id,session_id,enrollment_id,athlete_id,attendance_status,notes,reviewed_at,reviewed_by"
+    )
+    .order("reviewed_at", { ascending: false })
+
+  if (error) {
+    if (isMissingAttendanceTableError(error)) {
+      return [] as ClassSessionAttendanceRow[]
+    }
+
+    throw new Error(error.message)
+  }
+
+  return (data ?? []) as ClassSessionAttendanceRow[]
+}
+
+function buildClassBillingRows(classes: ClassRecord[]) {
+  const classRows = classes.map<ClassBillingRecord>((classRecord) => {
+    const billingDay = resolveBillingDay(classRecord)
+    const programType = normalizeProgramType(
+      classRecord.program_type ?? classRecord.type ?? null
+    )
+
+    return {
+      classId: String(classRecord.class_id),
+      className:
+        classRecord.class_name ?? getLocalClassName(classRecord.class_id),
+      classType: classRecord.type ?? null,
+      programType,
+      billingDay,
+      stripePriceId: classRecord.stripe_price_id ?? null,
+      createdAt: classRecord.created_at ?? null,
+      source: "database",
+    }
+  })
+  const classIds = new Set(classRows.map((row) => Number(row.classId)))
+  const scheduleRows = schedule
+    .filter((classSchedule) => !classIds.has(classSchedule.id))
+    .map<ClassBillingRecord>((classSchedule) => ({
+      classId: String(classSchedule.id),
+      className: classSchedule.name,
+      classType: null,
+      programType: "gymnastics",
+      billingDay: 15,
+      stripePriceId: null,
+      createdAt: null,
+      source: "schedule",
+    }))
+
+  return [...classRows, ...scheduleRows]
+}
+
+function buildClassOptions(classes: ClassRecord[]) {
+  return buildClassBillingRows(classes).map<ClassOption>((classRecord) => ({
+    classId: classRecord.classId,
+    className: classRecord.className,
+    classType: classRecord.classType,
+    programType: classRecord.programType,
+    billingDay: classRecord.billingDay,
+    scheduleSummary: getScheduleSummary(classRecord.classId),
+    stripePriceId: classRecord.stripePriceId,
+  }))
+}
+
+function buildClassNameById(classBilling: ClassBillingRecord[]) {
+  return new Map(classBilling.map((classRecord) => [
+    classRecord.classId,
+    classRecord.className,
+  ]))
+}
+
+function buildClassScheduleRows(
+  scheduleRows: ClassScheduleRow[],
+  classNameById: Map<string, string>
+): ClassScheduleDisplayRecord[] {
+  return scheduleRows
+    .map((row) => {
+      const classId = toId(row.class_id)
+      const dayOfWeek = normalizeDay(row.day_of_week)
+
+      return {
+        scheduleId: String(row.schedule_id),
+        classId,
+        className:
+          (classId ? classNameById.get(classId) : null) ??
+          getLocalClassName(classId),
+        dayOfWeek,
+        startTime: row.start_time ?? null,
+        endTime: row.end_time ?? null,
+        isActive: row.is_active ?? true,
+        createdAt: row.created_at ?? null,
+        scheduleLabel: formatScheduleLabel(
+          dayOfWeek,
+          row.start_time,
+          row.end_time
+        ),
+      }
+    })
+    .sort((first, second) => {
+      const firstDay = dayOrder.indexOf(first.dayOfWeek)
+      const secondDay = dayOrder.indexOf(second.dayOfWeek)
+      const dayComparison =
+        (firstDay === -1 ? dayOrder.length : firstDay) -
+        (secondDay === -1 ? dayOrder.length : secondDay)
+
+      if (dayComparison !== 0) {
+        return dayComparison
+      }
+
+      return (first.startTime ?? "").localeCompare(second.startTime ?? "")
+    })
+}
+
+function buildExpectedAthletesByClass(
+  enrollments: EnrollmentDisplayRecord[]
+) {
+  const expectedByClassId = new Map<string, ClassSessionExpectedAthlete[]>()
+  const activeStatuses = new Set(["approved", "active"])
+
+  enrollments.forEach((enrollment) => {
+    const classId = enrollment.classId
+
+    if (!classId || !activeStatuses.has(enrollment.status.toLowerCase())) {
+      return
+    }
+
+    expectedByClassId.set(classId, [
+      ...(expectedByClassId.get(classId) ?? []),
+      {
+        athleteId: enrollment.athleteId ?? "unknown",
+        athleteName: enrollment.athleteName,
+        enrollmentId: enrollment.enrollmentId,
+        enrollmentStatus: enrollment.status,
+        parentName: enrollment.parentName,
+        parentEmail: enrollment.parentEmail,
+        attendanceStatus: null,
+        attendanceNotes: null,
+        attendanceReviewedAt: null,
+        attendanceReviewedBy: null,
+      },
+    ])
+  })
+
+  return expectedByClassId
+}
+
+function getAttendanceKey(sessionId: string, enrollmentId: string) {
+  return `${sessionId}:${enrollmentId}`
+}
+
+function buildAttendanceBySessionEnrollment(
+  attendanceRows: ClassSessionAttendanceRow[]
+) {
+  const attendanceByKey = new Map<string, ClassSessionAttendanceRow>()
+
+  attendanceRows.forEach((row) => {
+    const sessionId = toId(row.session_id)
+    const enrollmentId = toId(row.enrollment_id)
+
+    if (!sessionId || !enrollmentId) {
+      return
+    }
+
+    attendanceByKey.set(getAttendanceKey(sessionId, enrollmentId), row)
+  })
+
+  return attendanceByKey
+}
+
+function buildClassSessionRows({
+  sessionRows,
+  schedules,
+  classNameById,
+  enrollments,
+  attendanceRows,
+}: {
+  sessionRows: ClassSessionRow[]
+  schedules: ClassScheduleDisplayRecord[]
+  classNameById: Map<string, string>
+  enrollments: EnrollmentDisplayRecord[]
+  attendanceRows: ClassSessionAttendanceRow[]
+}): ClassSessionDisplayRecord[] {
+  const scheduleById = new Map(
+    schedules.map((classSchedule) => [
+      classSchedule.scheduleId,
+      classSchedule,
+    ])
+  )
+  const expectedByClassId = buildExpectedAthletesByClass(enrollments)
+  const attendanceByKey = buildAttendanceBySessionEnrollment(attendanceRows)
+
+  return sessionRows.map((row) => {
+    const classId = toId(row.class_id)
+    const scheduleId = toId(row.schedule_id)
+    const classSchedule = scheduleId ? scheduleById.get(scheduleId) : null
+    const sessionId = String(row.session_id)
+    const expectedAthletes = classId
+      ? (expectedByClassId.get(classId) ?? []).map((athlete) => {
+          const attendance = attendanceByKey.get(
+            getAttendanceKey(sessionId, athlete.enrollmentId)
+          )
+
+          return {
+            ...athlete,
+            attendanceStatus: attendance?.attendance_status ?? null,
+            attendanceNotes: attendance?.notes ?? null,
+            attendanceReviewedAt: attendance?.reviewed_at ?? null,
+            attendanceReviewedBy: attendance?.reviewed_by ?? null,
+          }
+        })
+      : []
+
+    return {
+      sessionId,
+      classId,
+      className:
+        (classId ? classNameById.get(classId) : null) ??
+        classSchedule?.className ??
+        getLocalClassName(classId),
+      scheduleId,
+      scheduleLabel: classSchedule?.scheduleLabel ?? null,
+      sessionDate: row.session_date ?? null,
+      startsAt: row.starts_at ?? null,
+      endsAt: row.ends_at ?? null,
+      status: row.status ?? "scheduled",
+      expectedAthletes,
+    }
+  })
 }
 
 function buildStatusBreakdown(enrollments: EnrollmentDisplayRecord[]) {
@@ -387,25 +846,17 @@ function buildMetrics(
 
   return [
     {
-      label: "Active athletes",
-      value: String(activeAthleteIds.size || athletes.length),
-      detail: "Approved or active enrollment roster",
-    },
-    {
       label: "Parent accounts",
       value: String(parents.length),
       detail: "Total parent records",
     },
+    /*
     {
       label: "Total enrollments",
       value: String(enrollments.length),
       detail: "All enrollment requests",
     },
-    {
-      label: "Pending enrollments",
-      value: String(statusCount(["pending"])),
-      detail: "Awaiting admin review",
-    },
+    */
     {
       label: "Approved / active",
       value: String(statusCount(["approved", "active"])),
@@ -416,33 +867,123 @@ function buildMetrics(
       value: String(statusCount(["denied", "canceled"])),
       detail: "Not moving forward",
     },
+    /*
     {
       label: "Active subscriptions",
       value: String(activeSubscriptions),
       detail: "Stripe subscription records on enrollments",
     },
+    */
     {
       label: "Monthly recurring revenue",
-      value: mrrCents === null ? "Needs price IDs" : centsToCurrency(mrrCents),
+      value: mrrCents === null ? "No Active Subs" : centsToCurrency(mrrCents),
       detail: "Estimated from active monthly Stripe prices",
     },
   ] satisfies EnrollmentMetric[]
 }
 
+function buildActionItems(
+  enrollments: EnrollmentDisplayRecord[],
+  classBilling: ClassBillingRecord[]
+) {
+  const countByStatus = (statuses: string[]) =>
+    enrollments.filter((enrollment) =>
+      statuses.includes(enrollment.status.toLowerCase())
+    ).length
+  const pending = countByStatus(["pending"])
+  const readyToPay = enrollments.filter(
+    (enrollment) =>
+      enrollment.status === "approved" && !enrollment.stripeSubscriptionId
+  ).length
+  const paymentProblems = enrollments.filter((enrollment) =>
+    [enrollment.paymentStatus, enrollment.subscriptionStatus].some((status) =>
+      ["payment_failed", "past_due", "unpaid"].includes(status ?? "")
+    )
+  ).length
+  const missingBilling = classBilling.filter(
+    (classRecord) =>
+      (!classRecord.stripePriceId ||
+        !classRecord.billingDay ||
+        !classRecord.programType)
+  ).length
+
+  return [
+    {
+      label: "Review queue",
+      value: String(pending),
+      detail: pending ? "Enrollment requests need a decision" : "No requests waiting",
+      tone: pending ? "warning" : "success",
+    },
+    {
+      label: "Ready to bill",
+      value: String(readyToPay),
+      detail: readyToPay
+        ? "Approved enrollments need checkout"
+        : "No approved enrollments waiting for payment",
+      tone: readyToPay ? "warning" : "success",
+    },
+    {
+      label: "Payment attention",
+      value: String(paymentProblems),
+      detail: paymentProblems
+        ? "Failed or past-due payment states"
+        : "No payment issues detected",
+      tone: paymentProblems ? "danger" : "success",
+    },
+    {
+      label: "Class billing setup",
+      value: String(missingBilling),
+      detail: "Classes require additional setup",
+      tone: missingBilling ? "warning" : "success",
+    },
+  ] satisfies OperationsActionItem[]
+}
+
 export async function getAdminDashboardData(): Promise<AdminDashboardData> {
-  const [parents, athletes, enrollmentRows] = await Promise.all([
+  const [
+    parents,
+    athletes,
+    enrollmentRows,
+    classes,
+    classScheduleRows,
+    classSessionRows,
+    classSessionAttendanceRows,
+  ] = await Promise.all([
     fetchParents(),
     fetchAthletes(),
     fetchEnrollments(),
+    fetchClasses(),
+    fetchClassScheduleRows(),
+    fetchClassSessionRows(),
+    fetchClassSessionAttendanceRows(),
   ])
   const enrollments = enrollmentRows.map(toDisplayEnrollment)
+  const classBilling = buildClassBillingRows(classes)
+  const classNameById = buildClassNameById(classBilling)
+  const classSchedules = buildClassScheduleRows(
+    classScheduleRows,
+    classNameById
+  )
+  const classSessions = buildClassSessionRows({
+    sessionRows: classSessionRows,
+    schedules: classSchedules,
+    classNameById,
+    enrollments,
+    attendanceRows: classSessionAttendanceRows,
+  })
   const mrrCents = await estimateMonthlyRecurringRevenue(enrollments)
 
   return {
     metrics: buildMetrics(parents, athletes, enrollments, mrrCents),
+    actionItems: buildActionItems(enrollments, classBilling),
     pendingEnrollments: enrollments.filter(
       (enrollment) => enrollment.status.toLowerCase() === "pending"
     ),
+    allEnrollments: enrollments,
+    enrollmentAthletes: buildAdminEnrollmentAthleteOptions(athletes),
+    classBilling,
+    classSchedules,
+    classSessions,
     statusBreakdown: buildStatusBreakdown(enrollments),
     monthlyTrend: buildMonthlyTrend(enrollments),
   }
@@ -450,25 +991,34 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
 
 export async function getParentAthleteEnrollments(
   userId: string
-): Promise<ParentAthleteEnrollment[]> {
-  const athletes = await fetchParentAthletes(userId)
+): Promise<{
+  athletes: ParentAthleteEnrollment[]
+  classOptions: ClassOption[]
+}> {
+  const [athletes, classes] = await Promise.all([
+    fetchParentAthletes(userId),
+    fetchClasses(),
+  ])
   const athleteIds = athletes.map((athlete) => String(athlete.athlete_id))
   const enrollments = (await fetchParentEnrollments(athleteIds)).map(
     toDisplayEnrollment
   )
 
-  return athletes.map((athlete) => {
-    const athleteId = String(athlete.athlete_id)
-    const athleteName = [athlete.first_name, athlete.last_name]
-      .filter(Boolean)
-      .join(" ")
+  return {
+    athletes: athletes.map((athlete) => {
+      const athleteId = String(athlete.athlete_id)
+      const athleteName = [athlete.first_name, athlete.last_name]
+        .filter(Boolean)
+        .join(" ")
 
-    return {
-      athleteId,
-      athleteName: athleteName || "Unnamed athlete",
-      enrollments: enrollments.filter(
-        (enrollment) => enrollment.athleteId === athleteId
-      ),
-    }
-  })
+      return {
+        athleteId,
+        athleteName: athleteName || "Unnamed athlete",
+        enrollments: enrollments.filter(
+          (enrollment) => enrollment.athleteId === athleteId
+        ),
+      }
+    }),
+    classOptions: buildClassOptions(classes),
+  }
 }

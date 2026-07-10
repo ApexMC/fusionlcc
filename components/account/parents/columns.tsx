@@ -1,19 +1,31 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, ArrowUpDown } from "lucide-react"
+import { ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { ParentActions } from "@/components/account/parents/parent_actions"
+import { EnrollmentStatusBadge } from "@/components/account/enrollment_status_badge"
+
+export type ParentAthleteEnrollment = {
+  enrollmentId: string;
+  classId: string | null;
+  className: string;
+  classType: string | null;
+  status: string;
+}
+
+export type ParentAthleteSummary = {
+  athleteId: string;
+  firstName: string | null;
+  lastName: string | null;
+  dob: string | null;
+  shirtSize: string | null;
+  enrollments: ParentAthleteEnrollment[];
+}
 
 export type Parent = {
   parent_id: string | number;
+  user_id?: string | null;
   first_name?: string | null;
   last_name?: string | null;
   phone?: string | null;
@@ -21,8 +33,11 @@ export type Parent = {
   address?: string | null;
   city?: string | null;
   state?: string | null;
-  balance?: number | null;
+  balance?: number | string | null;
   zip_code?: string | null;
+  stripe_customer_id?: string | null;
+  stripe_payment_status?: string | null;
+  athletes?: ParentAthleteSummary[];
   [key: string]: unknown;
 }
 
@@ -32,26 +47,7 @@ export const columns: ColumnDef<Parent>[] = [
     cell: ({ row }) => {
       const parent = row.original
  
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(parent.parent_id.toString())}>
-              View athletes
-            </DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem><span className="text-red-500">Delete parent</span></DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
+      return <ParentActions parent={parent} />
     },
   },
   {
@@ -83,18 +79,21 @@ export const columns: ColumnDef<Parent>[] = [
     },
   },
   {
-    accessorKey: "balance",
+    accessorKey: "stripe_payment_status",
     header: ({ column }) => {
       return (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-            Balance
+            Stripe Status
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       )
     },
+    cell: ({ row }) => (
+      <EnrollmentStatusBadge status={row.original.stripe_payment_status} />
+    ),
   },
   {
     accessorKey: "email",

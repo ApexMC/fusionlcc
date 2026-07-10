@@ -20,24 +20,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Card } from "@/components/ui/card"
 import AddParentCard from "@/components/account/parents/add_parent"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface DataTableProps<TData, TValue> {
   title: string
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  getRowId?: (row: TData) => string
+  renderExpandedRow?: (row: TData) => React.ReactNode
 }
 
 export function DataTable<TData, TValue>({
   title,
   columns,
   data,
+  getRowId,
+  renderExpandedRow,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
+  const [expandedRowId, setExpandedRowId] = React.useState<string | null>(null)
   const table = useReactTable({
     data,
     columns,
@@ -51,6 +56,15 @@ export function DataTable<TData, TValue>({
     },
     getCoreRowModel: getCoreRowModel(),
   })
+
+  function shouldIgnoreRowClick(event: React.MouseEvent<HTMLTableRowElement>) {
+    const target = event.target
+
+    return (
+      target instanceof HTMLElement &&
+      Boolean(target.closest("button,a,input,select,textarea,[role='menuitem']"))
+    )
+  }
 
   return (
     <div className="w-full flex flex-col items-start max-h-125">
@@ -99,18 +113,50 @@ export function DataTable<TData, TValue>({
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
+                table.getRowModel().rows.map((row) => {
+                  const rowId = getRowId?.(row.original) ?? row.id
+                  const isExpanded = expandedRowId === rowId
+                  const expandedContent = renderExpandedRow?.(row.original)
+
+                  return (
+                    <React.Fragment key={row.id}>
+                      <TableRow
+                        aria-expanded={
+                          renderExpandedRow ? isExpanded : undefined
+                        }
+                        className={
+                          renderExpandedRow ? "cursor-pointer" : undefined
+                        }
+                        data-state={row.getIsSelected() && "selected"}
+                        onClick={(event) => {
+                          if (!renderExpandedRow || shouldIgnoreRowClick(event)) {
+                            return
+                          }
+
+                          setExpandedRowId((current) =>
+                            current === rowId ? null : rowId
+                          )
+                        }}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                      {isExpanded && expandedContent ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={row.getVisibleCells().length}
+                            className="whitespace-normal bg-muted/30 p-4"
+                          >
+                            {expandedContent}
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </React.Fragment>
+                  )
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="h-24 text-center">
@@ -121,7 +167,7 @@ export function DataTable<TData, TValue>({
             </TableBody>
           </Table>
         </div>
-      </Card>
+    </Card>
     </div>
   )
 }
