@@ -154,22 +154,23 @@ export function ParentEnrollments({
                       >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
-                            <div className="font-medium text-zinc-900 dark:text-zinc-50">
+                            <div className="font-medium text-zinc-900 dark:text-zinc-50 mb-3">
                               {enrollment.className}
                             </div>
-                            <div className="mt-1 flex flex-wrap gap-2">
-                              <EnrollmentStatusBadge
-                                status={enrollment.status}
-                              />
+                            <div className="mt-1 flex flex-col gap-2">
+                              <div className="flex flex-row gap-2">
+                                <p className="text-zinc-900 dark:text-zinc-50 text-sm">
+                                  Enrollment:
+                                </p>
+                                <EnrollmentStatusBadge status={enrollment.status}/>
+                              </div>
                               {enrollment.subscriptionStatus ? (
-                                <EnrollmentStatusBadge
-                                  status={enrollment.subscriptionStatus}
-                                />
-                              ) : null}
-                              {enrollment.paymentStatus ? (
-                                <EnrollmentStatusBadge
-                                  status={enrollment.paymentStatus}
-                                />
+                                <div className="flex flex-row gap-2">
+                                  <p className="text-zinc-900 dark:text-zinc-50 text-sm">
+                                    Subscription:
+                                  </p>
+                                  <EnrollmentStatusBadge status={enrollment.subscriptionStatus}/>
+                                </div>
                               ) : null}
                             </div>
                           </div>
@@ -183,6 +184,7 @@ export function ParentEnrollments({
                               <Eye />
                               View
                             </Button>
+                            {/*
                             {canStartSubscription ? (
                               <Button
                                 type="button"
@@ -215,6 +217,7 @@ export function ParentEnrollments({
                                   : "Manage"}
                               </Button>
                             ) : null}
+                            */}
                             {enrollment.status === "pending" ? (
                               <Button
                                 type="button"

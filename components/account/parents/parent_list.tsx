@@ -1,9 +1,30 @@
 "use client"
 
 import { useEffect, useState } from "react";
+import { MoreHorizontal } from "lucide-react"
+
+import { deleteAthlete } from "@/app/actions/athletes"
 import { columns, Parent } from "./columns"
 import { EnrollmentStatusBadge } from "@/components/account/enrollment_status_badge"
 import { DataTable } from "./data-table"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useToast } from "@/components/ui/toast"
 
 function getAge(dob: string | null | undefined) {
   if (!dob) {
@@ -37,7 +58,121 @@ function getAthleteName(
   return [firstName, lastName].filter(Boolean).join(" ") || "Unnamed athlete"
 }
 
-function ParentAthleteDetails({ parent }: { parent: Parent }) {
+function ParentAthleteActions({
+  athlete,
+  onDeleted,
+}: {
+  athlete: NonNullable<Parent["athletes"]>[number]
+  onDeleted: (athleteId: string) => void
+}) {
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
+  const athleteName = getAthleteName(athlete.firstName, athlete.lastName)
+
+  async function submitDelete() {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const result = await deleteAthlete(athlete.athleteId)
+
+      if (!result.ok) {
+        setError(result.message)
+        toast({
+          title: "Athlete delete failed",
+          description: result.message,
+          variant: "error",
+        })
+        return
+      }
+
+      toast({
+        title: "Athlete deleted",
+        description: result.message,
+        variant: "success",
+      })
+      setDeleteOpen(false)
+      onDeleted(athlete.athleteId)
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error ? caughtError.message : "Please try again."
+      setError(message)
+      toast({
+        title: "Athlete delete failed",
+        description: message,
+        variant: "error",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Open athlete actions</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => setDeleteOpen(true)}
+          >
+            Delete athlete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => !open && setDeleteOpen(false)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Athlete</DialogTitle>
+            <DialogDescription>
+              Delete {athleteName} from this customer account. Existing
+              enrollment links may prevent deletion.
+            </DialogDescription>
+          </DialogHeader>
+          {error ? <div className="text-sm text-red-600">{error}</div> : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={loading}
+              onClick={submitDelete}
+            >
+              {loading ? "Deleting" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function ParentAthleteDetails({
+  parent,
+  onAthleteDeleted,
+}: {
+  parent: Parent
+  onAthleteDeleted: (parentId: string, athleteId: string) => void
+}) {
   const athletes = parent.athletes ?? []
 
   if (!athletes.length) {
@@ -66,6 +201,12 @@ function ParentAthleteDetails({ parent }: { parent: Parent }) {
                 Shirt {athlete.shirtSize || "Unknown"}
               </div>
             </div>
+            <ParentAthleteActions
+              athlete={athlete}
+              onDeleted={(athleteId) =>
+                onAthleteDeleted(String(parent.parent_id), athleteId)
+              }
+            />
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {athlete.enrollments.length ? (
@@ -94,6 +235,21 @@ export default function ParentList() {
   const [parents, setParents] = useState<Parent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  function removeAthlete(parentId: string, athleteId: string) {
+    setParents((current) =>
+      current.map((parent) =>
+        String(parent.parent_id) === parentId
+          ? {
+              ...parent,
+              athletes: (parent.athletes ?? []).filter(
+                (athlete) => athlete.athleteId !== athleteId
+              ),
+            }
+          : parent
+      )
+    )
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -130,7 +286,12 @@ export default function ParentList() {
         columns={columns}
         data={parents}
         getRowId={(parent) => String(parent.parent_id)}
-        renderExpandedRow={(parent) => <ParentAthleteDetails parent={parent} />}
+        renderExpandedRow={(parent) => (
+          <ParentAthleteDetails
+            parent={parent}
+            onAthleteDeleted={removeAthlete}
+          />
+        )}
       />
     </div>
   );

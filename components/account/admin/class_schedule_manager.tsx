@@ -1,13 +1,32 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Save } from "lucide-react"
+import { MoreHorizontal, Plus, Save } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-import { saveClassSchedule } from "@/app/actions/class-schedules"
+import {
+  deleteClassSchedule,
+  saveClassSchedule,
+} from "@/app/actions/class-schedules"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -90,6 +109,8 @@ export function ClassScheduleManager({
   const [newScheduleDraft, setNewScheduleDraft] =
     React.useState<ScheduleDraft>(() => getBlankDraft())
   const [busyId, setBusyId] = React.useState<string | null>(null)
+  const [scheduleToDelete, setScheduleToDelete] =
+    React.useState<ClassScheduleDisplayRecord | null>(null)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -148,6 +169,40 @@ export function ClassScheduleManager({
     } catch (error) {
       toast({
         title: "Schedule update failed",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "error",
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function deleteSchedule(schedule: ClassScheduleDisplayRecord) {
+    setBusyId(schedule.scheduleId)
+
+    try {
+      const result = await deleteClassSchedule(schedule.scheduleId)
+
+      if (!result.ok) {
+        toast({
+          title: "Schedule delete failed",
+          description: result.message,
+          variant: "error",
+        })
+        return
+      }
+
+      toast({
+        title: "Class schedule deleted",
+        description: result.message,
+        variant: "success",
+      })
+      setScheduleToDelete(null)
+      router.refresh()
+    } catch (error) {
+      toast({
+        title: "Schedule delete failed",
         description:
           error instanceof Error ? error.message : "Please try again.",
         variant: "error",
@@ -218,7 +273,7 @@ export function ClassScheduleManager({
               <TableHead>Start</TableHead>
               <TableHead>End</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Save</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -288,7 +343,7 @@ export function ClassScheduleManager({
                 </label>
               </TableCell>
               <TableCell>
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-1">
                   <Button
                     type="button"
                     size="sm"
@@ -363,7 +418,7 @@ export function ClassScheduleManager({
                     </label>
                   </TableCell>
                   <TableCell>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-1">
                       <Button
                         type="button"
                         size="sm"
@@ -373,6 +428,26 @@ export function ClassScheduleManager({
                         <Save />
                         {busyId === schedule.scheduleId ? "Saving" : "Save"}
                       </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">
+                              Open schedule actions
+                            </span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={() => setScheduleToDelete(schedule)}
+                          >
+                            Delete schedule
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -382,6 +457,42 @@ export function ClassScheduleManager({
         </Table>
         </div>
       </CardContent>
+      <Dialog
+        open={Boolean(scheduleToDelete)}
+        onOpenChange={(open) => !open && setScheduleToDelete(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Class Schedule</DialogTitle>
+            <DialogDescription>
+              Delete {scheduleToDelete?.className ?? "this class schedule"} on{" "}
+              {scheduleToDelete?.scheduleLabel ?? "the selected time"}.
+              Existing class session links may prevent deletion.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setScheduleToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={
+                !scheduleToDelete || busyId === scheduleToDelete.scheduleId
+              }
+              onClick={() => scheduleToDelete && deleteSchedule(scheduleToDelete)}
+            >
+              {scheduleToDelete && busyId === scheduleToDelete.scheduleId
+                ? "Deleting"
+                : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

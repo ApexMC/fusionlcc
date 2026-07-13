@@ -61,6 +61,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     session.metadata?.enrollment_id ?? session.client_reference_id
   const subscriptionId = getStripeId(session.subscription)
 
+  console.log("[handleCheckoutCompleted]", {
+    enrollmentId,
+    subscriptionId,
+    metadata: session.metadata,
+    clientReferenceId: session.client_reference_id,
+  })
+
   if (!enrollmentId || !subscriptionId) {
     return
   }
@@ -73,10 +80,14 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     customerId: getStripeId(session.customer),
     subscription,
     paymentStatus: session.payment_status ?? null,
+    eventType: "checkout.session.completed",
   })
 }
 
-async function handleSubscriptionEvent(subscription: Stripe.Subscription) {
+async function handleSubscriptionEvent(
+  subscription: Stripe.Subscription,
+  type: Stripe.Event.Type
+) {
   const enrollmentId =
     subscription.metadata?.enrollment_id ??
     (await findEnrollmentIdBySubscription(subscription.id))
@@ -89,12 +100,14 @@ async function handleSubscriptionEvent(subscription: Stripe.Subscription) {
     enrollmentId,
     customerId: getStripeId(subscription.customer),
     subscription,
+    eventType: type,
   })
 }
 
 async function handleInvoiceEvent(
   invoice: Stripe.Invoice,
-  paymentStatus: "paid" | "payment_failed"
+  paymentStatus: "paid" | "payment_failed",
+  eventType: Stripe.Event.Type
 ) {
   const subscriptionId = getInvoiceSubscriptionId(invoice)
 
@@ -114,6 +127,7 @@ async function handleInvoiceEvent(
       customerId: getStripeId(invoice.customer),
       subscription,
       paymentStatus,
+      eventType,
     })
     return
   }
@@ -150,18 +164,31 @@ export async function POST(request: Request) {
   try {
     switch (event.type) {
       case "checkout.session.completed":
-        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session)
+        await handleCheckoutCompleted(
+          event.data.object as Stripe.Checkout.Session
+        )
         break
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted":
-        await handleSubscriptionEvent(event.data.object as Stripe.Subscription)
+        await handleSubscriptionEvent(
+          event.data.object as Stripe.Subscription,
+          event.type
+        )
         break
       case "invoice.payment_succeeded":
-        await handleInvoiceEvent(event.data.object as Stripe.Invoice, "paid")
+        await handleInvoiceEvent(
+          event.data.object as Stripe.Invoice,
+          "paid",
+          event.type
+        )
         break
       case "invoice.payment_failed":
-        await handleInvoiceEvent(event.data.object as Stripe.Invoice, "payment_failed")
+        await handleInvoiceEvent(
+          event.data.object as Stripe.Invoice,
+          "payment_failed",
+          event.type
+        )
         break
       default:
         break

@@ -206,18 +206,87 @@ export async function saveStripeCustomerId({
   }
 }
 
+type EnrollmentLifecycleStatus = "active" | "inactive" | "canceled"
+
+function getEnrollmentStatusFromSubscription(
+  subscriptionStatus: Stripe.Subscription.Status,
+  eventType?: Stripe.Event.Type
+): EnrollmentLifecycleStatus {
+  if (eventType === "customer.subscription.deleted") {
+    return "canceled"
+  }
+
+  if (eventType === "checkout.session.completed") {
+    return "active"
+  }
+
+  if (subscriptionStatus === "active" || subscriptionStatus === "trialing") {
+    return "active"
+  }
+
+  if (subscriptionStatus === "canceled") {
+    return "canceled"
+  }
+
+  return "inactive"
+}
+
+async function updateEnrollmentLifecycleStatus({
+  enrollmentId,
+  status,
+}: {
+  enrollmentId: string | number
+  status: EnrollmentLifecycleStatus
+}) {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("Enrollments")
+    .update({ status })
+    .eq("enrollment_id", enrollmentId)
+    .select("enrollment_id,status")
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  if (!data) {
+    throw new Error(`Enrollment ${enrollmentId} was not found.`)
+  }
+
+  if (data.status !== status) {
+    throw new Error(
+      `Enrollment status did not update. Expected ${status}, received ${
+        data.status ?? "null"
+      }.`
+    )
+  }
+}
+
 export async function updateEnrollmentFromSubscription({
   enrollmentId,
   customerId,
   subscription,
   paymentStatus,
+  eventType,
 }: {
   enrollmentId: string | number
   customerId?: string | null
   subscription: Stripe.Subscription
   paymentStatus?: string | null
+  eventType?: Stripe.Event.Type
 }) {
   const supabase = createAdminClient()
+  const enrollmentStatus = getEnrollmentStatusFromSubscription(
+    subscription.status,
+    eventType
+  )
+  console.log("[updateEnrollmentFromSubscription]", {
+    enrollmentId,
+    subscriptionStatus: subscription.status,
+    eventType,
+    enrollmentStatus,
+  })
   const period = {
     currentPeriodStart: null as string | null,
     currentPeriodEnd: null as string | null,
@@ -257,7 +326,17 @@ export async function updateEnrollmentFromSubscription({
     })
     .eq("enrollment_id", enrollmentId)
 
+  console.log("[updateEnrollmentFromSubscription] result", {
+    enrollmentId,
+    error,
+  })
+
   if (error) {
     throw new Error(error.message)
   }
+
+  await updateEnrollmentLifecycleStatus({
+    enrollmentId,
+    status: enrollmentStatus,
+  })
 }

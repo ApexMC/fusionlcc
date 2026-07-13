@@ -144,3 +144,36 @@ export async function saveClassSchedule({
     message: scheduleId ? "Class schedule updated." : "Class schedule added.",
   }
 }
+
+export async function deleteClassSchedule(
+  scheduleId: string
+): Promise<ActionResult> {
+  requireAdminSession(await getAccountSession())
+
+  if (!scheduleId.trim()) {
+    return {
+      ok: false,
+      message: "Choose a class schedule before deleting.",
+    }
+  }
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from("ClassSchedules")
+    .delete()
+    .eq("schedule_id", scheduleId)
+
+  if (error) {
+    return {
+      ok: false,
+      message: error.message,
+    }
+  }
+
+  revalidatePath("/account")
+
+  return {
+    ok: true,
+    message: "Class schedule deleted.",
+  }
+}
