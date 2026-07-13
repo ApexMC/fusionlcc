@@ -32,7 +32,7 @@ import {
 import { useToast } from "@/components/ui/toast"
 import type {
   AdminEnrollmentAthleteOption,
-  ClassBillingRecord,
+  ClassScheduleDisplayRecord,
   EnrollmentDisplayRecord,
 } from "@/lib/account/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -42,7 +42,7 @@ const statuses = ["all", "pending", "approved", "active", "denied", "canceled"] 
 type CreateEnrollmentDraft = {
   athleteId: string
   parentId: string | null
-  classId: string
+  scheduleId: string
   status: string
 }
 
@@ -60,12 +60,12 @@ function formatDate(value: string | null) {
 
 function getCreateDraft(
   athletes: AdminEnrollmentAthleteOption[],
-  classes: ClassBillingRecord[]
+  schedules: ClassScheduleDisplayRecord[]
 ): CreateEnrollmentDraft {
   return {
     athleteId: athletes[0]?.athleteId ?? "",
     parentId: athletes[0]?.parentId ?? "",
-    classId: classes[0]?.classId ?? "",
+    scheduleId: schedules[0]?.scheduleId ?? "",
     status: "active",
   }
 }
@@ -93,6 +93,7 @@ function matchesSearch(enrollment: EnrollmentDisplayRecord, query: string) {
     enrollment.parentName,
     enrollment.parentEmail,
     enrollment.className,
+    enrollment.scheduleLabel,
     enrollment.status,
   ]
     .filter(Boolean)
@@ -101,24 +102,24 @@ function matchesSearch(enrollment: EnrollmentDisplayRecord, query: string) {
 
 function CreateEnrollmentDialog({
   athletes,
-  classes,
+  schedules,
 }: {
   athletes: AdminEnrollmentAthleteOption[]
-  classes: ClassBillingRecord[]
+  schedules: ClassScheduleDisplayRecord[]
 }) {
-  const enrollmentClasses = React.useMemo(
-    () => classes.filter((classRecord) => classRecord.source === "database"),
-    [classes]
+  const enrollmentSchedules = React.useMemo(
+    () => schedules.filter((schedule) => schedule.isActive),
+    [schedules]
   )
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [draft, setDraft] = React.useState<CreateEnrollmentDraft>(() =>
-    getCreateDraft(athletes, enrollmentClasses)
+    getCreateDraft(athletes, enrollmentSchedules)
   )
   const router = useRouter()
   const { toast } = useToast()
-  const canCreate = Boolean(athletes.length && enrollmentClasses.length)
+  const canCreate = Boolean(athletes.length && enrollmentSchedules.length)
   const selectedAthleteHasParent = Boolean(draft.parentId)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -144,7 +145,7 @@ function CreateEnrollmentDialog({
         description: result.message,
         variant: "success",
       })
-      setDraft(getCreateDraft(athletes, enrollmentClasses))
+      setDraft(getCreateDraft(athletes, enrollmentSchedules))
       setOpen(false)
       router.refresh()
     } catch (caughtError) {
@@ -205,20 +206,20 @@ function CreateEnrollmentDialog({
               </select>
             </label>
             <label className="grid gap-1 text-sm">
-              <span className="font-medium">Class</span>
+              <span className="font-medium">Class Schedule</span>
               <select
-                value={draft.classId}
+                value={draft.scheduleId}
                 onChange={(event) =>
                   setDraft((current) => ({
                     ...current,
-                    classId: event.target.value,
+                    scheduleId: event.target.value,
                   }))
                 }
                 className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
               >
-                {enrollmentClasses.map((classRecord) => (
-                  <option key={classRecord.classId} value={classRecord.classId}>
-                    {classRecord.className}
+                {enrollmentSchedules.map((schedule) => (
+                  <option key={schedule.scheduleId} value={schedule.scheduleId}>
+                    {schedule.className} - {schedule.scheduleLabel}
                   </option>
                 ))}
               </select>
@@ -246,7 +247,7 @@ function CreateEnrollmentDialog({
             </label>
             {!canCreate ? (
               <p className="text-sm text-muted-foreground">
-                Add at least one athlete and database-backed class before
+                Add at least one athlete and active class schedule before
                 creating enrollments.
               </p>
             ) : null}
@@ -270,7 +271,7 @@ function CreateEnrollmentDialog({
                 !canCreate ||
                 !draft.athleteId ||
                 !draft.parentId ||
-                !draft.classId
+                !draft.scheduleId
               }
             >
               <UserPlus />
@@ -286,11 +287,11 @@ function CreateEnrollmentDialog({
 export function EnrollmentManagement({
   enrollments,
   athletes,
-  classes,
+  schedules,
 }: {
   enrollments: EnrollmentDisplayRecord[]
   athletes: AdminEnrollmentAthleteOption[]
-  classes: ClassBillingRecord[]
+  schedules: ClassScheduleDisplayRecord[]
 }) {
   const [query, setQuery] = React.useState("")
   const [status, setStatus] = React.useState<(typeof statuses)[number]>("all")
@@ -373,7 +374,7 @@ export function EnrollmentManagement({
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <CardTitle>Enrollment Management</CardTitle>
-          <CreateEnrollmentDialog athletes={athletes} classes={classes} />
+          <CreateEnrollmentDialog athletes={athletes} schedules={schedules} />
         </div>
       </CardHeader>
       <CardContent>
@@ -449,6 +450,11 @@ export function EnrollmentManagement({
                         </TableCell>
                         <TableCell>
                           <div>{enrollment.className}</div>
+                          {enrollment.scheduleLabel ? (
+                            <div className="text-xs text-muted-foreground">
+                              {enrollment.scheduleLabel}
+                            </div>
+                          ) : null}
                           {enrollment.classType ? (
                             <div className="text-xs text-muted-foreground">
                               {enrollment.classType}
@@ -526,6 +532,11 @@ export function EnrollmentManagement({
                       </TableCell>
                       <TableCell>
                         <div>{enrollment.className}</div>
+                        {enrollment.scheduleLabel ? (
+                          <div className="text-xs text-muted-foreground">
+                            {enrollment.scheduleLabel}
+                          </div>
+                        ) : null}
                         {enrollment.classType ? (
                           <div className="text-xs text-muted-foreground">
                             {enrollment.classType}

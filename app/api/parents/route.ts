@@ -39,12 +39,21 @@ type ClassRelation = {
   type?: string | null;
 };
 
+type ClassScheduleRelation = {
+  schedule_id?: string | number | null;
+  class_id?: string | number | null;
+  day_of_week?: string | number | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  Classes?: ClassRelation | ClassRelation[] | null;
+};
+
 type AthleteEnrollmentRow = {
   enrollment_id: string | number;
   athlete_id?: string | number | null;
-  class_id?: string | number | null;
+  schedule_id?: string | number | null;
   status?: string | null;
-  Classes?: ClassRelation | ClassRelation[] | null;
+  ClassSchedules?: ClassScheduleRelation | ClassScheduleRelation[] | null;
 };
 
 type ParentAthleteSummary = {
@@ -55,15 +64,76 @@ type ParentAthleteSummary = {
   shirtSize: string | null;
   enrollments: {
     enrollmentId: string;
+    scheduleId: string | null;
     classId: string | null;
     className: string;
     classType: string | null;
+    scheduleLabel: string | null;
     status: string;
   }[];
 };
 
+const dayOrder = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+
 function firstRelation<T>(value: T | T[] | null | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function formatDay(value: string | number | null | undefined) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (value === 0 || value === 7) {
+      return "Sunday";
+    }
+
+    const day = dayOrder[value - 1];
+    return day ? day.charAt(0).toUpperCase() + day.slice(1) : String(value);
+  }
+
+  const normalized = String(value ?? "").trim().toLowerCase();
+  const numericDay = Number(normalized);
+
+  if (normalized && Number.isInteger(numericDay)) {
+    return formatDay(numericDay);
+  }
+
+  return normalized
+    ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+    : "Unscheduled";
+}
+
+function formatTime(value: string | null | undefined) {
+  if (!value) {
+    return "Time TBD";
+  }
+
+  const [hourText, minuteText = "00"] = value.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) {
+    return value;
+  }
+
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+function formatScheduleLabel(schedule: ClassScheduleRelation | null | undefined) {
+  if (!schedule) {
+    return null;
+  }
+
+  return `${formatDay(schedule.day_of_week)} ${formatTime(schedule.start_time)} - ${formatTime(schedule.end_time)}`;
 }
 
 function getParentPaymentStatus(enrollments: EnrollmentPaymentRow[]) {
@@ -151,7 +221,7 @@ async function getAthleteEnrollmentRows() {
   const { data, error } = await supabase
     .from("Enrollments")
     .select(
-      "enrollment_id,athlete_id,class_id,status,Classes(class_id,class_name,type)"
+      "enrollment_id,athlete_id,schedule_id,status,ClassSchedules(schedule_id,class_id,day_of_week,start_time,end_time,Classes(class_id,class_name,type))"
     );
 
   if (!error) {
@@ -160,7 +230,7 @@ async function getAthleteEnrollmentRows() {
 
   const { data: fallbackData, error: fallbackError } = await supabase
     .from("Enrollments")
-    .select("enrollment_id,athlete_id,class_id,status");
+    .select("enrollment_id,athlete_id,schedule_id,status");
 
   if (fallbackError) {
     return [];
@@ -184,16 +254,22 @@ function toAthleteSummary(
         )
     )
     .map((enrollment) => {
-      const classRecord = firstRelation(enrollment.Classes);
-      const classId = enrollment.class_id ?? classRecord?.class_id ?? null;
+      const classSchedule = firstRelation(enrollment.ClassSchedules);
+      const classRecord = firstRelation(classSchedule?.Classes);
+      const classId = classSchedule?.class_id ?? classRecord?.class_id ?? null;
 
       return {
         enrollmentId: String(enrollment.enrollment_id),
+        scheduleId:
+          enrollment.schedule_id === null || enrollment.schedule_id === undefined
+            ? null
+            : String(enrollment.schedule_id),
         classId: classId === null ? null : String(classId),
         className:
           classRecord?.class_name ??
           (classId === null ? "Unassigned class" : `Class #${classId}`),
         classType: classRecord?.type ?? null,
+        scheduleLabel: formatScheduleLabel(classSchedule),
         status: enrollment.status ?? "unknown",
       };
     });

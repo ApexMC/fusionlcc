@@ -75,6 +75,7 @@ export async function POST(
       user_id: context.userId,
       parent_id: String(context.parent.parent_id),
       athlete_id: String(context.athlete.athlete_id),
+      schedule_id: context.scheduleId,
       class_id: String(context.classRecord.class_id),
       enrollment_id: String(context.enrollment.enrollment_id),
       program_type: programType,

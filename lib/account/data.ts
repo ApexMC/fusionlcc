@@ -26,7 +26,7 @@ import type {
 
 const enrollmentSelectWithPayments = `
   enrollment_id,
-  class_id,
+  schedule_id,
   athlete_id,
   status,
   created_at,
@@ -44,12 +44,20 @@ const enrollmentSelectWithPayments = `
     parent_id,
     Parents(parent_id, user_id, first_name, last_name, email)
   ),
-  Classes(class_id, class_name, type, program_type, billing_day, stripe_price_id)
+  ClassSchedules(
+    schedule_id,
+    class_id,
+    day_of_week,
+    start_time,
+    end_time,
+    is_active,
+    Classes(class_id, class_name, type, program_type, billing_day, stripe_price_id)
+  )
 `
 
 const enrollmentSelectBase = `
   enrollment_id,
-  class_id,
+  schedule_id,
   athlete_id,
   status,
   Athletes(
@@ -60,7 +68,14 @@ const enrollmentSelectBase = `
     parent_id,
     Parents(parent_id, user_id, first_name, last_name, email)
   ),
-  Classes(class_id, class_name, type)
+  ClassSchedules(
+    schedule_id,
+    class_id,
+    day_of_week,
+    start_time,
+    end_time,
+    Classes(class_id, class_name, type)
+  )
 `
 
 type ClassScheduleRow = {
@@ -246,14 +261,24 @@ export function toDisplayEnrollment(
 ): EnrollmentDisplayRecord {
   const athlete = firstRelation(enrollment.Athletes)
   const parent = firstRelation(athlete?.Parents)
-  const classRecord = firstRelation(enrollment.Classes)
+  const classSchedule = firstRelation(enrollment.ClassSchedules)
+  const classRecord = firstRelation(classSchedule?.Classes)
   const athleteName = [athlete?.first_name, athlete?.last_name]
     .filter(Boolean)
     .join(" ")
   const parentName = [parent?.first_name, parent?.last_name]
     .filter(Boolean)
     .join(" ")
-  const className = classRecord?.class_name ?? getLocalClassName(enrollment.class_id)
+  const classId = toId(classSchedule?.class_id ?? classRecord?.class_id)
+  const scheduleId = toId(enrollment.schedule_id ?? classSchedule?.schedule_id)
+  const className = classRecord?.class_name ?? getLocalClassName(classId)
+  const scheduleLabel = classSchedule
+    ? formatScheduleLabel(
+        classSchedule.day_of_week,
+        classSchedule.start_time,
+        classSchedule.end_time
+      )
+    : null
   const programType = normalizeProgramType(
     classRecord?.program_type ?? classRecord?.type ?? null
   )
@@ -264,9 +289,11 @@ export function toDisplayEnrollment(
     athleteName: athleteName || "Unknown athlete",
     parentName: parentName || "Unknown parent",
     parentEmail: parent?.email ?? null,
-    classId: toId(enrollment.class_id ?? classRecord?.class_id),
+    scheduleId,
+    classId,
     className,
     classType: classRecord?.type ?? null,
+    scheduleLabel,
     programType,
     billingDay: resolveBillingDay(classRecord ?? null),
     status: enrollment.status ?? "unknown",
@@ -590,21 +617,21 @@ function buildClassScheduleRows(
     })
 }
 
-function buildExpectedAthletesByClass(
+function buildExpectedAthletesBySchedule(
   enrollments: EnrollmentDisplayRecord[]
 ) {
-  const expectedByClassId = new Map<string, ClassSessionExpectedAthlete[]>()
+  const expectedByScheduleId = new Map<string, ClassSessionExpectedAthlete[]>()
   const activeStatuses = new Set(["approved", "active"])
 
   enrollments.forEach((enrollment) => {
-    const classId = enrollment.classId
+    const scheduleId = enrollment.scheduleId
 
-    if (!classId || !activeStatuses.has(enrollment.status.toLowerCase())) {
+    if (!scheduleId || !activeStatuses.has(enrollment.status.toLowerCase())) {
       return
     }
 
-    expectedByClassId.set(classId, [
-      ...(expectedByClassId.get(classId) ?? []),
+    expectedByScheduleId.set(scheduleId, [
+      ...(expectedByScheduleId.get(scheduleId) ?? []),
       {
         athleteId: enrollment.athleteId ?? "unknown",
         athleteName: enrollment.athleteName,
@@ -620,7 +647,7 @@ function buildExpectedAthletesByClass(
     ])
   })
 
-  return expectedByClassId
+  return expectedByScheduleId
 }
 
 function getAttendanceKey(sessionId: string, enrollmentId: string) {
@@ -665,16 +692,16 @@ function buildClassSessionRows({
       classSchedule,
     ])
   )
-  const expectedByClassId = buildExpectedAthletesByClass(enrollments)
+  const expectedByScheduleId = buildExpectedAthletesBySchedule(enrollments)
   const attendanceByKey = buildAttendanceBySessionEnrollment(attendanceRows)
 
   return sessionRows.map((row) => {
-    const classId = toId(row.class_id)
     const scheduleId = toId(row.schedule_id)
     const classSchedule = scheduleId ? scheduleById.get(scheduleId) : null
+    const classId = toId(row.class_id) ?? classSchedule?.classId ?? null
     const sessionId = String(row.session_id)
-    const expectedAthletes = classId
-      ? (expectedByClassId.get(classId) ?? []).map((athlete) => {
+    const expectedAthletes = scheduleId
+      ? (expectedByScheduleId.get(scheduleId) ?? []).map((athlete) => {
           const attendance = attendanceByKey.get(
             getAttendanceKey(sessionId, athlete.enrollmentId)
           )

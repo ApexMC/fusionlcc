@@ -15,7 +15,7 @@ import { getPeriodDate } from "@/lib/stripe/server"
 
 const paymentEnrollmentSelect = `
   enrollment_id,
-  class_id,
+  schedule_id,
   athlete_id,
   status,
   stripe_customer_id,
@@ -32,7 +32,14 @@ const paymentEnrollmentSelect = `
     parent_id,
     Parents(parent_id, user_id, first_name, last_name, email, stripe_customer_id)
   ),
-  Classes(class_id, class_name, type, program_type, billing_day, stripe_price_id)
+  ClassSchedules(
+    schedule_id,
+    class_id,
+    day_of_week,
+    start_time,
+    end_time,
+    Classes(class_id, class_name, type, program_type, billing_day, stripe_price_id)
+  )
 `
 
 function firstRelation<T>(value: T | T[] | null | undefined) {
@@ -63,6 +70,7 @@ export type ParentEnrollmentPaymentContext = {
   athlete: AthleteRecord
   parent: ParentRecord
   classRecord: ClassRecord
+  scheduleId: string
 }
 
 export async function getParentEnrollmentPaymentContext(
@@ -94,10 +102,15 @@ export async function getParentEnrollmentPaymentContext(
   }
 
   const athlete = firstRelation(enrollment.Athletes)
-  const classRecord = firstRelation(enrollment.Classes)
+  const classSchedule = firstRelation(enrollment.ClassSchedules)
+  const classRecord = firstRelation(classSchedule?.Classes)
 
   if (!athlete) {
     throw new Error("Enrollment is missing its athlete record.")
+  }
+
+  if (!classSchedule) {
+    throw new Error("Enrollment is missing its class schedule record.")
   }
 
   if (!classRecord) {
@@ -125,6 +138,7 @@ export async function getParentEnrollmentPaymentContext(
     athlete,
     parent,
     classRecord,
+    scheduleId: String(classSchedule.schedule_id),
   }
 }
 

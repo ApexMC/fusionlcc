@@ -24,6 +24,17 @@ export type ClassRecord = {
   created_at?: string | null
 }
 
+export type ClassScheduleRecord = {
+  schedule_id: string | number
+  class_id?: string | number | null
+  day_of_week?: string | number | null
+  start_time?: string | null
+  end_time?: string | null
+  is_active?: boolean | null
+  created_at?: string | null
+  Classes?: ClassRecord | ClassRecord[] | null
+}
+
 export type ParentRecord = {
   parent_id: string | number
   user_id?: string | null
@@ -54,7 +65,7 @@ export type AthleteRecord = {
 
 export type EnrollmentRecord = {
   enrollment_id: string | number
-  class_id?: string | number | null
+  schedule_id?: string | number | null
   athlete_id?: string | number | null
   status?: EnrollmentStatus | null
   created_at?: string | null
@@ -65,7 +76,7 @@ export type EnrollmentRecord = {
   current_period_end?: string | null
   payment_status?: PaymentStatus
   Athletes?: AthleteRecord | AthleteRecord[] | null
-  Classes?: ClassRecord | ClassRecord[] | null
+  ClassSchedules?: ClassScheduleRecord | ClassScheduleRecord[] | null
 }
 
 export type EnrollmentDisplayRecord = {
@@ -74,9 +85,11 @@ export type EnrollmentDisplayRecord = {
   athleteName: string
   parentName: string
   parentEmail: string | null
+  scheduleId: string | null
   classId: string | null
   className: string
   classType: string | null
+  scheduleLabel: string | null
   programType: string | null
   billingDay: number | null
   status: string

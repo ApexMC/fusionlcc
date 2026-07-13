@@ -156,6 +156,11 @@ export function ParentEnrollments({
                           <div className="min-w-0">
                             <div className="font-medium text-zinc-900 dark:text-zinc-50 mb-3">
                               {enrollment.className}
+                              {enrollment.scheduleLabel ? (
+                                <span className="ml-2 text-sm font-normal text-zinc-600 dark:text-zinc-400">
+                                  {enrollment.scheduleLabel}
+                                </span>
+                              ) : null}
                             </div>
                             <div className="mt-1 flex flex-col gap-2">
                               <div className="flex flex-row gap-2">

@@ -215,7 +215,14 @@ function ParentAthleteDetails({
                   key={enrollment.enrollmentId}
                   className="flex items-center gap-2 rounded-lg border px-2 py-1 text-xs"
                 >
-                  <span className="font-medium">{enrollment.className}</span>
+                  <span className="font-medium">
+                    {enrollment.className}
+                    {enrollment.scheduleLabel ? (
+                      <span className="ml-1 text-muted-foreground">
+                        {enrollment.scheduleLabel}
+                      </span>
+                    ) : null}
+                  </span>
                   <EnrollmentStatusBadge status={enrollment.status} />
                 </div>
               ))

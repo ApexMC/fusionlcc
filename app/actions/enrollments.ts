@@ -72,25 +72,25 @@ export async function updateEnrollmentAdminStatus({
 export async function createAdminEnrollment({
   athleteId,
   parentId,
-  classId,
+  scheduleId,
   status,
 }: {
   athleteId: string
   parentId?: string | null
-  classId: string
+  scheduleId: string
   status: string
 }): Promise<ActionResult & { enrollmentId?: string }> {
   requireAdminSession(await getAccountSession())
 
   const normalizedAthleteId = athleteId.trim()
-  const normalizedClassId = classId.trim()
+  const normalizedScheduleId = scheduleId.trim()
   const normalizedParentId = parentId?.trim() || null
   const normalizedStatus = status.trim().toLowerCase()
 
-  if (!normalizedAthleteId || !normalizedClassId) {
+  if (!normalizedAthleteId || !normalizedScheduleId) {
     return {
       ok: false,
-      message: "Choose an athlete and class before creating an enrollment.",
+      message: "Choose an athlete and class schedule before creating an enrollment.",
     }
   }
 
@@ -115,16 +115,16 @@ export async function createAdminEnrollment({
     }
   }
 
-  const { data: classRecord, error: classError } = await supabase
-    .from("Classes")
-    .select("class_id")
-    .eq("class_id", normalizedClassId)
+  const { data: scheduleRecord, error: scheduleError } = await supabase
+    .from("ClassSchedules")
+    .select("schedule_id")
+    .eq("schedule_id", normalizedScheduleId)
     .maybeSingle()
 
-  if (classError || !classRecord) {
+  if (scheduleError || !scheduleRecord) {
     return {
       ok: false,
-      message: classError?.message ?? "Class was not found.",
+      message: scheduleError?.message ?? "Class schedule was not found.",
     }
   }
 
@@ -145,7 +145,7 @@ export async function createAdminEnrollment({
     .from("Enrollments")
     .select("enrollment_id,status")
     .eq("athlete_id", normalizedAthleteId)
-    .eq("class_id", normalizedClassId)
+    .eq("schedule_id", normalizedScheduleId)
     .in("status", ["pending", "approved", "active"])
     .maybeSingle()
 
@@ -159,7 +159,7 @@ export async function createAdminEnrollment({
   if (existingEnrollment) {
     return {
       ok: false,
-      message: `This athlete already has a ${existingEnrollment.status} enrollment for that class.`,
+      message: `This athlete already has a ${existingEnrollment.status} enrollment for that class schedule.`,
     }
   }
 
@@ -168,7 +168,7 @@ export async function createAdminEnrollment({
     .insert([
       {
         athlete_id: normalizedAthleteId,
-        class_id: normalizedClassId,
+        schedule_id: normalizedScheduleId,
         parent_id: resolvedParentId,
         status: normalizedStatus,
       },
@@ -195,9 +195,11 @@ export async function createAdminEnrollment({
 export async function requestEnrollment({
   athleteId,
   classId,
+  scheduleId,
 }: {
   athleteId: string
   classId: number
+  scheduleId: string | number
 }): Promise<ActionResult & { enrollmentId?: string }> {
   const session = await getAccountSession()
 
@@ -209,6 +211,15 @@ export async function requestEnrollment({
   }
 
   const supabase = createAdminClient()
+  const normalizedScheduleId = String(scheduleId).trim()
+
+  if (!normalizedScheduleId) {
+    return {
+      ok: false,
+      message: "Choose a class schedule before requesting enrollment.",
+    }
+  }
+
   const { data: athlete, error: athleteError } = await supabase
     .from("Athletes")
     .select("athlete_id,user_id,parent_id")
@@ -229,11 +240,24 @@ export async function requestEnrollment({
     }
   }
 
+  const { data: scheduleRecord, error: scheduleError } = await supabase
+    .from("ClassSchedules")
+    .select("schedule_id")
+    .eq("schedule_id", normalizedScheduleId)
+    .maybeSingle()
+
+  if (scheduleError || !scheduleRecord) {
+    return {
+      ok: false,
+      message: scheduleError?.message ?? "Class schedule was not found.",
+    }
+  }
+
   const { data: existingEnrollment, error: existingError } = await supabase
     .from("Enrollments")
     .select("enrollment_id,status")
     .eq("athlete_id", athleteId)
-    .eq("class_id", classId)
+    .eq("schedule_id", normalizedScheduleId)
     .in("status", ["pending", "approved", "active"])
     .maybeSingle()
 
@@ -247,7 +271,7 @@ export async function requestEnrollment({
   if (existingEnrollment) {
     return {
       ok: false,
-      message: `This athlete already has a ${existingEnrollment.status} enrollment for that class.`,
+      message: `This athlete already has a ${existingEnrollment.status} enrollment for that class schedule.`,
     }
   }
 
@@ -257,6 +281,7 @@ export async function requestEnrollment({
       {
         athlete_id: athleteId,
         class_id: classId,
+        schedule_id: normalizedScheduleId,
         status: "pending",
       },
     ])

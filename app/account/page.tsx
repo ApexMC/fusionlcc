@@ -217,7 +217,7 @@ export default async function AccountPage() {
                         <EnrollmentManagement
                             enrollments={dashboardData.allEnrollments}
                             athletes={dashboardData.enrollmentAthletes}
-                            classes={dashboardData.classBilling}
+                            schedules={dashboardData.classSchedules}
                         />
                     </section>
                     <section id="billing" className="w-full scroll-mt-24">

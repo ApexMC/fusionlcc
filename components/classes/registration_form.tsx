@@ -17,8 +17,14 @@ type Parent = {
   zip_code?: string | null;
 }
 
-export default function RegistrationForm({ classId }: { classId?: number }) {
-  const classOptions = [
+type ScheduleOption = {
+  scheduleId: string;
+  classId: string | null;
+  className: string;
+  scheduleLabel: string;
+}
+
+const classOptions = [
   { id: 1, label: "Me + 1 (2yr)" },
   { id: 2, label: "Me + 1 (3-4yr)" },
   { id: 3, label: "Preschool" },
@@ -28,12 +34,20 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
   { id: 7, label: "Advanced / Level 3" },
   { id: 8, label: "Elite / Level 4" },
 ];
+
+export default function RegistrationForm({ classId }: { classId?: number }) {
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [athletes, setAthletes] = useState<Array<{ athlete_id: string; first_name: string; last_name: string }>>([]);
   const [parent, setParent] = useState<Parent | null>(null);
-  const [selectedClassId, setSelectedClassId] = useState<number | "">(
-    classId ? classId - 1 : ""
+  const [scheduleOptions, setScheduleOptions] = useState<ScheduleOption[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<number>(
+    classId ?? classOptions[0].id
+  );
+  const [selectedScheduleId, setSelectedScheduleId] = useState("");
+
+  const selectedClassSchedules = scheduleOptions.filter(
+    (option) => option.classId === String(selectedClassId)
   );
 
   useEffect(() => {
@@ -57,10 +71,38 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
         setAthletes(athletesData || []);
         setParent(parentData);
       }
+
+      const scheduleResponse = await fetch("/api/class-schedules");
+      const options = (await scheduleResponse.json().catch(() => [])) as
+        | ScheduleOption[]
+        | { error?: string };
+
+      if (!scheduleResponse.ok || !Array.isArray(options)) {
+        throw new Error(
+          Array.isArray(options)
+            ? "Class times could not be loaded."
+            : options.error ?? "Class times could not be loaded."
+        );
+      }
+
+      const initialClassId = classId ?? classOptions[0].id;
+      const initialOption = options.find(
+        (option) => option.classId === String(initialClassId)
+      );
+
+      setScheduleOptions(options);
+      setSelectedScheduleId(initialOption?.scheduleId ?? "");
     }
 
-    fetchData();
-  }, []);
+    fetchData().catch((error) => {
+      setStatus("error");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Class times could not be loaded."
+      );
+    });
+  }, [classId]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -73,18 +115,24 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
     try {
       // Get athlete_id from selected athlete name
       const selectedAthleteName = String(registerData.get("childName") || "");
-      const selectedClassName = classOptions[selectedClassId as number]?.label || "";
+      const selectedClass = classOptions.find(
+        (option) => option.id === selectedClassId
+      );
+      const selectedSchedule = scheduleOptions.find(
+        (option) => option.scheduleId === selectedScheduleId
+      );
       const selectedAthlete = athletes.find(
         (a) => `${a.first_name} ${a.last_name}` === selectedAthleteName
       );
 
-      if (!selectedAthlete || selectedClassId === "") {
-        throw new Error("Please choose an athlete and class.");
+      if (!selectedAthlete || !selectedClass || !selectedSchedule) {
+        throw new Error("Please choose an athlete, class, and class time.");
       }
 
       const enrollmentResult = await requestEnrollment({
         athleteId: String(selectedAthlete.athlete_id),
-        classId: Number(selectedClassId) + 1,
+        classId: selectedClass?.id,
+        scheduleId: selectedSchedule.scheduleId,
       });
 
       if (!enrollmentResult.ok) {
@@ -98,7 +146,8 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
         message: [
           `Parent Name: ${parent?.first_name} ${parent?.last_name}`,
           `Athlete Name: ${selectedAthleteName}`,
-          `Requested Class: ${selectedClassName}`,
+          `Requested Class: ${selectedClass.label}`,
+          `Selected Time: ${selectedSchedule.scheduleLabel}`,
           ``,
           `Address: ${parent?.address}, ${parent?.city}, ${parent?.state} ${parent?.zip_code}`,
           `Phone Number: ${parent?.phone}`,
@@ -138,7 +187,7 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
         <div className="mt-4 mb-8 mx-auto flex justify-center" aria-hidden="true">
             <div className="h-1.5 w-sm rounded-full bg-linear-to-r from-purple-600 to-purple-600" />
         </div>
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-3">
             <div>
                 <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                     Athlete Name
@@ -163,14 +212,47 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
                 <select 
                     className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
                     name="requestedClass"
-                    onChange={(e) => setSelectedClassId(Number(e.target.value))}
+                    onChange={(e) => {
+                        const nextClassId = Number(e.target.value);
+                        const nextSchedule = scheduleOptions.find(
+                            (option) => option.classId === String(nextClassId)
+                        );
+
+                        setSelectedClassId(nextClassId);
+                        setSelectedScheduleId(nextSchedule?.scheduleId ?? "");
+                    }}
                     value={selectedClassId}
+                    required
                 >
-                    {classOptions.map((option, index) => (
-                        <option key={option.id} value={index}>
+                    {classOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
                             {option.label}
                         </option>
                     ))}
+                </select>
+            </div>
+
+            <div>
+                <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                    Selected Time
+                </label>
+                <select
+                    className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                    name="selectedTime"
+                    onChange={(e) => setSelectedScheduleId(e.target.value)}
+                    value={selectedScheduleId}
+                    required
+                    disabled={!selectedClassSchedules.length}
+                >
+                    {selectedClassSchedules.length ? (
+                        selectedClassSchedules.map((option) => (
+                            <option key={option.scheduleId} value={option.scheduleId}>
+                                {option.scheduleLabel}
+                            </option>
+                        ))
+                    ) : (
+                        <option value="">No times available</option>
+                    )}
                 </select>
             </div>
         </div>

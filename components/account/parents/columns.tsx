@@ -8,9 +8,11 @@ import { EnrollmentStatusBadge } from "@/components/account/enrollment_status_ba
 
 export type ParentAthleteEnrollment = {
   enrollmentId: string;
+  scheduleId: string | null;
   classId: string | null;
   className: string;
   classType: string | null;
+  scheduleLabel: string | null;
   status: string;
 }
 
