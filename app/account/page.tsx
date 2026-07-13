@@ -174,14 +174,14 @@ export default async function AccountPage() {
 
         return (
         <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans w-full">
-            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-16 px-6 justify-center bg-zinc-100 dark:bg-zinc-900">
-                <div className="flex w-full max-w-7xl flex-col items-center justify-center gap-6 bg-zinc-100 dark:bg-zinc-900 font-sans">
+            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-16 px-8 justify-center bg-zinc-100 dark:bg-zinc-900">
+                <div className="flex w-full max-w-8xl flex-col items-center justify-center gap-6 bg-zinc-100 dark:bg-zinc-900 font-sans">
                     <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-4">
                         Dashboard
                     </h1>
                     <nav
                         aria-label="Dashboard sections"
-                        className="sticky top-2 z-20 flex w-full flex-wrap items-center justify-center gap-2 rounded-lg p-2 shadow-sm backdrop-blur dark:bg-black/90"
+                        className="sticky top-15 z-20 flex w-full flex-wrap items-center justify-center gap-2 rounded-lg p-2 shadow-sm backdrop-blur dark:bg-transparent"
                     >
                         {adminDashboardSections.map((section) => {
                             const Icon = section.icon;
@@ -201,40 +201,40 @@ export default async function AccountPage() {
                             );
                         })}
                     </nav>
-                    <section id="operations" className="w-full scroll-mt-24">
+                    <section id="operations" className="w-full scroll-mt-30">
                         <OperationsSummary actionItems={dashboardData.actionItems} />
                     </section>
-                    <section id="metrics" className="w-full scroll-mt-24">
+                    <section id="metrics" className="w-full scroll-mt-30">
                         <AdminMetrics metrics={dashboardData.metrics} />
                     </section>
-                    <section id="charts" className="w-full scroll-mt-24">
+                    <section id="charts" className="w-full scroll-mt-30">
                         <AdminCharts
                             statusBreakdown={dashboardData.statusBreakdown}
                             monthlyTrend={dashboardData.monthlyTrend}
                         />
                     </section>
-                    <section id="enrollments" className="w-full scroll-mt-24">
+                    <section id="enrollments" className="w-full scroll-mt-30">
                         <EnrollmentManagement
                             enrollments={dashboardData.allEnrollments}
                             athletes={dashboardData.enrollmentAthletes}
                             schedules={dashboardData.classSchedules}
                         />
                     </section>
-                    <section id="billing" className="w-full scroll-mt-24">
+                    <section id="billing" className="w-full scroll-mt-30">
                         <ClassBillingManager classes={dashboardData.classBilling} />
                     </section>
-                    <section id="schedules" className="w-full scroll-mt-24">
+                    <section id="schedules" className="w-full scroll-mt-30">
                         <ClassScheduleManager
                             schedules={dashboardData.classSchedules}
                             classes={dashboardData.classBilling}
                         />
                     </section>
-                    <section id="sessions" className="w-full scroll-mt-24">
+                    <section id="sessions" className="w-full scroll-mt-30">
                         <ClassSessionReview sessions={dashboardData.classSessions} />
                     </section>
                     <section
                         id="customers"
-                        className="flex w-full scroll-mt-24 flex-col items-center justify-center gap-6"
+                        className="flex w-full scroll-mt-30 flex-col items-center justify-center gap-6"
                     >
                         <ParentList />
                     </section>

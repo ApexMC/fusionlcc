@@ -11,6 +11,13 @@ type ActionResult = {
   message: string
 }
 
+type AttendanceUpdate = {
+  enrollmentId: string
+  athleteId?: string | null
+  attendanceStatus: string
+  notes?: string
+}
+
 const attendanceStatuses = ["present", "absent", "excused", "late"] as const
 
 function isAttendanceStatus(
@@ -73,6 +80,73 @@ export async function updateClassSessionAttendance({
       reviewed_by: session.userId,
       reviewed_at: reviewedAt,
     },
+    { onConflict: "session_id,enrollment_id" }
+  )
+
+  if (error) {
+    return {
+      ok: false,
+      message: isMissingAttendanceTableError(error)
+        ? "Apply the class session attendance migration before saving attendance."
+        : error.message,
+    }
+  }
+
+  revalidatePath("/account")
+
+  return {
+    ok: true,
+    message: "Attendance saved.",
+    reviewedAt,
+  }
+}
+
+export async function updateClassSessionAttendanceBatch({
+  sessionId,
+  attendance,
+}: {
+  sessionId: string
+  attendance: AttendanceUpdate[]
+}): Promise<ActionResult & { reviewedAt?: string }> {
+  const session = requireAdminSession(await getAccountSession())
+
+  if (!sessionId || !attendance.length) {
+    return {
+      ok: false,
+      message: "Session and attendance records are required.",
+    }
+  }
+
+  const normalizedAttendance = attendance.map((entry) => ({
+    ...entry,
+    attendanceStatus: entry.attendanceStatus.trim().toLowerCase(),
+  }))
+  const invalidEntry = normalizedAttendance.find(
+    (entry) => !entry.enrollmentId || !isAttendanceStatus(entry.attendanceStatus)
+  )
+
+  if (invalidEntry) {
+    return {
+      ok: false,
+      message: "Choose present, absent, excused, or late for every athlete.",
+    }
+  }
+
+  const reviewedAt = new Date().toISOString()
+  const supabase = createAdminClient()
+  const { error } = await supabase.from("ClassSessionAttendance").upsert(
+    normalizedAttendance.map((entry) => ({
+      session_id: sessionId,
+      enrollment_id: entry.enrollmentId,
+      athlete_id:
+        entry.athleteId && entry.athleteId !== "unknown"
+          ? entry.athleteId
+          : null,
+      attendance_status: entry.attendanceStatus,
+      notes: entry.notes?.trim() || null,
+      reviewed_by: session.userId,
+      reviewed_at: reviewedAt,
+    })),
     { onConflict: "session_id,enrollment_id" }
   )
 

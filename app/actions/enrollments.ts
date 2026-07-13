@@ -72,11 +72,13 @@ export async function updateEnrollmentAdminStatus({
 export async function createAdminEnrollment({
   athleteId,
   parentId,
+  classId,
   scheduleId,
   status,
 }: {
   athleteId: string
   parentId?: string | null
+  classId: string
   scheduleId: string
   status: string
 }): Promise<ActionResult & { enrollmentId?: string }> {
@@ -84,13 +86,14 @@ export async function createAdminEnrollment({
 
   const normalizedAthleteId = athleteId.trim()
   const normalizedScheduleId = scheduleId.trim()
+  const normalizedClassId = classId.toString().trim()
   const normalizedParentId = parentId?.trim() || null
   const normalizedStatus = status.trim().toLowerCase()
 
-  if (!normalizedAthleteId || !normalizedScheduleId) {
+  if (!normalizedAthleteId || !normalizedScheduleId || !normalizedClassId) {
     return {
       ok: false,
-      message: "Choose an athlete and class schedule before creating an enrollment.",
+      message: "Choose an athlete, class, and class schedule before creating an enrollment.",
     }
   }
 
@@ -168,6 +171,7 @@ export async function createAdminEnrollment({
     .insert([
       {
         athlete_id: normalizedAthleteId,
+        class_id: normalizedClassId,
         schedule_id: normalizedScheduleId,
         parent_id: resolvedParentId,
         status: normalizedStatus,
@@ -198,7 +202,7 @@ export async function requestEnrollment({
   scheduleId,
 }: {
   athleteId: string
-  classId: number
+  classId: string | number
   scheduleId: string | number
 }): Promise<ActionResult & { enrollmentId?: string }> {
   const session = await getAccountSession()
@@ -212,6 +216,7 @@ export async function requestEnrollment({
 
   const supabase = createAdminClient()
   const normalizedScheduleId = String(scheduleId).trim()
+  const normalizedClassId = String(classId).trim()
 
   if (!normalizedScheduleId) {
     return {
@@ -280,7 +285,7 @@ export async function requestEnrollment({
     .insert([
       {
         athlete_id: athleteId,
-        class_id: classId,
+        class_id: normalizedClassId,
         schedule_id: normalizedScheduleId,
         status: "pending",
       },

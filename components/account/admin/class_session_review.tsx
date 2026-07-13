@@ -4,7 +4,7 @@ import * as React from "react"
 import { ChevronDown, ClipboardCheck, Save, Search } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-import { updateClassSessionAttendance } from "@/app/actions/class-attendance"
+import { updateClassSessionAttendanceBatch } from "@/app/actions/class-attendance"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -79,20 +79,9 @@ function formatTime(value: string | null) {
     return "Time TBD"
   }
 
-  if (value.includes("T")) {
-    const date = new Date(value)
-
-    if (!Number.isNaN(date.getTime())) {
-      return new Intl.DateTimeFormat("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      }).format(date)
-    }
-  }
-
-  const [hourText, minuteText = "00"] = value.split(":")
-  const hour = Number(hourText)
-  const minute = Number(minuteText)
+  const timeMatch = value.match(/(\d{1,2}):(\d{2})(?::\d{2})?/)
+  const hour = Number(timeMatch?.[1])
+  const minute = Number(timeMatch?.[2] ?? "00")
 
   if (Number.isNaN(hour) || Number.isNaN(minute)) {
     return value
@@ -181,12 +170,9 @@ function AttendanceReviewTable({
   const [drafts, setDrafts] = React.useState(() =>
     buildDrafts(session.expectedAthletes)
   )
-  const [busyEnrollmentId, setBusyEnrollmentId] = React.useState<string | null>(
-    null
-  )
+  const [saving, setSaving] = React.useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const attendanceSummary = getAttendanceSummary(session)
 
   function getDraft(athlete: ClassSessionExpectedAthlete) {
     return (
@@ -213,27 +199,42 @@ function AttendanceReviewTable({
     }))
   }
 
-  async function saveAttendance(athlete: ClassSessionExpectedAthlete) {
-    const draft = getDraft(athlete)
+  const attendanceSummary = {
+    reviewed: session.expectedAthletes.filter(
+      (athlete) => Boolean(getDraft(athlete).attendanceStatus)
+    ).length,
+    total: session.expectedAthletes.length,
+  }
 
-    if (!draft.attendanceStatus) {
+  async function saveSessionAttendance() {
+    const missingAttendance = session.expectedAthletes.find(
+      (athlete) => !getDraft(athlete).attendanceStatus
+    )
+
+    if (missingAttendance) {
       toast({
         title: "Attendance not saved",
-        description: "Choose an attendance value first.",
+        description: "Choose attendance for every athlete before saving.",
         variant: "error",
       })
       return
     }
 
-    setBusyEnrollmentId(athlete.enrollmentId)
+    setSaving(true)
 
     try {
-      const result = await updateClassSessionAttendance({
+      const result = await updateClassSessionAttendanceBatch({
         sessionId: session.sessionId,
-        enrollmentId: athlete.enrollmentId,
-        athleteId: athlete.athleteId,
-        attendanceStatus: draft.attendanceStatus,
-        notes: draft.notes,
+        attendance: session.expectedAthletes.map((athlete) => {
+          const draft = getDraft(athlete)
+
+          return {
+            enrollmentId: athlete.enrollmentId,
+            athleteId: athlete.athleteId,
+            attendanceStatus: draft.attendanceStatus,
+            notes: draft.notes,
+          }
+        }),
       })
 
       if (!result.ok) {
@@ -245,9 +246,21 @@ function AttendanceReviewTable({
         return
       }
 
-      updateDraft(athlete.enrollmentId, {
-        reviewedAt: result.reviewedAt ?? new Date().toISOString(),
-      })
+      const reviewedAt = result.reviewedAt ?? new Date().toISOString()
+      setDrafts((current) =>
+        session.expectedAthletes.reduce<Record<string, AttendanceDraft>>(
+          (nextDrafts, athlete) => ({
+            ...nextDrafts,
+            [athlete.enrollmentId]: {
+              attendanceStatus:
+                current[athlete.enrollmentId]?.attendanceStatus ?? "",
+              notes: current[athlete.enrollmentId]?.notes ?? "",
+              reviewedAt,
+            },
+          }),
+          current
+        )
+      )
       toast({
         title: "Attendance saved",
         description: result.message,
@@ -262,7 +275,7 @@ function AttendanceReviewTable({
         variant: "error",
       })
     } finally {
-      setBusyEnrollmentId(null)
+      setSaving(false)
     }
   }
 
@@ -277,9 +290,20 @@ function AttendanceReviewTable({
             {getSessionTime(session)}
           </p>
         </div>
-        <Badge variant="outline">
-          {attendanceSummary.reviewed} / {attendanceSummary.total} reviewed
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <Badge variant="outline">
+            {attendanceSummary.reviewed} / {attendanceSummary.total} ready
+          </Badge>
+          <Button
+            type="button"
+            size="sm"
+            disabled={saving || !session.expectedAthletes.length}
+            onClick={saveSessionAttendance}
+          >
+            <Save />
+            {saving ? "Saving" : "Save Attendance"}
+          </Button>
+        </div>
       </div>
       <div className="mt-4 overflow-hidden rounded-md border">
         <Table>
@@ -290,14 +314,12 @@ function AttendanceReviewTable({
               <TableHead>Attendance</TableHead>
               <TableHead>Notes</TableHead>
               <TableHead>Reviewed</TableHead>
-              <TableHead className="text-right">Save</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {session.expectedAthletes.length ? (
               session.expectedAthletes.map((athlete) => {
                 const draft = getDraft(athlete)
-                const isBusy = busyEnrollmentId === athlete.enrollmentId
 
                 return (
                   <TableRow
@@ -363,25 +385,12 @@ function AttendanceReviewTable({
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDateTime(draft.reviewedAt)}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end">
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={isBusy || !draft.attendanceStatus}
-                          onClick={() => saveAttendance(athlete)}
-                        >
-                          <Save />
-                          {isBusy ? "Saving" : "Save"}
-                        </Button>
-                      </div>
-                    </TableCell>
                   </TableRow>
                 )
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-20 text-center">
+                <TableCell colSpan={5} className="h-20 text-center">
                   No approved or active enrollments are expected for this
                   session.
                 </TableCell>
@@ -423,7 +432,7 @@ export function ClassSessionReview({
         <CardTitle>Class Sessions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-start">
           <div className="relative">
             <Search className="pointer-events-none absolute top-2 left-2 h-4 w-4 text-muted-foreground" />
             <Input
