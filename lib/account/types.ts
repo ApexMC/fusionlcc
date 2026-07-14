@@ -184,6 +184,7 @@ export type ClassScheduleDisplayRecord = {
   startTime: string | null
   endTime: string | null
   isActive: boolean
+  enrollmentCount: number
   createdAt: string | null
   scheduleLabel: string
 }

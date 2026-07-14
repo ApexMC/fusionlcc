@@ -273,6 +273,7 @@ export function ClassScheduleManager({
               <TableHead>Start</TableHead>
               <TableHead>End</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-center">Enrolled</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -341,6 +342,9 @@ export function ClassScheduleManager({
                     {newScheduleDraft.isActive ? "active" : "inactive"}
                   </Badge>
                 </label>
+              </TableCell>
+              <TableCell className="text-center text-sm text-muted-foreground">
+                0
               </TableCell>
               <TableCell>
                 <div className="flex justify-end gap-1">
@@ -416,6 +420,9 @@ export function ClassScheduleManager({
                         {draft.isActive ? "active" : "inactive"}
                       </Badge>
                     </label>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="outline">{schedule.enrollmentCount}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">

@@ -118,6 +118,7 @@ const dayOrder = [
   "saturday",
   "sunday",
 ]
+const rosterEnrollmentStatuses = new Set(["approved", "active"])
 
 function firstRelation<T>(value: T | T[] | null | undefined) {
   return Array.isArray(value) ? value[0] : value
@@ -575,17 +576,47 @@ function buildClassNameById(classBilling: ClassBillingRecord[]) {
   ]))
 }
 
+function buildEnrollmentCountBySchedule(
+  enrollments: EnrollmentDisplayRecord[]
+) {
+  const athleteIdsBySchedule = new Map<string, Set<string>>()
+
+  enrollments.forEach((enrollment) => {
+    const scheduleId = enrollment.scheduleId
+
+    if (
+      !scheduleId ||
+      !rosterEnrollmentStatuses.has(enrollment.status.toLowerCase())
+    ) {
+      return
+    }
+
+    const athleteIds = athleteIdsBySchedule.get(scheduleId) ?? new Set<string>()
+    athleteIds.add(enrollment.athleteId ?? enrollment.enrollmentId)
+    athleteIdsBySchedule.set(scheduleId, athleteIds)
+  })
+
+  return new Map(
+    Array.from(athleteIdsBySchedule.entries()).map(([scheduleId, athleteIds]) => [
+      scheduleId,
+      athleteIds.size,
+    ])
+  )
+}
+
 function buildClassScheduleRows(
   scheduleRows: ClassScheduleRow[],
-  classNameById: Map<string, string>
+  classNameById: Map<string, string>,
+  enrollmentCountBySchedule: Map<string, number>
 ): ClassScheduleDisplayRecord[] {
   return scheduleRows
     .map((row) => {
       const classId = toId(row.class_id)
       const dayOfWeek = normalizeDay(row.day_of_week)
+      const scheduleId = String(row.schedule_id)
 
       return {
-        scheduleId: String(row.schedule_id),
+        scheduleId,
         classId,
         className:
           (classId ? classNameById.get(classId) : null) ??
@@ -594,6 +625,7 @@ function buildClassScheduleRows(
         startTime: row.start_time ?? null,
         endTime: row.end_time ?? null,
         isActive: row.is_active ?? true,
+        enrollmentCount: enrollmentCountBySchedule.get(scheduleId) ?? 0,
         createdAt: row.created_at ?? null,
         scheduleLabel: formatScheduleLabel(
           dayOfWeek,
@@ -621,12 +653,14 @@ function buildExpectedAthletesBySchedule(
   enrollments: EnrollmentDisplayRecord[]
 ) {
   const expectedByScheduleId = new Map<string, ClassSessionExpectedAthlete[]>()
-  const activeStatuses = new Set(["approved", "active"])
 
   enrollments.forEach((enrollment) => {
     const scheduleId = enrollment.scheduleId
 
-    if (!scheduleId || !activeStatuses.has(enrollment.status.toLowerCase())) {
+    if (
+      !scheduleId ||
+      !rosterEnrollmentStatuses.has(enrollment.status.toLowerCase())
+    ) {
       return
     }
 
@@ -987,9 +1021,11 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const enrollments = enrollmentRows.map(toDisplayEnrollment)
   const classBilling = buildClassBillingRows(classes)
   const classNameById = buildClassNameById(classBilling)
+  const enrollmentCountBySchedule = buildEnrollmentCountBySchedule(enrollments)
   const classSchedules = buildClassScheduleRows(
     classScheduleRows,
-    classNameById
+    classNameById,
+    enrollmentCountBySchedule
   )
   const classSessions = buildClassSessionRows({
     sessionRows: classSessionRows,
