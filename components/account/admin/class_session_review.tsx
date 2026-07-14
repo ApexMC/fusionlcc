@@ -882,148 +882,150 @@ export function ClassSessionReview({
       <CardHeader>
         <CardTitle>Class Sessions</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-            Search
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-2 left-2 h-4 w-4 text-muted-foreground" />
+      <CardContent className="max-h-150 overflow-auto space-y-6">
+        <div className="sticky top-0 z-20 space-y-6 bg-white pb-4 dark:bg-black">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Search
+              <div className="relative">
+                <Search className="pointer-events-none absolute top-2 left-2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search sessions"
+                  className="pl-8"
+                />
+              </div>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              From Date
               <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search sessions"
-                className="pl-8"
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
               />
-            </div>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-            From Date
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-            To Date
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-            Class
-            <select
-              value={classFilter}
-              onChange={(event) => setClassFilter(event.target.value)}
-              className={selectControlClassName}
-            >
-              <option value="all">All classes</option>
-              {classOptions.map((className) => (
-                <option key={className} value={className}>
-                  {className}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-            Schedule
-            <select
-              value={scheduleFilter}
-              onChange={(event) => setScheduleFilter(event.target.value)}
-              className={selectControlClassName}
-            >
-              <option value="all">All schedules</option>
-              {scheduleOptions.map((schedule) => (
-                <option key={schedule.value} value={schedule.value}>
-                  {schedule.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-            Status
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className={selectControlClassName}
-            >
-              <option value="all">All statuses</option>
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {formatSessionStatus(status)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-            Attendance
-            <select
-              value={attendanceFilter}
-              onChange={(event) =>
-                setAttendanceFilter(event.target.value as AttendanceFilter)
-              }
-              className={selectControlClassName}
-            >
-              {attendanceFilterOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-            Sort By
-            <div className="flex gap-2">
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              To Date
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Class
               <select
-                value={sortKey}
-                onChange={(event) => {
-                  const nextSortKey = event.target.value as SortKey
-                  setSortKey(nextSortKey)
-                  setSortDirection(getDefaultSortDirection(nextSortKey))
-                }}
-                className={`${selectControlClassName} min-w-0 flex-1`}
+                value={classFilter}
+                onChange={(event) => setClassFilter(event.target.value)}
+                className={selectControlClassName}
               >
-                {sortOptions.map((option) => (
+                <option value="all">All classes</option>
+                {classOptions.map((className) => (
+                  <option key={className} value={className}>
+                    {className}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Schedule
+              <select
+                value={scheduleFilter}
+                onChange={(event) => setScheduleFilter(event.target.value)}
+                className={selectControlClassName}
+              >
+                <option value="all">All schedules</option>
+                {scheduleOptions.map((schedule) => (
+                  <option key={schedule.value} value={schedule.value}>
+                    {schedule.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Status
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className={selectControlClassName}
+              >
+                <option value="all">All statuses</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {formatSessionStatus(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Attendance
+              <select
+                value={attendanceFilter}
+                onChange={(event) =>
+                  setAttendanceFilter(event.target.value as AttendanceFilter)
+                }
+                className={selectControlClassName}
+              >
+                {attendanceFilterOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </select>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  setSortDirection((current) =>
-                    current === "asc" ? "desc" : "asc"
-                  )
-                }
-              >
-                <ArrowUpDown />
-                {sortDirection === "asc" ? "Asc" : "Desc"}
-              </Button>
-            </div>
-          </label>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">
-              {filteredSessions.length} / {sessions.length} sessions
-            </Badge>
-            {hasActiveFilters ? (
-              <Badge variant="secondary">Filters active</Badge>
-            ) : null}
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Sort By
+              <div className="flex gap-2">
+                <select
+                  value={sortKey}
+                  onChange={(event) => {
+                    const nextSortKey = event.target.value as SortKey
+                    setSortKey(nextSortKey)
+                    setSortDirection(getDefaultSortDirection(nextSortKey))
+                  }}
+                  className={`${selectControlClassName} min-w-0 flex-1`}
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setSortDirection((current) =>
+                      current === "asc" ? "desc" : "asc"
+                    )
+                  }
+                >
+                  <ArrowUpDown />
+                  {sortDirection === "asc" ? "Asc" : "Desc"}
+                </Button>
+              </div>
+            </label>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!hasActiveFilters && !hasCustomSort}
-            onClick={resetFilters}
-          >
-            <X />
-            Reset
-          </Button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">
+                {filteredSessions.length} / {sessions.length} sessions
+              </Badge>
+              {hasActiveFilters ? (
+                <Badge variant="secondary">Filters active</Badge>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!hasActiveFilters && !hasCustomSort}
+              onClick={resetFilters}
+            >
+              <X />
+              Reset
+            </Button>
+          </div>
         </div>
         <Table>
           <TableHeader>
