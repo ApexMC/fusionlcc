@@ -344,7 +344,7 @@ export function ClassScheduleManager({
                 </label>
               </TableCell>
               <TableCell className="text-center text-sm text-muted-foreground">
-                0
+                —
               </TableCell>
               <TableCell>
                 <div className="flex justify-end gap-1">
@@ -422,7 +422,7 @@ export function ClassScheduleManager({
                     </label>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge variant="outline">{schedule.enrollmentCount}</Badge>
+                    <Badge variant="outline"> {schedule.enrollmentCount} </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">
