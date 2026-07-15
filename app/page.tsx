@@ -86,6 +86,24 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Competitive Cheer */}
+      <section className="w-full bg-zinc-100 dark:bg-zinc-800 px-6 py-16 sm:px-16">
+        <h2 className="text-center text-3xl font-bold text-zinc-800 dark:text-zinc-200">
+          Competitive Cheer
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-center text-zinc-600 dark:text-zinc-400">
+          Tryouts for competitive cheer teams are currently closed. Circumstances may change and exceptions may be made, so please contact us directly or view our standard tumbling / gymnastics classes.
+        </p>
+        <div className="mt-8 flex justify-center">
+          <Link
+            href="/competitive-cheer"
+            className="inline-block rounded font-semibold text-white bg-purple-500 px-5 py-2.5 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
+          >
+            Learn More
+          </Link>
+        </div>
+      </section>
+
       {/* Featured Classes */}
       <section className="w-full max-w-5xl px-6 py-16 sm:px-16">
         <h2 className="text-center text-3xl font-bold text-zinc-800 dark:text-zinc-200">

@@ -201,10 +201,8 @@ export default async function AccountPage() {
                             );
                         })}
                     </nav>
-                    <section id="operations" className="w-full scroll-mt-30">
-                        <OperationsSummary actionItems={dashboardData.actionItems} />
-                    </section>
                     <section id="metrics" className="w-full scroll-mt-30">
+                        <OperationsSummary actionItems={dashboardData.actionItems} />
                         <AdminMetrics metrics={dashboardData.metrics} />
                     </section>
                     <section id="charts" className="w-full scroll-mt-30">

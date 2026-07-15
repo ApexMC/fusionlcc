@@ -231,16 +231,16 @@ export default function CompetitiveCheer() {
       </section>
       */}
 
-      <section className="w-full bg-zinc-950 px-6 py-20 text-white sm:px-10 lg:px-16">
+      <section className="w-full bg-zinc-100 dark:bg-zinc-950 px-6 py-20 text-black dark:text-white sm:px-10 lg:px-16">
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 lg:grid-cols-[1fr_0.85fr] lg:items-start">
           <div>
-            <p className="text-sm font-bold uppercase text-purple-300">
+            <p className="text-sm font-bold uppercase text-purple-400 dark:text-purple-300">
               Athlete Expectations
             </p>
             <h2 className="mt-3 text-4xl font-bold">
               Competitive cheer takes commitment
             </h2>
-            <p className="mt-4 max-w-2xl text-lg leading-8 text-zinc-300">
+            <p className="mt-4 max-w-2xl text-lg leading-8 text-zinc-700 dark:text-zinc-300">
               Our coaches will help athletes learn the skills. Athletes bring
               effort, focus, consistency, and a willingness to support the team.
             </p>
@@ -250,10 +250,10 @@ export default function CompetitiveCheer() {
             {expectations.map((expectation) => (
               <div
                 key={expectation}
-                className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/5 p-4"
+                className="flex items-start gap-3 rounded-lg border border-white/10 bg-white dark:bg-white/5 p-4"
               >
                 <CheckCircle2 className="mt-1 size-5 shrink-0 text-orange-300" />
-                <p className="leading-7 text-zinc-100">{expectation}</p>
+                <p className="leading-7 text-zinc-700 dark:text-zinc-100">{expectation}</p>
               </div>
             ))}
           </div>
