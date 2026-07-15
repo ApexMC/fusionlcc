@@ -85,7 +85,7 @@ export default function CompetitiveCheer() {
         <div className="absolute inset-0 bg-linear-to-r from-zinc-950/90 via-zinc-950/65 to-zinc-950/20" />
         <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-zinc-100 dark:from-zinc-950" />
 
-        <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <div className="relative z-0 mx-auto flex w-full max-w-6xl flex-col gap-8">
           <div className="max-w-3xl">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur">
               <Sparkles className="size-4 text-orange-300" />

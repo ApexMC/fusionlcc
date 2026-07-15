@@ -24,7 +24,7 @@ export function OperationsSummary({
   actionItems: OperationsActionItem[]
 }) {
   return (
-    <section className="grid w-full grid-cols-1 gap-4 lg:grid-cols-4">
+    <section className="grid w-full grid-cols-1 gap-4 lg:grid-cols-4 mb-4">
       {actionItems.map((item) => {
         const Icon = icons[item.label as keyof typeof icons] ?? AlertCircle
 

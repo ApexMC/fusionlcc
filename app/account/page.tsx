@@ -37,11 +37,6 @@ import type { ParentRecord } from "@/lib/account/types";
 
 const adminDashboardSections = [
     {
-        id: "operations",
-        label: "Operations",
-        icon: ListChecks,
-    },
-    {
         id: "metrics",
         label: "Metrics",
         icon: BarChart3,
