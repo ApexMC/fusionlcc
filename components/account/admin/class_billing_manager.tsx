@@ -148,7 +148,7 @@ export function ClassBillingManager({
   return (
     <Card className="w-full bg-white dark:bg-black">
       <CardHeader>
-        <CardTitle>Class Billing Setup</CardTitle>
+        <CardTitle>Program Billing</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="max-h-125 overflow-auto rounded-md border">
