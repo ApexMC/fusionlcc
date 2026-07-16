@@ -836,6 +836,8 @@ export function ClassSessionReview({
   const [expandedSessionId, setExpandedSessionId] = React.useState<
     string | null
   >(null)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = React.useState(false)
+  const filterPanelId = React.useId()
   const classOptions = React.useMemo(
     () =>
       Array.from(new Set(sessions.map((session) => session.className)))
@@ -957,8 +959,35 @@ export function ClassSessionReview({
         <CardTitle>Class Sessions</CardTitle>
       </CardHeader>
       <CardContent className="max-h-150 overflow-auto space-y-6">
-        <div className="sticky top-0 z-20 space-y-6 bg-white pb-4 dark:bg-black">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="sticky top-0 z-20 space-y-4 bg-white pb-4 dark:bg-black">
+          <div className="flex items-center justify-between gap-3 md:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 flex-1 justify-between"
+              aria-expanded={mobileFiltersOpen}
+              aria-controls={filterPanelId}
+              onClick={() => setMobileFiltersOpen((current) => !current)}
+            >
+              <span className="flex items-center gap-2">
+                <Search />
+                Filters & Sort
+              </span>
+              <ChevronDown
+                className={
+                  mobileFiltersOpen
+                    ? "rotate-180 transition-transform"
+                    : "transition-transform"
+                }
+              />
+            </Button>
+          </div>
+          <div
+            id={filterPanelId}
+            className={`${
+              mobileFiltersOpen ? "grid" : "hidden"
+            } gap-3 md:grid md:grid-cols-2 xl:grid-cols-4`}
+          >
             <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Search
               <div className="relative">
