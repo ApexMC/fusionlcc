@@ -473,8 +473,8 @@ export function ClassScheduleManager({
             <DialogTitle>Delete Class Schedule</DialogTitle>
             <DialogDescription>
               Delete {scheduleToDelete?.className ?? "this class schedule"} on{" "}
-              {scheduleToDelete?.scheduleLabel ?? "the selected time"}.
-              Existing class session links may prevent deletion.
+              {scheduleToDelete?.scheduleLabel ?? "the selected time"}?
+              Session history from this schedule will be retained.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

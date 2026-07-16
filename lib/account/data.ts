@@ -10,6 +10,9 @@ import type {
   ClassBillingRecord,
   ClassOption,
   ChartDatum,
+  CoachDashboardData,
+  CoachTimeClockData,
+  CoachTimeClockEntry,
   ClassRecord,
   ClassSessionAttendanceStatus,
   ClassScheduleDisplayRecord,
@@ -107,6 +110,18 @@ type ClassSessionAttendanceRow = {
   notes?: string | null
   reviewed_at?: string | null
   reviewed_by?: string | null
+}
+
+type CoachTimeClockRow = {
+  time_clock_id?: string | number
+  coach_user_id?: string | null
+  work_date?: string | null
+  clock_in_at?: string | null
+  clock_out_at?: string | null
+  clock_in_note?: string | null
+  clock_out_note?: string | null
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 const dayOrder = [
@@ -466,6 +481,7 @@ async function fetchClassScheduleRows() {
   const { data, error } = await supabase
     .from("ClassSchedules")
     .select("schedule_id,class_id,day_of_week,start_time,end_time,is_active,created_at")
+    .is("archived_at", null)
     .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true })
 
@@ -519,6 +535,60 @@ async function fetchClassSessionAttendanceRows() {
   }
 
   return (data ?? []) as ClassSessionAttendanceRow[]
+}
+
+function toCoachTimeClockEntry(row: CoachTimeClockRow): CoachTimeClockEntry {
+  const entryId = row.time_clock_id ?? row.clock_in_at ?? "unknown"
+
+  return {
+    entryId: String(entryId),
+    coachUserId: row.coach_user_id ?? "",
+    workDate: row.work_date ?? null,
+    clockInAt: row.clock_in_at ?? "",
+    clockOutAt: row.clock_out_at ?? null,
+    clockInNote: row.clock_in_note ?? null,
+    clockOutNote: row.clock_out_note ?? null,
+    createdAt: row.created_at ?? null,
+    updatedAt: row.updated_at ?? null,
+  }
+}
+
+export async function getCoachTimeClockData(
+  userId: string
+): Promise<CoachTimeClockData> {
+  const supabase = createAdminClient()
+  const selectColumns =
+    "time_clock_id,coach_user_id,work_date,clock_in_at,clock_out_at,clock_in_note,clock_out_note,created_at,updated_at"
+  const [recentResult, activeResult] = await Promise.all([
+    supabase
+      .from("CoachTimeClockEntries")
+      .select(selectColumns)
+      .eq("coach_user_id", userId)
+      .order("clock_in_at", { ascending: false })
+      .limit(14),
+    supabase
+      .from("CoachTimeClockEntries")
+      .select(selectColumns)
+      .eq("coach_user_id", userId)
+      .is("clock_out_at", null)
+      .order("clock_in_at", { ascending: false })
+      .limit(1),
+  ])
+
+  const error = recentResult.error ?? activeResult.error
+
+  const recentEntries = ((recentResult.data ?? []) as CoachTimeClockRow[]).map(
+    toCoachTimeClockEntry
+  )
+  const activeEntry =
+    ((activeResult.data ?? []) as CoachTimeClockRow[])[0] ?? null
+
+  return {
+    activeEntry: activeEntry ? toCoachTimeClockEntry(activeEntry) : null,
+    recentEntries,
+    tableReady: true,
+    message: null,
+  }
 }
 
 function buildClassBillingRows(classes: ClassRecord[]) {
@@ -1049,6 +1119,46 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     classSessions,
     statusBreakdown: buildStatusBreakdown(enrollments),
     monthlyTrend: buildMonthlyTrend(enrollments),
+  }
+}
+
+export async function getCoachDashboardData(
+  userId: string
+): Promise<CoachDashboardData> {
+  const [
+    enrollmentRows,
+    classes,
+    classScheduleRows,
+    classSessionRows,
+    classSessionAttendanceRows,
+    timeClock,
+  ] = await Promise.all([
+    fetchEnrollments(),
+    fetchClasses(),
+    fetchClassScheduleRows(),
+    fetchClassSessionRows(),
+    fetchClassSessionAttendanceRows(),
+    getCoachTimeClockData(userId),
+  ])
+  const enrollments = enrollmentRows.map(toDisplayEnrollment)
+  const classBilling = buildClassBillingRows(classes)
+  const classNameById = buildClassNameById(classBilling)
+  const enrollmentCountBySchedule = buildEnrollmentCountBySchedule(enrollments)
+  const classSchedules = buildClassScheduleRows(
+    classScheduleRows,
+    classNameById,
+    enrollmentCountBySchedule
+  )
+
+  return {
+    classSessions: buildClassSessionRows({
+      sessionRows: classSessionRows,
+      schedules: classSchedules,
+      classNameById,
+      enrollments,
+      attendanceRows: classSessionAttendanceRows,
+    }),
+    timeClock,
   }
 }
 

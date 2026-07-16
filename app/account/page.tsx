@@ -6,6 +6,7 @@ import {
     BarChart3,
     CalendarDays,
     ClipboardCheck,
+    Clock,
     CreditCard,
     ListChecks,
     Phone,
@@ -27,9 +28,11 @@ import { ClassBillingManager } from "@/components/account/admin/class_billing_ma
 import { ClassScheduleManager } from "@/components/account/admin/class_schedule_manager";
 import { ClassSessionReview } from "@/components/account/admin/class_session_review";
 import { ParentEnrollments } from "@/components/account/parent_enrollments";
+import { CoachTimeClock } from "@/components/account/coach/time_clock";
 import { getAccountSession, getParentForUser } from "@/lib/account/auth";
 import {
     getAdminDashboardData,
+    getCoachDashboardData,
     getParentAthleteEnrollments,
 } from "@/lib/account/data";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -73,6 +76,19 @@ const adminDashboardSections = [
     },
 ];
 
+const coachDashboardSections = [
+    {
+        id: "sessions",
+        label: "Sessions",
+        icon: ClipboardCheck,
+    },
+    {
+        id: "time-clock",
+        label: "Time Clock",
+        icon: Clock,
+    },
+];
+
 export default async function AccountPage() {
     const session = await getAccountSession();
 
@@ -81,7 +97,7 @@ export default async function AccountPage() {
     }
 
     /*Parent Account Page*/
-    if (session.isParent) {
+    if (session.isParent && !session.isOwner && !session.isAdmin && !session.isCoach) {
         const supabase = createAdminClient();
         const parent = await getParentForUser(session.userId);
         const parents = parent ? [parent] : [];
@@ -230,6 +246,51 @@ export default async function AccountPage() {
                         className="flex w-full scroll-mt-30 flex-col items-center justify-center gap-6"
                     >
                         <ParentList />
+                    </section>
+                </div>
+            </main>
+        </div>
+        );
+    }
+
+    /*Coach Dashboard*/
+    else if (session.isCoach) {
+        const dashboardData = await getCoachDashboardData(session.userId);
+
+        return (
+        <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans w-full">
+            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-12 px-4 justify-start bg-zinc-100 dark:bg-zinc-900 sm:px-8">
+                <div className="flex w-full max-w-8xl flex-col items-center justify-center gap-6 bg-zinc-100 dark:bg-zinc-900 font-sans">
+                    <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-2">
+                        Coach Dashboard
+                    </h1>
+                    <nav
+                        aria-label="Coach dashboard sections"
+                        className="sticky top-15 z-20 flex w-full flex-wrap items-center justify-center gap-2 rounded-lg p-2 shadow-sm backdrop-blur dark:bg-transparent"
+                    >
+                        {coachDashboardSections.map((section) => {
+                            const Icon = section.icon;
+
+                            return (
+                                <Button
+                                    key={section.id}
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                >
+                                    <a href={`#${section.id}`}>
+                                        <Icon />
+                                        {section.label}
+                                    </a>
+                                </Button>
+                            );
+                        })}
+                    </nav>
+                    <section id="sessions" className="w-full scroll-mt-30">
+                        <ClassSessionReview sessions={dashboardData.classSessions} />
+                    </section>
+                    <section id="time-clock" className="w-full scroll-mt-30">
+                        <CoachTimeClock timeClock={dashboardData.timeClock} />
                     </section>
                 </div>
             </main>

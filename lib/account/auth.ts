@@ -53,6 +53,14 @@ export function requireAdminSession(session: AccountSession | null) {
   return session
 }
 
+export function requireStaffSession(session: AccountSession | null) {
+  if (!session || (!session.isAdmin && !session.isOwner && !session.isCoach)) {
+    throw new Error("Unauthorized")
+  }
+
+  return session
+}
+
 export async function getParentForUser(userId: string) {
   const admin = createAdminClient()
 

@@ -3,7 +3,13 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import createClient from "@/lib/supabase/client";
 
-export default function ProfileButton({ user }: { user: any }) {
+export default function ProfileButton({
+  user,
+  showTimeClock = false,
+}: {
+  user: any;
+  showTimeClock?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   const supabase = createClient();
@@ -40,6 +46,11 @@ const initials = displayName
           <Link href="/account" className="block px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700" onClick={() => setOpen(false)}>
             Account
           </Link>
+          {showTimeClock ? (
+            <Link href="/account/time-clock" className="block px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700" onClick={() => setOpen(false)}>
+              Time Clock
+            </Link>
+          ) : null}
           <button onClick={async () => {
               await supabase.auth.signOut();
               setOpen(false);

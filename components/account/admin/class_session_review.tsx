@@ -645,7 +645,81 @@ function AttendanceReviewTable({
           </Button>
         </div>
       </div>
-      <div className="mt-4 overflow-hidden rounded-md border">
+      <div className="mt-4 space-y-3 md:hidden">
+        {session.expectedAthletes.length ? (
+          session.expectedAthletes.map((athlete) => {
+            const draft = getDraft(athlete)
+
+            return (
+              <div
+                key={`${athlete.athleteId}-${athlete.enrollmentId}`}
+                className="rounded-md border p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium">{athlete.athleteName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Enrollment #{athlete.enrollmentId}
+                    </div>
+                  </div>
+                  {draft.attendanceStatus ? (
+                    <Badge
+                      variant={getAttendanceVariant(draft.attendanceStatus)}
+                    >
+                      {draft.attendanceStatus}
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="mt-3 text-sm">
+                  <div>{athlete.parentName}</div>
+                  {athlete.parentEmail ? (
+                    <div className="text-xs text-muted-foreground">
+                      {athlete.parentEmail}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="mt-3 grid gap-2">
+                  <select
+                    value={draft.attendanceStatus}
+                    onChange={(event) =>
+                      updateDraft(athlete.enrollmentId, {
+                        attendanceStatus: event.target
+                          .value as ClassSessionAttendanceStatus,
+                      })
+                    }
+                    className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
+                  >
+                    <option value="">Mark attendance</option>
+                    {attendanceOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <Input
+                    value={draft.notes}
+                    onChange={(event) =>
+                      updateDraft(athlete.enrollmentId, {
+                        notes: event.target.value,
+                      })
+                    }
+                    placeholder="Optional note"
+                    className="h-10"
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    Reviewed: {formatDateTime(draft.reviewedAt)}
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        ) : (
+          <div className="rounded-md border border-dashed p-5 text-center text-sm text-muted-foreground">
+            No approved or active enrollments are expected for this session.
+          </div>
+        )}
+      </div>
+      <div className="mt-4 hidden overflow-hidden rounded-md border md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -1027,7 +1101,89 @@ export function ClassSessionReview({
             </Button>
           </div>
         </div>
-        <Table>
+        <div className="space-y-3 md:hidden">
+          {filteredSessions.length ? (
+            filteredSessions.map((session) => {
+              const isExpanded = visibleExpandedSessionId === session.sessionId
+              const attendanceSummary = getAttendanceSummary(session)
+
+              return (
+                <div key={session.sessionId} className="rounded-lg border p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-medium">
+                        {formatDate(session.sessionDate)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {getSessionTime(session)}
+                      </div>
+                    </div>
+                    <Badge variant={getSessionStatusVariant(session.status)}>
+                      {formatSessionStatus(session.status)}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground">
+                        Class
+                      </div>
+                      <div>{session.className}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground">
+                        Schedule
+                      </div>
+                      <div>{getScheduleDisplay(session)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground">
+                        Expected
+                      </div>
+                      <div>{session.expectedAthletes.length}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground">
+                        Attendance
+                      </div>
+                      <div>
+                        {attendanceSummary.reviewed} / {attendanceSummary.total}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant={isExpanded ? "secondary" : "outline"}
+                    className="mt-3 h-10 w-full"
+                    aria-expanded={isExpanded}
+                    onClick={() => toggleSession(session.sessionId)}
+                  >
+                    <ClipboardCheck />
+                    {isExpanded ? "Close Review" : "Review Attendance"}
+                    <ChevronDown
+                      className={
+                        isExpanded
+                          ? "rotate-180 transition-transform"
+                          : "transition-transform"
+                      }
+                    />
+                  </Button>
+                  {isExpanded ? (
+                    <div className="mt-3">
+                      <AttendanceReviewTable session={session} />
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })
+          ) : (
+            <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+              No class sessions match the current filters.
+            </div>
+          )}
+        </div>
+        <div className="hidden md:block">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>
@@ -1179,7 +1335,8 @@ export function ClassSessionReview({
               </TableRow>
             )}
           </TableBody>
-        </Table>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   )

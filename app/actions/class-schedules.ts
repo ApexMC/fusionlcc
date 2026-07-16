@@ -160,7 +160,10 @@ export async function deleteClassSchedule(
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("ClassSchedules")
-    .delete()
+    .update({
+      is_active: false,
+      archived_at: new Date().toLocaleString(),
+    })
     .eq("schedule_id", scheduleId)
 
   if (error) {

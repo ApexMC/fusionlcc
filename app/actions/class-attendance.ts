@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
+import { getAccountSession, requireStaffSession } from "@/lib/account/auth"
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { ClassSessionAttendanceStatus } from "@/lib/account/types"
 
@@ -51,7 +51,7 @@ export async function updateClassSessionAttendance({
   attendanceStatus: string
   notes?: string
 }): Promise<ActionResult & { reviewedAt?: string }> {
-  const session = requireAdminSession(await getAccountSession())
+  const session = requireStaffSession(await getAccountSession())
   const normalizedAttendanceStatus = attendanceStatus.trim().toLowerCase()
 
   if (!sessionId || !enrollmentId) {
@@ -108,7 +108,7 @@ export async function updateClassSessionAttendanceBatch({
   sessionId: string
   attendance: AttendanceUpdate[]
 }): Promise<ActionResult & { reviewedAt?: string }> {
-  const session = requireAdminSession(await getAccountSession())
+  const session = requireStaffSession(await getAccountSession())
 
   if (!sessionId || !attendance.length) {
     return {

@@ -52,7 +52,7 @@ export default function Home() {
           building confidence, strength, and skill in every athlete.
         </p>
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
-          <Link href="/classes" className="rounded-full border border-zinc-300 px-6 py-3 bg-purple-600 font-bold text-zinc-800 transition hover:bg-white dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-purple-800">
+          <Link href="/classes" className="rounded-full border border-zinc-300 px-6 py-3 bg-purple-600 font-bold text-zinc-100 transition hover:bg-purple-500 dark:border-zinc-700 dark:hover:bg-purple-800">
             View Classes
           </Link>
           <Link
@@ -87,20 +87,32 @@ export default function Home() {
       </section>
 
       {/* Competitive Cheer */}
-      <section className="w-full bg-zinc-100 dark:bg-zinc-800 px-6 py-16 sm:px-16">
-        <h2 className="text-center text-3xl font-bold text-zinc-800 dark:text-zinc-200">
-          Competitive Cheer
-        </h2>
-        <p className="mx-auto mt-3 max-w-2xl text-center text-zinc-600 dark:text-zinc-400">
-          Tryouts for competitive cheer teams are currently closed. Circumstances may change and exceptions may be made, so please contact us directly or view our standard tumbling / gymnastics classes.
-        </p>
-        <div className="mt-8 flex justify-center">
-          <Link
-            href="/competitive-cheer"
-            className="inline-block rounded font-semibold text-white bg-purple-500 px-5 py-2.5 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
-          >
-            Learn More
-          </Link>
+      <section className="relative w-full overflow-hidden px-6 py-16 sm:px-16">
+        <Image
+          src="/images/landing_header.png"
+          alt="Competitive cheer athlete performing a jump in the gym"
+          fill
+          priority
+          aria-hidden="true"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-black/45" />
+
+        <div className="relative z-10">
+          <h2 className="text-center text-3xl font-bold text-white">
+            Competitive Cheer
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-white/90">
+            Tryouts for competitive cheer teams are currently closed. Circumstances may change and exceptions may be made, so please contact us directly or view our standard tumbling / gymnastics classes.
+          </p>
+          <div className="mt-8 flex justify-center">
+            <Link
+              href="/competitive-cheer"
+              className="inline-block rounded bg-purple-500 px-5 py-2.5 font-semibold text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
+            >
+              Learn More
+            </Link>
+          </div>
         </div>
       </section>
 

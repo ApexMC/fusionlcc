@@ -4,7 +4,6 @@ import {
   ArrowRight,
   X,
   CheckCircle2,
-  ClipboardList,
   HeartHandshake,
   Sparkles,
   Trophy,

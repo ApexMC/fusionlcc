@@ -134,6 +134,11 @@ export type AdminDashboardData = {
   monthlyTrend: TrendDatum[]
 }
 
+export type CoachDashboardData = {
+  classSessions: ClassSessionDisplayRecord[]
+  timeClock: CoachTimeClockData
+}
+
 export type ParentAthleteEnrollment = {
   athleteId: string
   athleteName: string
@@ -221,3 +226,22 @@ export type ClassSessionAttendanceStatus =
   | "excused"
   | "late"
   | string
+
+export type CoachTimeClockEntry = {
+  entryId: string
+  coachUserId: string
+  workDate: string | null
+  clockInAt: string
+  clockOutAt: string | null
+  clockInNote: string | null
+  clockOutNote: string | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export type CoachTimeClockData = {
+  activeEntry: CoachTimeClockEntry | null
+  recentEntries: CoachTimeClockEntry[]
+  tableReady: boolean
+  message: string | null
+}
