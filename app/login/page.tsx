@@ -7,6 +7,8 @@ import createClient from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes"
 import US_STATES from "@/utils/us_states";
+import { useToast } from "@/components/ui/toast";
+import { TriangleAlert } from "lucide-react";
 
 function formatPhoneInput(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -63,6 +65,7 @@ export default function SignInPage() {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const { toast } = useToast()
 
   const handleSignUp = async (e: FormEvent) => {
     e.preventDefault();
@@ -209,6 +212,12 @@ export default function SignInPage() {
           </form>
         )}
 
+        {activeTab === "signup" && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200 text-center">
+          <TriangleAlert className="inline-block mr-2 size-4 text-amber-800 dark:text-amber-200" />
+          Currently, you must confirm your email on the same device you register on.
+        </div>
+)}
         {/* Sign Up Form */}
         {activeTab === "signup" && (
           <form onSubmit={handleSignUp} className="space-y-5">
