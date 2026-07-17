@@ -264,7 +264,7 @@ export function ClassScheduleManager({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="max-h-125 overflow-auto rounded-md border">
+        <div className="max-h-[32rem] overflow-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>

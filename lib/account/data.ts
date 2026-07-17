@@ -4,8 +4,10 @@ import { schedule } from "@/components/classes/class_schedules"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getStripe } from "@/lib/stripe/server"
 import type {
+  AdminCoachTimeClockGroup,
   AdminDashboardData,
   AdminEnrollmentAthleteOption,
+  AdminTimeClockReviewData,
   AthleteRecord,
   ClassBillingRecord,
   ClassOption,
@@ -120,8 +122,14 @@ type CoachTimeClockRow = {
   clock_out_at?: string | null
   clock_in_note?: string | null
   clock_out_note?: string | null
+  status?: string | null
   created_at?: string | null
   updated_at?: string | null
+}
+
+type CoachProfile = {
+  coachName: string
+  coachEmail: string | null
 }
 
 const dayOrder = [
@@ -134,6 +142,8 @@ const dayOrder = [
   "sunday",
 ]
 const rosterEnrollmentStatuses = new Set(["approved", "active"])
+const timeClockSelectColumns =
+  "time_clock_id,coach_user_id,work_date,clock_in_at,clock_out_at,clock_in_note,clock_out_note,status,created_at,updated_at"
 
 function firstRelation<T>(value: T | T[] | null | undefined) {
   return Array.isArray(value) ? value[0] : value
@@ -537,6 +547,10 @@ async function fetchClassSessionAttendanceRows() {
   return (data ?? []) as ClassSessionAttendanceRow[]
 }
 
+function normalizeTimeClockStatus(status: string | null | undefined) {
+  return status?.trim().toLowerCase() || "pending"
+}
+
 function toCoachTimeClockEntry(row: CoachTimeClockRow): CoachTimeClockEntry {
   const entryId = row.time_clock_id ?? row.clock_in_at ?? "unknown"
 
@@ -548,8 +562,190 @@ function toCoachTimeClockEntry(row: CoachTimeClockRow): CoachTimeClockEntry {
     clockOutAt: row.clock_out_at ?? null,
     clockInNote: row.clock_in_note ?? null,
     clockOutNote: row.clock_out_note ?? null,
+    status: normalizeTimeClockStatus(row.status),
     createdAt: row.created_at ?? null,
     updatedAt: row.updated_at ?? null,
+  }
+}
+
+function getCurrentPayPeriod(now = new Date()) {
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  const day = now.getDate()
+  const startDay = day <= 15 ? 1 : 16
+  const start = new Date(year, month, startDay)
+  const end =
+    day <= 15 ? new Date(year, month, 16) : new Date(year, month + 1, 1)
+
+  return {
+    periodStart: start.toISOString(),
+    periodEnd: end.toISOString(),
+  }
+}
+
+function isEntryInPeriod(
+  entry: CoachTimeClockEntry,
+  periodStart: string,
+  periodEnd: string
+) {
+  const entryDate = entry.clockInAt || entry.workDate
+
+  return Boolean(entryDate && entryDate >= periodStart && entryDate < periodEnd)
+}
+
+function getEntryDurationMinutes(entry: CoachTimeClockEntry, now: Date) {
+  const start = new Date(entry.clockInAt)
+  const end = entry.clockOutAt ? new Date(entry.clockOutAt) : now
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return 0
+  }
+
+  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 60000))
+}
+
+function getEntriesDurationMinutes(entries: CoachTimeClockEntry[], now: Date) {
+  return entries.reduce(
+    (total, entry) => total + getEntryDurationMinutes(entry, now),
+    0
+  )
+}
+
+function getMetadataText(
+  metadata: Record<string, unknown> | null | undefined,
+  key: string
+) {
+  const value = metadata?.[key]
+
+  return typeof value === "string" && value.trim() ? value.trim() : null
+}
+
+function getFallbackCoachName(userId: string) {
+  return `Coach ${userId.slice(0, 8)}`
+}
+
+async function fetchCoachProfiles(userIds: string[]) {
+  const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)))
+  const supabase = createAdminClient()
+  const profiles = new Map<string, CoachProfile>()
+
+  await Promise.all(
+    uniqueUserIds.map(async (userId) => {
+      const { data, error } = await supabase.auth.admin.getUserById(userId)
+
+      if (error || !data.user) {
+        profiles.set(userId, {
+          coachName: getFallbackCoachName(userId),
+          coachEmail: null,
+        })
+        return
+      }
+
+      const metadata = data.user.user_metadata as
+        | Record<string, unknown>
+        | undefined
+      const firstName = getMetadataText(metadata, "first_name")
+      const lastName = getMetadataText(metadata, "last_name")
+      const fullName =
+        getMetadataText(metadata, "full_name") ??
+        getMetadataText(metadata, "name") ??
+        [firstName, lastName].filter(Boolean).join(" ").trim()
+      const email = data.user.email ?? null
+
+      profiles.set(userId, {
+        coachName:
+          fullName ||
+          (email ? email.split("@")[0] : null) ||
+          getFallbackCoachName(userId),
+        coachEmail: email,
+      })
+    })
+  )
+
+  return profiles
+}
+
+export async function getAdminTimeClockReviewData(): Promise<AdminTimeClockReviewData> {
+  const now = new Date()
+  const { periodStart, periodEnd } = getCurrentPayPeriod(now)
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("CoachTimeClockEntries")
+    .select(timeClockSelectColumns)
+    .order("clock_in_at", { ascending: false })
+
+  if (error) {
+    return {
+      periodStart,
+      periodEnd,
+      coaches: [],
+      tableReady: false,
+      message: error.message,
+    }
+  }
+
+  const historyEntries = ((data ?? []) as CoachTimeClockRow[]).map(
+    toCoachTimeClockEntry
+  )
+  const profiles = await fetchCoachProfiles(
+    historyEntries.map((entry) => entry.coachUserId)
+  )
+  const groupsByCoach = new Map<string, AdminCoachTimeClockGroup>()
+
+  historyEntries.forEach((entry) => {
+    const coachUserId = entry.coachUserId || "unknown"
+    const profile = profiles.get(coachUserId) ?? {
+      coachName: getFallbackCoachName(coachUserId),
+      coachEmail: null,
+    }
+    const group =
+      groupsByCoach.get(coachUserId) ??
+      ({
+        coachUserId,
+        coachName: profile.coachName,
+        coachEmail: profile.coachEmail,
+        currentPeriodEntries: [],
+        historyEntries: [],
+        currentPeriodMinutes: 0,
+        historyMinutes: 0,
+        pendingCount: 0,
+      } satisfies AdminCoachTimeClockGroup)
+
+    group.historyEntries.push(entry)
+
+    if (isEntryInPeriod(entry, periodStart, periodEnd)) {
+      group.currentPeriodEntries.push(entry)
+    }
+
+    groupsByCoach.set(coachUserId, group)
+  })
+
+  const coaches = Array.from(groupsByCoach.values())
+    .map((group) => ({
+      ...group,
+      currentPeriodMinutes: getEntriesDurationMinutes(
+        group.currentPeriodEntries,
+        now
+      ),
+      historyMinutes: getEntriesDurationMinutes(group.historyEntries, now),
+      pendingCount: group.currentPeriodEntries.filter(
+        (entry) => entry.status === "pending"
+      ).length,
+    }))
+    .sort((first, second) => {
+      if (first.pendingCount !== second.pendingCount) {
+        return second.pendingCount - first.pendingCount
+      }
+
+      return first.coachName.localeCompare(second.coachName)
+    })
+
+  return {
+    periodStart,
+    periodEnd,
+    coaches,
+    tableReady: true,
+    message: null,
   }
 }
 
@@ -557,18 +753,16 @@ export async function getCoachTimeClockData(
   userId: string
 ): Promise<CoachTimeClockData> {
   const supabase = createAdminClient()
-  const selectColumns =
-    "time_clock_id,coach_user_id,work_date,clock_in_at,clock_out_at,clock_in_note,clock_out_note,created_at,updated_at"
   const [recentResult, activeResult] = await Promise.all([
     supabase
       .from("CoachTimeClockEntries")
-      .select(selectColumns)
+      .select(timeClockSelectColumns)
       .eq("coach_user_id", userId)
       .order("clock_in_at", { ascending: false })
       .limit(14),
     supabase
       .from("CoachTimeClockEntries")
-      .select(selectColumns)
+      .select(timeClockSelectColumns)
       .eq("coach_user_id", userId)
       .is("clock_out_at", null)
       .order("clock_in_at", { ascending: false })
@@ -576,6 +770,15 @@ export async function getCoachTimeClockData(
   ])
 
   const error = recentResult.error ?? activeResult.error
+
+  if (error) {
+    return {
+      activeEntry: null,
+      recentEntries: [],
+      tableReady: false,
+      message: error.message,
+    }
+  }
 
   const recentEntries = ((recentResult.data ?? []) as CoachTimeClockRow[]).map(
     toCoachTimeClockEntry
@@ -742,6 +945,7 @@ function buildExpectedAthletesBySchedule(
         enrollmentId: enrollment.enrollmentId,
         enrollmentStatus: enrollment.status,
         parentName: enrollment.parentName,
+        parentPhone: null,
         parentEmail: enrollment.parentEmail,
         attendanceStatus: null,
         attendanceNotes: null,
@@ -1079,6 +1283,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     classScheduleRows,
     classSessionRows,
     classSessionAttendanceRows,
+    timeClockReview,
   ] = await Promise.all([
     fetchParents(),
     fetchAthletes(),
@@ -1087,6 +1292,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     fetchClassScheduleRows(),
     fetchClassSessionRows(),
     fetchClassSessionAttendanceRows(),
+    getAdminTimeClockReviewData(),
   ])
   const enrollments = enrollmentRows.map(toDisplayEnrollment)
   const classBilling = buildClassBillingRows(classes)
@@ -1117,6 +1323,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     classBilling,
     classSchedules,
     classSessions,
+    timeClockReview,
     statusBreakdown: buildStatusBreakdown(enrollments),
     monthlyTrend: buildMonthlyTrend(enrollments),
   }

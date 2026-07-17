@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import AddParentCard from "@/components/account/parents/add_parent"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 
 interface DataTableProps<TData, TValue> {
   title: string
@@ -67,8 +67,8 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <div className="w-full flex flex-col items-start max-h-125">
-      <Card className="w-full bg-white dark:bg-black p-4 flex flex-col">
+    <div className="w-full flex flex-col items-start">
+      <Card className="max-h-[32rem] min-h-0 w-full bg-white dark:bg-black p-4 flex flex-col">
         <h1 className="text-2xl font-bold">
           {title}
         </h1>
@@ -91,7 +91,7 @@ export function DataTable<TData, TValue>({
           </div>
           <AddParentCard />
         </div>
-        <div className="flex-1 overflow-auto rounded-md border">
+        <div className="min-h-0 flex-1 overflow-auto rounded-md border">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (

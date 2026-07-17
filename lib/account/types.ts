@@ -130,6 +130,7 @@ export type AdminDashboardData = {
   classBilling: ClassBillingRecord[]
   classSchedules: ClassScheduleDisplayRecord[]
   classSessions: ClassSessionDisplayRecord[]
+  timeClockReview: AdminTimeClockReviewData
   statusBreakdown: ChartDatum[]
   monthlyTrend: TrendDatum[]
 }
@@ -200,6 +201,7 @@ export type ClassSessionExpectedAthlete = {
   enrollmentId: string
   enrollmentStatus: string
   parentName: string
+  parentPhone: string | null
   parentEmail: string | null
   attendanceStatus: ClassSessionAttendanceStatus | null
   attendanceNotes: string | null
@@ -235,6 +237,7 @@ export type CoachTimeClockEntry = {
   clockOutAt: string | null
   clockInNote: string | null
   clockOutNote: string | null
+  status: string
   createdAt: string | null
   updatedAt: string | null
 }
@@ -242,6 +245,25 @@ export type CoachTimeClockEntry = {
 export type CoachTimeClockData = {
   activeEntry: CoachTimeClockEntry | null
   recentEntries: CoachTimeClockEntry[]
+  tableReady: boolean
+  message: string | null
+}
+
+export type AdminCoachTimeClockGroup = {
+  coachUserId: string
+  coachName: string
+  coachEmail: string | null
+  currentPeriodEntries: CoachTimeClockEntry[]
+  historyEntries: CoachTimeClockEntry[]
+  currentPeriodMinutes: number
+  historyMinutes: number
+  pendingCount: number
+}
+
+export type AdminTimeClockReviewData = {
+  periodStart: string
+  periodEnd: string
+  coaches: AdminCoachTimeClockGroup[]
   tableReady: boolean
   message: string | null
 }

@@ -279,6 +279,7 @@ export function CoachTimeClock({
                       <TableHead>Clock Out</TableHead>
                       <TableHead>Hours</TableHead>
                       <TableHead>Notes</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -301,6 +302,11 @@ export function CoachTimeClock({
                           </TableCell>
                           <TableCell className="max-w-80 whitespace-normal text-muted-foreground">
                             {noteText || "None"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={entry.status === "pending" ? "warning" : entry.status === "approved" ? "success" : "destructive"}>
+                              {entry.status}
+                            </Badge>
                           </TableCell>
                         </TableRow>
                       )

@@ -27,6 +27,7 @@ import { EnrollmentManagement } from "@/components/account/admin/enrollment_mana
 import { ClassBillingManager } from "@/components/account/admin/class_billing_manager";
 import { ClassScheduleManager } from "@/components/account/admin/class_schedule_manager";
 import { ClassSessionReview } from "@/components/account/admin/class_session_review";
+import { AdminTimeClockReview } from "@/components/account/admin/time_clock_review";
 import { ParentEnrollments } from "@/components/account/parent_enrollments";
 import { CoachTimeClock } from "@/components/account/coach/time_clock";
 import { getAccountSession, getParentForUser } from "@/lib/account/auth";
@@ -40,9 +41,9 @@ import type { ParentRecord } from "@/lib/account/types";
 
 const adminDashboardSections = [
     {
-        id: "metrics",
-        label: "Metrics",
-        icon: BarChart3,
+        id: "overview",
+        label: "Overview",
+        icon: ListChecks,
     },
     {
         id: "charts",
@@ -73,6 +74,11 @@ const adminDashboardSections = [
         id: "customers",
         label: "Customers",
         icon: UserRound,
+    },
+        {
+        id: "time-clock",
+        label: "Time Clock",
+        icon: Clock,
     },
 ];
 
@@ -185,14 +191,14 @@ export default async function AccountPage() {
 
         return (
         <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans w-full">
-            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-16 px-8 justify-center bg-zinc-100 dark:bg-zinc-900">
+            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-12 px-4 justify-start bg-zinc-100 dark:bg-zinc-900 sm:px-8">
                 <div className="flex w-full max-w-8xl flex-col items-center justify-center gap-6 bg-zinc-100 dark:bg-zinc-900 font-sans">
-                    <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-4">
+                    <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-2">
                         Dashboard
                     </h1>
                     <nav
                         aria-label="Dashboard sections"
-                        className="sticky top-15 z-20 flex w-full flex-wrap items-center justify-center gap-2 rounded-lg p-2 shadow-sm backdrop-blur dark:bg-transparent"
+                        className="sticky top-15 z-20 flex w-full flex-wrap items-center justify-center gap-2 rounded-lg border bg-transparent p-2 shadow-sm backdrop-blur"
                     >
                         {adminDashboardSections.map((section) => {
                             const Icon = section.icon;
@@ -212,7 +218,7 @@ export default async function AccountPage() {
                             );
                         })}
                     </nav>
-                    <section id="metrics" className="w-full scroll-mt-30">
+                    <section id="overview" className="w-full scroll-mt-30">
                         <OperationsSummary actionItems={dashboardData.actionItems} />
                         <AdminMetrics metrics={dashboardData.metrics} />
                     </section>
@@ -246,6 +252,9 @@ export default async function AccountPage() {
                         className="flex w-full scroll-mt-30 flex-col items-center justify-center gap-6"
                     >
                         <ParentList />
+                    </section>
+                    <section id="time-clock" className="w-full scroll-mt-30">
+                        <AdminTimeClockReview timeClockReview={dashboardData.timeClockReview} />
                     </section>
                 </div>
             </main>

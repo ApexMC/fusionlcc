@@ -304,6 +304,7 @@ function matchesSearch(session: ClassSessionDisplayRecord, query: string) {
       athlete.athleteName,
       athlete.parentName,
       athlete.parentEmail,
+      athlete.parentPhone,
     ]),
   ]
     .filter(Boolean)
@@ -677,6 +678,11 @@ function AttendanceReviewTable({
                       {athlete.parentEmail}
                     </div>
                   ) : null}
+                  {athlete.parentPhone ? (
+                    <div className="text-xs text-muted-foreground">
+                      {athlete.parentPhone}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="mt-3 grid gap-2">
                   <select
@@ -719,7 +725,7 @@ function AttendanceReviewTable({
           </div>
         )}
       </div>
-      <div className="mt-4 hidden overflow-hidden rounded-md border md:block">
+      <div className="mt-4 hidden max-h-[24rem] overflow-auto rounded-md border md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -958,7 +964,7 @@ export function ClassSessionReview({
       <CardHeader>
         <CardTitle>Class Sessions</CardTitle>
       </CardHeader>
-      <CardContent className="max-h-150 overflow-auto space-y-6">
+      <CardContent className="max-h-[42rem] overflow-auto space-y-6">
         <div className="sticky top-0 z-20 space-y-4 bg-white pb-4 dark:bg-black">
           <div className="flex items-center justify-between gap-3 md:hidden">
             <Button

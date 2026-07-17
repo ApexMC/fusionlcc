@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache"
 
-import { getAccountSession, requireStaffSession } from "@/lib/account/auth"
+import {
+  getAccountSession,
+  requireAdminSession,
+  requireStaffSession,
+} from "@/lib/account/auth"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 type ActionResult = {
@@ -18,6 +22,13 @@ function normalizeNote(note: string | undefined) {
   const trimmed = note?.trim()
 
   return trimmed ? trimmed.slice(0, 500) : null
+}
+
+const adminReviewStatuses = ["approved", "denied"] as const
+type AdminReviewStatus = (typeof adminReviewStatuses)[number]
+
+function isAdminReviewStatus(value: string): value is AdminReviewStatus {
+  return adminReviewStatuses.includes(value as AdminReviewStatus)
 }
 
 function revalidateTimeClockViews() {
@@ -60,6 +71,7 @@ export async function clockInCoach({
     work_date: clockedAt,
     clock_in_at: clockedAt,
     clock_in_note: normalizeNote(note),
+    status: "pending",
   })
 
   if (error) {
@@ -129,5 +141,65 @@ export async function clockOutCoach({
     ok: true,
     message: "Clocked out.",
     clockedAt,
+  }
+}
+
+export async function updateCoachTimeClockEntryStatus({
+  entryId,
+  status,
+}: {
+  entryId: string
+  status: string
+}): Promise<ActionResult> {
+  const session = requireAdminSession(await getAccountSession())
+  const normalizedEntryId = entryId.trim()
+  const normalizedStatus = status.trim().toLowerCase()
+
+  if (!normalizedEntryId) {
+    return {
+      ok: false,
+      message: "Choose a time clock entry before updating it.",
+    }
+  }
+
+  if (!isAdminReviewStatus(normalizedStatus)) {
+    return {
+      ok: false,
+      message: "Time clock entries can only be approved or denied.",
+    }
+  }
+
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("CoachTimeClockEntries")
+    .update({
+      status: normalizedStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("time_clock_id", normalizedEntryId)
+    .select("time_clock_id")
+    .maybeSingle()
+
+  if (error) {
+    return {
+      ok: false,
+      message: tableErrorMessage(error),
+    }
+  }
+
+  if (!data) {
+    return {
+      ok: false,
+      message: "No time clock entry was found.",
+    }
+  }
+
+  revalidateTimeClockViews()
+
+  return {
+    ok: true,
+    message: `Punch ${normalizedStatus} by ${
+      session.roles.includes("owner") ? "owner" : "admin"
+    }.`,
   }
 }

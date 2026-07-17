@@ -424,7 +424,7 @@ export function EnrollmentManagement({
               </div>
             </div>
             {pendingEnrollments.length ? (
-              <div className="mt-4 overflow-hidden rounded-md border bg-background">
+              <div className="mt-4 max-h-[16rem] overflow-auto rounded-md border bg-background">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -502,7 +502,7 @@ export function EnrollmentManagement({
               </div>
             ) : null}
           </div>
-          <div className="max-h-125 overflow-auto rounded-md border">
+          <div className="max-h-[32rem] overflow-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
