@@ -121,9 +121,16 @@ function TimeClockEntryMobileRow({
             {entry.clockOutAt ? formatTime(entry.clockOutAt) : "Active"}
           </div>
         </div>
-        <Badge variant={entry.clockOutAt ? "outline" : "success"}>
-          {entry.clockOutAt ? formatDuration(getDurationMs(entry, now)) : "Active"}
-        </Badge>
+        <div className="flex flex-row items-center gap-1">
+          <Badge variant={entry.clockOutAt ? "outline" : "success"}>
+            {entry.clockOutAt ? formatDuration(getDurationMs(entry, now)) : "Active"}
+          </Badge>
+          {entry.clockOutAt ? (
+            <Badge variant={entry.status === "pending" ? "warning" : entry.status === "approved" ? "success" : "destructive"}>
+              {entry.status}
+            </Badge>
+          ) : null}
+        </div>
       </div>
       {note ? (
         <p className="mt-2 text-sm text-muted-foreground">{note}</p>

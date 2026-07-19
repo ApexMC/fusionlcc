@@ -1,13 +1,15 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { formatPhoneNumber } from "@/functions/shared_functions";
-import {BarChart3, CalendarDays, ClipboardCheck, Clock, CreditCard, ListChecks, Phone, Mail, MapPin, Plus, UserRound, Users,} from "lucide-react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
-import AthleteCardList from "@/components/account/athletes/athlete_card";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { formatPhoneNumber } from "@/functions/shared_functions";
 import ManageAccountCard from "@/components/account/manage_account";
+import AthleteCardList from "@/components/account/athletes/athlete_card";
+import { getAccountSession, getParentForUser } from "@/lib/account/auth";
 import { ParentEnrollments } from "@/components/account/parent_enrollments";
+import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {getAdminDashboardData, getCoachDashboardData, getParentAthleteEnrollments,} from "@/lib/account/data";
+import type {AdminDashboardData, CoachDashboardData, OperationsActionItem, ParentRecord,} from "@/lib/account/types";
+import {BarChart3, CalendarDays, ClipboardCheck, Clock, CreditCard, Phone, Mail, MapPin, Plus, UserRound, Users,} from "lucide-react";
 import {
     AccountDashboardFrame,
     DashboardHeader,
@@ -16,28 +18,13 @@ import {
     type DashboardNavItem,
     type DashboardStat,
 } from "@/components/account/dashboard_navigation";
-import { getAccountSession, getParentForUser } from "@/lib/account/auth";
-import {getAdminDashboardData, getCoachDashboardData, getParentAthleteEnrollments,} from "@/lib/account/data";
-import { createAdminClient } from "@/lib/supabase/admin";
-import type {
-    AdminDashboardData,
-    CoachDashboardData,
-    OperationsActionItem,
-    ParentRecord,
-} from "@/lib/account/types";
 
 const adminDashboardSections = [
     {
-        title: "Overview",
-        description: "Check priority queues and key account metrics.",
-        href: "/account/admin/overview",
-        icon: ListChecks,
-    },
-    {
-        title: "Charts",
-        description: "Track enrollment status and request trends.",
-        href: "/account/admin/charts",
-        icon: BarChart3,
+        title: "Customers",
+        description: "Search parent accounts and attached athletes.",
+        href: "/account/admin/customers",
+        icon: UserRound,
     },
     {
         title: "Enrollments",
@@ -64,16 +51,16 @@ const adminDashboardSections = [
         icon: ClipboardCheck,
     },
     {
-        title: "Customers",
-        description: "Search parent accounts and attached athletes.",
-        href: "/account/admin/customers",
-        icon: UserRound,
-    },
-    {
         title: "Staff Time Clock",
         description: "Review coach time entries and pay-period totals.",
         href: "/account/admin/time-clock",
         icon: Clock,
+    },
+    {
+        title: "Charts",
+        description: "Track enrollment status and request trends.",
+        href: "/account/admin/charts",
+        icon: BarChart3,
     },
 ] satisfies DashboardNavItem[];
 
@@ -147,13 +134,6 @@ function getAdminDashboardLinks(
     );
 
     return adminDashboardSections.map((section) => {
-        if (section.href.endsWith("/overview")) {
-            return {
-                ...section,
-                badge: actionBadge(reviewQueue, "pending request"),
-            };
-        }
-
         if (section.href.endsWith("/charts")) {
             return {
                 ...section,
@@ -406,6 +386,7 @@ export default async function AccountPage() {
                     description="Jump straight into the workspace you need."
                 />
                 <DashboardStatGrid stats={getAdminDashboardStats(dashboardData)} />
+                <div className="h-0.5 w-full bg-zinc-700"></div>
                 <DashboardLinkGrid items={getAdminDashboardLinks(dashboardData)} />
             </AccountDashboardFrame>
         );

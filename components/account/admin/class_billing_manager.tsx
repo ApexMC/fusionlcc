@@ -155,7 +155,7 @@ export function ClassBillingManager({
       <CardHeader>
         <CardTitle>Program Billing</CardTitle>
       </CardHeader>
-      <CardContent className="max-h-[min(42rem,45svh)] min-h-0 overflow-y-auto overscroll-contain pr-3 [scrollbar-gutter:stable]">
+      <CardContent className="max-h-[min(55rem,55svh)] min-h-0 overflow-y-auto overscroll-contain pr-3 [scrollbar-gutter:stable]">
         <div className="space-y-3 md:hidden">
           <div className="rounded-lg border bg-muted/50 p-3">
             <div className="flex items-start justify-between gap-3">

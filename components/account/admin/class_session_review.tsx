@@ -1217,7 +1217,7 @@ export function ClassSessionReview({
             </div>
           )}
         </div>
-        <div className="hidden md:block">
+        <div className="hidden max-h-[min(55rem,55svh)] min-h-0 overflow-y-auto overscroll-contain md:block">
           <Table>
           <TableHeader>
             <TableRow>
