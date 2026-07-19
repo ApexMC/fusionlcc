@@ -1,82 +1,293 @@
-import ParentList from "@/components/account/parents/parent_list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatPhoneNumber } from "@/functions/shared_functions";
 import {BarChart3, CalendarDays, ClipboardCheck, Clock, CreditCard, ListChecks, Phone, Mail, MapPin, Plus, UserRound, Users,} from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
 import AthleteCardList from "@/components/account/athletes/athlete_card";
 import ManageAccountCard from "@/components/account/manage_account";
-import { AdminMetrics } from "@/components/account/admin/admin_metrics";
-import { AdminCharts } from "@/components/account/admin/admin_charts";
-import { OperationsSummary } from "@/components/account/admin/operations_summary";
-import { EnrollmentManagement } from "@/components/account/admin/enrollment_management";
-import { ClassBillingManager } from "@/components/account/admin/class_billing_manager";
-import { ClassScheduleManager } from "@/components/account/admin/class_schedule_manager";
-import { ClassSessionReview } from "@/components/account/admin/class_session_review";
-import { AdminTimeClockReview } from "@/components/account/admin/time_clock_review";
 import { ParentEnrollments } from "@/components/account/parent_enrollments";
-import { CoachTimeClock } from "@/components/account/coach/time_clock";
+import {
+    AccountDashboardFrame,
+    DashboardHeader,
+    DashboardLinkGrid,
+    DashboardStatGrid,
+    type DashboardNavItem,
+    type DashboardStat,
+} from "@/components/account/dashboard_navigation";
 import { getAccountSession, getParentForUser } from "@/lib/account/auth";
 import {getAdminDashboardData, getCoachDashboardData, getParentAthleteEnrollments,} from "@/lib/account/data";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { ParentRecord } from "@/lib/account/types";
+import type {
+    AdminDashboardData,
+    CoachDashboardData,
+    OperationsActionItem,
+    ParentRecord,
+} from "@/lib/account/types";
 
 const adminDashboardSections = [
     {
-        id: "overview",
-        label: "Overview",
+        title: "Overview",
+        description: "Check priority queues and key account metrics.",
+        href: "/account/admin/overview",
         icon: ListChecks,
     },
     {
-        id: "charts",
-        label: "Charts",
+        title: "Charts",
+        description: "Track enrollment status and request trends.",
+        href: "/account/admin/charts",
         icon: BarChart3,
     },
     {
-        id: "enrollments",
-        label: "Enrollments",
+        title: "Enrollments",
+        description: "Review requests and manage athlete enrollments.",
+        href: "/account/admin/enrollments",
         icon: Users,
     },
     {
-        id: "billing",
-        label: "Billing",
+        title: "Billing",
+        description: "Maintain billing setup, program type, and Stripe pricing.",
+        href: "/account/admin/billing",
         icon: CreditCard,
     },
     {
-        id: "schedules",
-        label: "Schedules",
+        title: "Schedules",
+        description: "Manage class days, times, active status, and rosters.",
+        href: "/account/admin/schedules",
         icon: CalendarDays,
     },
     {
-        id: "sessions",
-        label: "Sessions",
+        title: "Sessions",
+        description: "Review class sessions and attendance details.",
+        href: "/account/admin/sessions",
         icon: ClipboardCheck,
     },
     {
-        id: "customers",
-        label: "Customers",
+        title: "Customers",
+        description: "Search parent accounts and attached athletes.",
+        href: "/account/admin/customers",
         icon: UserRound,
     },
-        {
-        id: "time-clock",
-        label: "Time Clock",
+    {
+        title: "Staff Time Clock",
+        description: "Review coach time entries and pay-period totals.",
+        href: "/account/admin/time-clock",
         icon: Clock,
     },
-];
+] satisfies DashboardNavItem[];
 
 const coachDashboardSections = [
     {
-        id: "sessions",
-        label: "Sessions",
+        title: "Sessions",
+        description: "Review class sessions and attendance.",
+        href: "/account/coach/sessions",
         icon: ClipboardCheck,
     },
     {
-        id: "time-clock",
-        label: "Time Clock",
+        title: "Time Clock",
+        description: "Clock in and out for coaching shifts.",
+        href: "/account/time-clock",
         icon: Clock,
     },
-];
+] satisfies DashboardNavItem[];
+
+function findActionItem(
+    dashboardData: AdminDashboardData,
+    label: string
+): OperationsActionItem | undefined {
+    return dashboardData.actionItems.find((item) => item.label === label);
+}
+
+function metricValue(
+    dashboardData: AdminDashboardData,
+    label: string,
+    fallback = "0"
+) {
+    return (
+        dashboardData.metrics.find((metric) => metric.label === label)?.value ??
+        fallback
+    );
+}
+
+function countLabel(value: number, singular: string, plural = `${singular}s`) {
+    return `${value.toLocaleString()} ${value === 1 ? singular : plural}`;
+}
+
+function actionBadge(
+    item: OperationsActionItem | undefined,
+    singular: string,
+    plural = `${singular}s`
+) {
+    return item ? countLabel(Number(item.value) || 0, singular, plural) : undefined;
+}
+
+function getAdminDashboardLinks(
+    dashboardData: AdminDashboardData
+): DashboardNavItem[] {
+    const reviewQueue = findActionItem(dashboardData, "Review queue");
+    const billingSetup = findActionItem(dashboardData, "Class billing setup");
+    const paymentAttention = findActionItem(dashboardData, "Payment attention");
+    const activeSchedules = dashboardData.classSchedules.filter(
+        (schedule) => schedule.isActive
+    ).length;
+    const pendingTimeEntries = dashboardData.timeClockReview.coaches.reduce(
+        (total, coach) => total + coach.pendingCount,
+        0
+    );
+
+    return adminDashboardSections.map((section) => {
+        if (section.href.endsWith("/overview")) {
+            return {
+                ...section,
+                badge: actionBadge(reviewQueue, "pending request"),
+                tone: reviewQueue?.tone,
+            };
+        }
+
+        if (section.href.endsWith("/charts")) {
+            return {
+                ...section,
+                detail: countLabel(dashboardData.allEnrollments.length, "record"),
+            };
+        }
+
+        if (section.href.endsWith("/enrollments")) {
+            return {
+                ...section,
+                badge: actionBadge(reviewQueue, "pending request"),
+                tone: reviewQueue?.tone,
+                detail: countLabel(dashboardData.allEnrollments.length, "enrollment"),
+            };
+        }
+
+        if (section.href.endsWith("/billing")) {
+            return {
+                ...section,
+                badge: actionBadge(billingSetup, "setup gap"),
+                tone: billingSetup?.tone,
+                detail: countLabel(dashboardData.classBilling.length, "class", "classes"),
+            };
+        }
+
+        if (section.href.endsWith("/schedules")) {
+            return {
+                ...section,
+                detail: `${activeSchedules.toLocaleString()} active of ${dashboardData.classSchedules.length.toLocaleString()}`,
+            };
+        }
+
+        if (section.href.endsWith("/sessions")) {
+            return {
+                ...section,
+                detail: countLabel(dashboardData.classSessions.length, "session"),
+            };
+        }
+
+        if (section.href.endsWith("/customers")) {
+            return {
+                ...section,
+                detail: `${metricValue(dashboardData, "Parent accounts")} parent accounts`,
+            };
+        }
+
+        if (section.href.endsWith("/time-clock")) {
+            return {
+                ...section,
+                badge: countLabel(pendingTimeEntries, "pending entry"),
+                tone: pendingTimeEntries ? "warning" : "success",
+                detail: countLabel(
+                    dashboardData.timeClockReview.coaches.length,
+                    "coach",
+                    "coaches"
+                ),
+            };
+        }
+
+        return {
+            ...section,
+            tone: paymentAttention?.tone,
+        };
+    });
+}
+
+function getAdminDashboardStats(
+    dashboardData: AdminDashboardData
+): DashboardStat[] {
+    const reviewQueue = findActionItem(dashboardData, "Review queue");
+    const readyToBill = findActionItem(dashboardData, "Ready to bill");
+    const paymentAttention = findActionItem(dashboardData, "Payment attention");
+
+    return [
+        {
+            label: "Review queue",
+            value: reviewQueue?.value ?? "0",
+            detail: reviewQueue?.detail,
+            tone: reviewQueue?.tone,
+        },
+        {
+            label: "Ready to bill",
+            value: readyToBill?.value ?? "0",
+            detail: readyToBill?.detail,
+            tone: readyToBill?.tone,
+        },
+        {
+            label: "Payment attention",
+            value: paymentAttention?.value ?? "0",
+            detail: paymentAttention?.detail,
+            tone: paymentAttention?.tone,
+        },
+        {
+            label: "Parent accounts",
+            value: metricValue(dashboardData, "Parent accounts"),
+            detail: "Total parent records",
+        },
+    ];
+}
+
+function getCoachDashboardLinks(
+    dashboardData: CoachDashboardData
+): DashboardNavItem[] {
+    return coachDashboardSections.map((section) => {
+        if (section.href.endsWith("/sessions")) {
+            return {
+                ...section,
+                detail: countLabel(dashboardData.classSessions.length, "session"),
+            };
+        }
+
+        return {
+            ...section,
+            badge: dashboardData.timeClock.activeEntry ? "Clocked in" : "Ready",
+            tone: dashboardData.timeClock.activeEntry ? "success" : "default",
+            detail: countLabel(
+                dashboardData.timeClock.recentEntries.length,
+                "recent entry",
+                "recent entries"
+            ),
+        };
+    });
+}
+
+function getCoachDashboardStats(
+    dashboardData: CoachDashboardData
+): DashboardStat[] {
+    return [
+        {
+            label: "Class sessions",
+            value: dashboardData.classSessions.length.toLocaleString(),
+            detail: "Available for attendance review",
+        },
+        {
+            label: "Time clock",
+            value: dashboardData.timeClock.activeEntry ? "Active" : "Ready",
+            detail: dashboardData.timeClock.activeEntry
+                ? "You are currently clocked in"
+                : "No active shift",
+            tone: dashboardData.timeClock.activeEntry ? "success" : "default",
+        },
+    ];
+}
 
 export default async function AccountPage() {
     const session = await getAccountSession();
@@ -173,75 +384,25 @@ export default async function AccountPage() {
         const dashboardData = await getAdminDashboardData();
 
         return (
-        <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans w-full">
-            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-12 px-3 justify-start bg-zinc-100 dark:bg-zinc-900 sm:px-8">
-                <div className="flex w-full max-w-8xl flex-col items-center justify-center gap-6 bg-zinc-100 dark:bg-zinc-900 font-sans">
-                    <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-2">
-                        Dashboard
-                    </h1>
-                    <nav
-                        aria-label="Dashboard sections"
-                        className="sticky top-20 z-20 flex w-full flex-wrap items-center justify-center gap-2 rounded-lg border bg-transparent p-2 shadow-sm backdrop-blur"
-                    >
-                        {adminDashboardSections.map((section) => {
-                            const Icon = section.icon;
-
-                            return (
-                                <Button
-                                    key={section.id}
-                                    asChild
-                                    size="sm"
-                                    variant="outline"
-                                >
-                                    <a href={`#${section.id}`}>
-                                        <Icon />
-                                        {section.label}
-                                    </a>
-                                </Button>
-                            );
-                        })}
-                    </nav>
-                    <section id="overview" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
-                        <OperationsSummary actionItems={dashboardData.actionItems} />
-                        <AdminMetrics metrics={dashboardData.metrics} />
-                    </section>
-                    <section id="charts" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
-                        <AdminCharts
-                            statusBreakdown={dashboardData.statusBreakdown}
-                            monthlyTrend={dashboardData.monthlyTrend}
-                        />
-                    </section>
-                    <section id="enrollments" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
-                        <EnrollmentManagement
-                            enrollments={dashboardData.allEnrollments}
-                            athletes={dashboardData.enrollmentAthletes}
-                            schedules={dashboardData.classSchedules}
-                        />
-                    </section>
-                    <section id="billing" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
-                        <ClassBillingManager classes={dashboardData.classBilling} />
-                    </section>
-                    <section id="schedules" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
-                        <ClassScheduleManager
-                            schedules={dashboardData.classSchedules}
-                            classes={dashboardData.classBilling}
-                        />
-                    </section>
-                    <section id="sessions" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
-                        <ClassSessionReview sessions={dashboardData.classSessions} />
-                    </section>
-                    <section
-                        id="customers"
-                        className="flex w-full scroll-mt-44 md:scroll-mt-30 px-3 flex-col items-center justify-center gap-6"
-                    >
-                        <ParentList />
-                    </section>
-                    <section id="time-clock" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
-                        <AdminTimeClockReview timeClockReview={dashboardData.timeClockReview} />
-                    </section>
-                </div>
-            </main>
-        </div>
+            <AccountDashboardFrame>
+                <DashboardHeader
+                    eyebrow={session.isOwner ? "Owner" : "Admin"}
+                    title="Dashboard"
+                    description="Jump straight into the area you need. Each workspace opens on its own page with room for the controls and tables to breathe."
+                    actions={
+                        session.isCoach ? (
+                            <Button asChild variant="outline">
+                                <Link href="/account/time-clock">
+                                    <Clock />
+                                    Clock In/Out
+                                </Link>
+                            </Button>
+                        ) : null
+                    }
+                />
+                <DashboardStatGrid stats={getAdminDashboardStats(dashboardData)} />
+                <DashboardLinkGrid items={getAdminDashboardLinks(dashboardData)} />
+            </AccountDashboardFrame>
         );
     }
 
@@ -250,43 +411,18 @@ export default async function AccountPage() {
         const dashboardData = await getCoachDashboardData(session.userId);
 
         return (
-        <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans w-full">
-            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-12 px-3 justify-start bg-zinc-100 dark:bg-zinc-900 sm:px-8">
-                <div className="flex w-full max-w-8xl flex-col items-center justify-center gap-6 bg-zinc-100 dark:bg-zinc-900 font-sans">
-                    <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-2">
-                        Coach Dashboard
-                    </h1>
-                    <nav
-                        aria-label="Coach dashboard sections"
-                        className="sticky top-15 z-20 flex w-full flex-wrap items-center justify-center gap-2 rounded-lg p-2 shadow-sm backdrop-blur dark:bg-transparent"
-                    >
-                        {coachDashboardSections.map((section) => {
-                            const Icon = section.icon;
-
-                            return (
-                                <Button
-                                    key={section.id}
-                                    asChild
-                                    size="sm"
-                                    variant="outline"
-                                >
-                                    <a href={`#${section.id}`}>
-                                        <Icon />
-                                        {section.label}
-                                    </a>
-                                </Button>
-                            );
-                        })}
-                    </nav>
-                    <section id="sessions" className="w-full scroll-mt-30 px-3">
-                        <ClassSessionReview sessions={dashboardData.classSessions} />
-                    </section>
-                    <section id="time-clock" className="w-full scroll-mt-30 px-3">
-                        <CoachTimeClock timeClock={dashboardData.timeClock} />
-                    </section>
-                </div>
-            </main>
-        </div>
+            <AccountDashboardFrame className="max-w-5xl">
+                <DashboardHeader
+                    eyebrow="Coach"
+                    title="Coach Dashboard"
+                    description="Open your session review or time clock workspace without sorting through admin tools."
+                />
+                <DashboardStatGrid stats={getCoachDashboardStats(dashboardData)} />
+                <DashboardLinkGrid
+                    items={getCoachDashboardLinks(dashboardData)}
+                    className="xl:grid-cols-2"
+                />
+            </AccountDashboardFrame>
         );
     }
 

@@ -3,7 +3,7 @@ import type { EnrollmentMetric } from "@/lib/account/types"
 
 export function AdminMetrics({ metrics }: { metrics: EnrollmentMetric[] }) {
   return (
-    <section className="grid w-auto grid-cols-2 gap-4 lg:grid-cols-4 mb-4 px-2">
+    <section className="grid w-auto grid-cols-2 gap-4 lg:grid-cols-4 mb-4">
       {metrics.map((metric) => (
         <Card key={metric.label} className="bg-white dark:bg-black">
           <CardHeader>

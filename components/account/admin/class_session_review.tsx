@@ -1136,7 +1136,7 @@ export function ClassSessionReview({
             </Button>
           </div>
         </div>
-        <div className="max-h-[min(30rem,55svh)] min-h-0 overflow-y-auto space-y-3 md:hidden">
+        <div className="max-h-[min(30rem,45svh)] min-h-0 overflow-y-auto space-y-3 md:hidden">
           {filteredSessions.length ? (
             filteredSessions.map((session) => {
               const isExpanded = visibleExpandedSessionId === session.sessionId

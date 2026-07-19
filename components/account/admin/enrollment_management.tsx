@@ -642,7 +642,7 @@ export function EnrollmentManagement({
               </div>
             ) : null}
           </div>
-          <div className="max-h-[min(30rem,55svh)] min-h-0 overflow-y-auto space-y-3 md:hidden">
+          <div className="max-h-[min(30rem,45svh)] min-h-0 overflow-y-auto space-y-3 md:hidden">
             {filteredEnrollments.length ? (
               filteredEnrollments.map((enrollment) => {
                 const isExpanded =

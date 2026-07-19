@@ -101,7 +101,7 @@ export function DataTable<TData, TValue>({
             renderExpandedRow={renderExpandedRow}
           />
         </div>
-        <div className="hidden max-h-[32rem] overflow-y-auto rounded-md border md:block">
+        <div className="hidden max-h-[30rem] overflow-y-auto rounded-md border md:block">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
