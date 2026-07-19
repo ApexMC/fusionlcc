@@ -110,6 +110,17 @@ function metricValue(
     );
 }
 
+function metricDetail(
+    dashboardData: AdminDashboardData,
+    label: string,
+    fallback?: string
+) {
+    return (
+        dashboardData.metrics.find((metric) => metric.label === label)?.detail ??
+        fallback
+    );
+}
+
 function countLabel(value: number, singular: string, plural = `${singular}s`) {
     return `${value.toLocaleString()} ${value === 1 ? singular : plural}`;
 }
@@ -127,7 +138,6 @@ function getAdminDashboardLinks(
 ): DashboardNavItem[] {
     const reviewQueue = findActionItem(dashboardData, "Review queue");
     const billingSetup = findActionItem(dashboardData, "Class billing setup");
-    const paymentAttention = findActionItem(dashboardData, "Payment attention");
     const activeSchedules = dashboardData.classSchedules.filter(
         (schedule) => schedule.isActive
     ).length;
@@ -141,7 +151,6 @@ function getAdminDashboardLinks(
             return {
                 ...section,
                 badge: actionBadge(reviewQueue, "pending request"),
-                tone: reviewQueue?.tone,
             };
         }
 
@@ -206,7 +215,6 @@ function getAdminDashboardLinks(
 
         return {
             ...section,
-            tone: paymentAttention?.tone,
         };
     });
 }
@@ -216,7 +224,6 @@ function getAdminDashboardStats(
 ): DashboardStat[] {
     const reviewQueue = findActionItem(dashboardData, "Review queue");
     const readyToBill = findActionItem(dashboardData, "Ready to bill");
-    const paymentAttention = findActionItem(dashboardData, "Payment attention");
 
     return [
         {
@@ -232,10 +239,18 @@ function getAdminDashboardStats(
             tone: readyToBill?.tone,
         },
         {
-            label: "Payment attention",
-            value: paymentAttention?.value ?? "0",
-            detail: paymentAttention?.detail,
-            tone: paymentAttention?.tone,
+            label: "Monthly recurring revenue",
+            value: metricValue(dashboardData, "Monthly recurring revenue"),
+            detail: metricDetail(
+                dashboardData,
+                "Monthly recurring revenue",
+                "Estimated from active monthly Stripe prices"
+            ),
+            tone:
+                metricValue(dashboardData, "Monthly recurring revenue") ===
+                "0"
+                    ? "default"
+                    : "success",
         },
         {
             label: "Parent accounts",
@@ -388,17 +403,7 @@ export default async function AccountPage() {
                 <DashboardHeader
                     eyebrow={session.isOwner ? "Owner" : "Admin"}
                     title="Dashboard"
-                    description="Jump straight into the area you need. Each workspace opens on its own page with room for the controls and tables to breathe."
-                    actions={
-                        session.isCoach ? (
-                            <Button asChild variant="outline">
-                                <Link href="/account/time-clock">
-                                    <Clock />
-                                    Clock In/Out
-                                </Link>
-                            </Button>
-                        ) : null
-                    }
+                    description="Jump straight into the workspace you need."
                 />
                 <DashboardStatGrid stats={getAdminDashboardStats(dashboardData)} />
                 <DashboardLinkGrid items={getAdminDashboardLinks(dashboardData)} />

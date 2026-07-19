@@ -1,12 +1,10 @@
 import { AlertCircle, CheckCircle2, CreditCard, ListChecks } from "lucide-react"
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { OperationsActionItem } from "@/lib/account/types"
+import type { OperationsActionItem, EnrollmentMetric } from "@/lib/account/types"
 
 const icons = {
   "Review queue": ListChecks,
   "Ready to bill": CreditCard,
-  "Payment attention": AlertCircle,
   "Class billing setup": CheckCircle2,
 }
 
@@ -20,35 +18,61 @@ const toneClassName = {
 
 export function OperationsSummary({
   actionItems,
+  metrics,
 }: {
   actionItems: OperationsActionItem[]
+  metrics: EnrollmentMetric[]
 }) {
   return (
-    <section className="grid w-auto grid-cols-2 gap-4 lg:grid-cols-4 mb-4">
-      {actionItems.map((item) => {
-        const Icon = icons[item.label as keyof typeof icons] ?? AlertCircle
+    <div className="flex flex-col gap-4">
+      <section className="grid w-auto grid-cols-2 gap-4 lg:grid-cols-3">
+        {actionItems.map((item) => {
+          const Icon = icons[item.label as keyof typeof icons] ?? AlertCircle
 
-        return (
-          <Card key={item.label} className="bg-white dark:bg-black">
-            <CardHeader className="flex flex-row items-center justify-between gap-3">
+          return (
+            <Card key={item.label} className="bg-white dark:bg-black">
+              <CardHeader className="flex flex-row items-center justify-between gap-3">
+                <CardTitle className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {item.label}
+                </CardTitle>
+                <div className={`rounded-lg p-2 ${toneClassName[item.tone]}`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
+                  {item.value}
+                </div>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  {item.detail}
+                </p>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </section>
+
+      <section className="grid w-auto grid-cols-2 gap-4 lg:grid-cols-3 mb-4">
+        {metrics.map((metric) => (
+          <Card key={metric.label} className="bg-white dark:bg-black">
+            <CardHeader>
               <CardTitle className="text-sm text-zinc-500 dark:text-zinc-400">
-                {item.label}
+                {metric.label}
               </CardTitle>
-              <div className={`rounded-lg p-2 ${toneClassName[item.tone]}`}>
-                <Icon className="h-4 w-4" />
-              </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-                {item.value}
+                {metric.value}
               </div>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                {item.detail}
-              </p>
+              {metric.detail ? (
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  {metric.detail}
+                </p>
+              ) : null}
             </CardContent>
           </Card>
-        )
-      })}
-    </section>
+        ))}
+      </section>
+    </div>
   )
 }

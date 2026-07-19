@@ -133,7 +133,7 @@ export function DashboardStatGrid({ stats }: { stats: DashboardStat[] }) {
   return (
     <section
       aria-label="Dashboard snapshot"
-      className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      className="grid grid-cols-2 gap-3 xl:grid-cols-4"
     >
       {stats.map((stat) => (
         <div

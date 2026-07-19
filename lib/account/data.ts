@@ -1161,7 +1161,6 @@ function buildMetrics(
   parents: ParentRecord[],
   athletes: AthleteRecord[],
   enrollments: EnrollmentDisplayRecord[],
-  mrrCents: number | null
 ) {
   const statusCount = (statuses: string[]) =>
     enrollments.filter((enrollment) =>
@@ -1209,17 +1208,12 @@ function buildMetrics(
       detail: "Stripe subscription records on enrollments",
     },
     */
-    {
-      label: "Monthly recurring revenue",
-      value: mrrCents === null ? "No Active Subs" : centsToCurrency(mrrCents),
-      detail: "Estimated from active monthly Stripe prices",
-    },
   ] satisfies EnrollmentMetric[]
 }
 
 function buildActionItems(
   enrollments: EnrollmentDisplayRecord[],
-  classBilling: ClassBillingRecord[]
+  classBilling: ClassBillingRecord[],
 ) {
   const countByStatus = (statuses: string[]) =>
     enrollments.filter((enrollment) =>
@@ -1229,11 +1223,6 @@ function buildActionItems(
   const readyToPay = enrollments.filter(
     (enrollment) =>
       enrollment.status === "approved" && !enrollment.stripeSubscriptionId
-  ).length
-  const paymentProblems = enrollments.filter((enrollment) =>
-    [enrollment.paymentStatus, enrollment.subscriptionStatus].some((status) =>
-      ["payment_failed", "past_due", "unpaid"].includes(status ?? "")
-    )
   ).length
   const missingBilling = classBilling.filter(
     (classRecord) =>
@@ -1256,14 +1245,6 @@ function buildActionItems(
         ? "Approved enrollments need checkout"
         : "No approved enrollments waiting for payment",
       tone: readyToPay ? "warning" : "success",
-    },
-    {
-      label: "Payment attention",
-      value: String(paymentProblems),
-      detail: paymentProblems
-        ? "Failed or past-due payment states"
-        : "No payment issues detected",
-      tone: paymentProblems ? "danger" : "success",
     },
     {
       label: "Class billing setup",
@@ -1313,7 +1294,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const mrrCents = await estimateMonthlyRecurringRevenue(enrollments)
 
   return {
-    metrics: buildMetrics(parents, athletes, enrollments, mrrCents),
+    metrics: buildMetrics(parents, athletes, enrollments),
     actionItems: buildActionItems(enrollments, classBilling),
     pendingEnrollments: enrollments.filter(
       (enrollment) => enrollment.status.toLowerCase() === "pending"
