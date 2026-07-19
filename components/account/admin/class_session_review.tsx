@@ -725,7 +725,7 @@ function AttendanceReviewTable({
           </div>
         )}
       </div>
-      <div className="mt-4 hidden max-h-[24rem] overflow-auto rounded-md border md:block">
+      <div className="mt-4 hidden max-h-100 overflow-auto rounded-md border md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -964,8 +964,8 @@ export function ClassSessionReview({
       <CardHeader>
         <CardTitle>Class Sessions</CardTitle>
       </CardHeader>
-      <CardContent className="max-h-[42rem] overflow-auto space-y-6">
-        <div className="sticky top-0 z-20 space-y-4 bg-white pb-4 dark:bg-black">
+      <CardContent className="space-y-6 overscroll-contain pr-3 scrollbar-gutter:stable">
+        <div className="space-y-4 bg-white pb-4 dark:bg-black">
           <div className="flex items-center justify-between gap-3 md:hidden">
             <Button
               type="button"
@@ -1136,7 +1136,7 @@ export function ClassSessionReview({
             </Button>
           </div>
         </div>
-        <div className="space-y-3 md:hidden">
+        <div className="max-h-[min(30rem,55svh)] min-h-0 overflow-y-auto space-y-3 md:hidden">
           {filteredSessions.length ? (
             filteredSessions.map((session) => {
               const isExpanded = visibleExpandedSessionId === session.sessionId

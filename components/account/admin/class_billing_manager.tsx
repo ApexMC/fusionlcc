@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Save } from "lucide-react"
+import { ChevronDown, Save } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { updateClassBillingConfig } from "@/app/actions/enrollments"
@@ -69,6 +69,8 @@ export function ClassBillingManager({
   const [newClassDraft, setNewClassDraft] =
     React.useState<Draft>(getBlankDraft)
   const [busyId, setBusyId] = React.useState<string | null>(null)
+  const [expandedBillingCardId, setExpandedBillingCardId] =
+    React.useState<string | null>(null)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -131,6 +133,7 @@ export function ClassBillingManager({
       })
       if (!classRecord) {
         setNewClassDraft(getBlankDraft())
+        setExpandedBillingCardId(null)
       }
       router.refresh()
     } catch (error) {
@@ -145,13 +148,288 @@ export function ClassBillingManager({
     }
   }
 
+  const isNewClassExpanded = expandedBillingCardId === "new-class"
+
   return (
     <Card className="w-full bg-white dark:bg-black">
       <CardHeader>
         <CardTitle>Program Billing</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="max-h-[32rem] overflow-auto rounded-md border">
+      <CardContent className="max-h-[min(42rem,75svh)] min-h-0 overflow-y-auto overscroll-contain pr-3 [scrollbar-gutter:stable]">
+        <div className="space-y-3 md:hidden">
+          <div className="rounded-lg border bg-muted/50 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-medium">Add Class</div>
+                <div className="text-xs text-muted-foreground">
+                  Create billing settings for a new program.
+                </div>
+              </div>
+              <Badge variant="outline">new</Badge>
+            </div>
+            <Button
+              type="button"
+              size="lg"
+              variant={isNewClassExpanded ? "secondary" : "outline"}
+              className="mt-3 h-10 w-full justify-between"
+              aria-expanded={isNewClassExpanded}
+              onClick={() =>
+                setExpandedBillingCardId((current) =>
+                  current === "new-class" ? null : "new-class"
+                )
+              }
+            >
+              {isNewClassExpanded ? "Hide Details" : "View Details"}
+              <ChevronDown
+                className={
+                  isNewClassExpanded
+                    ? "rotate-180 transition-transform"
+                    : "transition-transform"
+                }
+              />
+            </Button>
+            {isNewClassExpanded ? (
+              <div className="mt-3 grid gap-3">
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Class
+                  <Input
+                    value={newClassDraft.className}
+                    onChange={(event) =>
+                      setNewClassDraft((current) => ({
+                        ...current,
+                        className: event.target.value,
+                      }))
+                    }
+                    placeholder="New class name"
+                    className="h-10"
+                  />
+                </label>
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Type
+                  <Input
+                    value={newClassDraft.classType}
+                    onChange={(event) =>
+                      setNewClassDraft((current) => ({
+                        ...current,
+                        classType: event.target.value,
+                      }))
+                    }
+                    placeholder="Class type"
+                    className="h-10"
+                  />
+                </label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                    Program
+                    <select
+                      value={newClassDraft.programType}
+                      onChange={(event) => {
+                        const programType = event.target.value
+                        setNewClassDraft((current) => ({
+                          ...current,
+                          programType,
+                          billingDay:
+                            programType === "competitive_cheer" ? 1 : 15,
+                        }))
+                      }}
+                      className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
+                    >
+                      <option value="gymnastics">Gymnastics</option>
+                      <option value="competitive_cheer">
+                        Competitive cheer
+                      </option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                    Bill Day
+                    <select
+                      value={newClassDraft.billingDay}
+                      onChange={(event) =>
+                        setNewClassDraft((current) => ({
+                          ...current,
+                          billingDay: Number(event.target.value),
+                        }))
+                      }
+                      className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
+                    >
+                      <option value={1}>1st</option>
+                      <option value={15}>15th</option>
+                    </select>
+                  </label>
+                </div>
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Stripe Price
+                  <Input
+                    value={newClassDraft.stripePriceId}
+                    onChange={(event) =>
+                      setNewClassDraft((current) => ({
+                        ...current,
+                        stripePriceId: event.target.value,
+                      }))
+                    }
+                    placeholder="price_..."
+                    className="h-10"
+                  />
+                </label>
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={busyId === "new-class"}
+                  onClick={() => saveClass(null)}
+                >
+                  <Save />
+                  {busyId === "new-class" ? "Saving" : "Add Class"}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+          {classes.map((classRecord) => {
+            const draft =
+              drafts[classRecord.classId] ?? getDefaultDraft(classRecord)
+            const isExpanded =
+              expandedBillingCardId === classRecord.classId
+            const ready =
+              Boolean(draft.className) &&
+              Boolean(draft.programType) &&
+              Boolean(draft.billingDay) &&
+              Boolean(draft.stripePriceId)
+
+            return (
+              <div key={classRecord.classId} className="rounded-lg border p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium">
+                      {draft.className || "Unnamed class"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {draft.programType.replace(/_/g, " ")}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="text-right">Bills on {draft.billingDay}th</div>
+                    {ready ? (
+                    <Badge variant="success">ready</Badge>
+                    ) : (
+                      <Badge variant="warning">needs setup</Badge>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="lg"
+                  variant={isExpanded ? "secondary" : "outline"}
+                  className="mt-3 h-10 w-full justify-between"
+                  aria-expanded={isExpanded}
+                  onClick={() =>
+                    setExpandedBillingCardId((current) =>
+                      current === classRecord.classId
+                        ? null
+                        : classRecord.classId
+                    )
+                  }
+                >
+                  {isExpanded ? "Hide Details" : "View Details"}
+                  <ChevronDown
+                    className={
+                      isExpanded
+                        ? "rotate-180 transition-transform"
+                        : "transition-transform"
+                    }
+                  />
+                </Button>
+                {isExpanded ? (
+                  <div className="mt-3 grid gap-3">
+                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                      Class
+                      <Input
+                        value={draft.className}
+                        onChange={(event) =>
+                          setDraft(classRecord.classId, {
+                            className: event.target.value,
+                          })
+                        }
+                        className="h-10"
+                      />
+                    </label>
+                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                      Type
+                      <Input
+                        value={draft.classType}
+                        onChange={(event) =>
+                          setDraft(classRecord.classId, {
+                            classType: event.target.value,
+                          })
+                        }
+                        placeholder="Class type"
+                        className="h-10"
+                      />
+                    </label>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                        Program
+                        <select
+                          value={draft.programType}
+                          onChange={(event) => {
+                            const programType = event.target.value
+                            setDraft(classRecord.classId, {
+                              programType,
+                              billingDay:
+                                programType === "competitive_cheer" ? 1 : 15,
+                            })
+                          }}
+                          className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
+                        >
+                          <option value="gymnastics">Gymnastics</option>
+                          <option value="competitive_cheer">
+                            Competitive cheer
+                          </option>
+                        </select>
+                      </label>
+                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                        Bill Day
+                        <select
+                          value={draft.billingDay}
+                          onChange={(event) =>
+                            setDraft(classRecord.classId, {
+                              billingDay: Number(event.target.value),
+                            })
+                          }
+                          className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
+                        >
+                          <option value={1}>1st</option>
+                          <option value={15}>15th</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                      Stripe Price
+                      <Input
+                        value={draft.stripePriceId}
+                        onChange={(event) =>
+                          setDraft(classRecord.classId, {
+                            stripePriceId: event.target.value,
+                          })
+                        }
+                        placeholder="price_..."
+                        className="h-10"
+                      />
+                    </label>
+                    <Button
+                      type="button"
+                      size="lg"
+                      disabled={busyId === classRecord.classId}
+                      onClick={() => saveClass(classRecord)}
+                    >
+                      <Save />
+                      {busyId === classRecord.classId ? "Saving" : "Save"}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+        <div className="hidden rounded-md border md:block">
         <Table>
           <TableHeader>
             <TableRow>

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { MoreHorizontal, Plus, Save } from "lucide-react"
+import { ChevronDown, MoreHorizontal, Plus, Save } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import {
@@ -109,6 +109,8 @@ export function ClassScheduleManager({
   const [newScheduleDraft, setNewScheduleDraft] =
     React.useState<ScheduleDraft>(() => getBlankDraft())
   const [busyId, setBusyId] = React.useState<string | null>(null)
+  const [expandedScheduleCardId, setExpandedScheduleCardId] =
+    React.useState<string | null>(null)
   const [scheduleToDelete, setScheduleToDelete] =
     React.useState<ClassScheduleDisplayRecord | null>(null)
   const router = useRouter()
@@ -164,6 +166,7 @@ export function ClassScheduleManager({
       })
       if (!schedule) {
         setNewScheduleDraft(getBlankDraft())
+        setExpandedScheduleCardId(null)
       }
       router.refresh()
     } catch (error) {
@@ -215,15 +218,17 @@ export function ClassScheduleManager({
   function renderClassSelect({
     value,
     onChange,
+    className = "h-8 min-w-48 rounded-lg border border-input bg-background px-2 text-sm",
   }: {
     value: string
     onChange: (value: string) => void
+    className?: string
   }) {
     return (
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-8 min-w-48 rounded-lg border border-input bg-background px-2 text-sm"
+        className={className}
       >
         {classes.map((classRecord) => (
           <option key={classRecord.classId} value={classRecord.classId}>
@@ -237,15 +242,17 @@ export function ClassScheduleManager({
   function renderDaySelect({
     value,
     onChange,
+    className = "h-8 min-w-32 rounded-lg border border-input bg-background px-2 text-sm",
   }: {
     value: string
     onChange: (value: string) => void
+    className?: string
   }) {
     return (
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-8 min-w-32 rounded-lg border border-input bg-background px-2 text-sm"
+        className={className}
       >
         {days.map((day) => (
           <option key={day.value} value={day.value}>
@@ -256,6 +263,8 @@ export function ClassScheduleManager({
     )
   }
 
+  const isNewScheduleExpanded = expandedScheduleCardId === "new-schedule"
+
   return (
     <Card className="w-full bg-white dark:bg-black">
       <CardHeader>
@@ -263,8 +272,280 @@ export function ClassScheduleManager({
           <CardTitle>Class Schedule</CardTitle>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="max-h-[32rem] overflow-auto rounded-md border">
+      <CardContent className="max-h-[min(42rem,75svh)] min-h-0 overflow-y-auto overscroll-contain pr-3 [scrollbar-gutter:stable]">
+        <div className="space-y-3 md:hidden">
+          <div className="rounded-lg border bg-muted/50 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-medium">Add Schedule</div>
+                <div className="text-xs text-muted-foreground">
+                  Create a class time for enrollment.
+                </div>
+              </div>
+              <Badge variant="outline">new</Badge>
+            </div>
+            <Button
+              type="button"
+              size="lg"
+              variant={isNewScheduleExpanded ? "secondary" : "outline"}
+              className="mt-3 h-10 w-full justify-between"
+              aria-expanded={isNewScheduleExpanded}
+              onClick={() =>
+                setExpandedScheduleCardId((current) =>
+                  current === "new-schedule" ? null : "new-schedule"
+                )
+              }
+            >
+              {isNewScheduleExpanded ? "Hide Details" : "View Details"}
+              <ChevronDown
+                className={
+                  isNewScheduleExpanded
+                    ? "rotate-180 transition-transform"
+                    : "transition-transform"
+                }
+              />
+            </Button>
+            {isNewScheduleExpanded ? (
+              <div className="mt-3 grid gap-3">
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Class
+                  {renderClassSelect({
+                    value: newScheduleDraft.classId,
+                    onChange: (classId) =>
+                      setNewScheduleDraft((current) => ({
+                        ...current,
+                        classId,
+                      })),
+                    className:
+                      "h-10 w-full rounded-lg border border-input bg-background px-2 text-base",
+                  })}
+                </label>
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Day
+                  {renderDaySelect({
+                    value: newScheduleDraft.dayOfWeek,
+                    onChange: (dayOfWeek) =>
+                      setNewScheduleDraft((current) => ({
+                        ...current,
+                        dayOfWeek,
+                      })),
+                    className:
+                      "h-10 w-full rounded-lg border border-input bg-background px-2 text-base",
+                  })}
+                </label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                    Start
+                    <Input
+                      type="time"
+                      value={newScheduleDraft.startTime}
+                      onChange={(event) =>
+                        setNewScheduleDraft((current) => ({
+                          ...current,
+                          startTime: event.target.value,
+                        }))
+                      }
+                      className="h-10"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                    End
+                    <Input
+                      type="time"
+                      value={newScheduleDraft.endTime}
+                      onChange={(event) =>
+                        setNewScheduleDraft((current) => ({
+                          ...current,
+                          endTime: event.target.value,
+                        }))
+                      }
+                      className="h-10"
+                    />
+                  </label>
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newScheduleDraft.isActive}
+                    onChange={(event) =>
+                      setNewScheduleDraft((current) => ({
+                        ...current,
+                        isActive: event.target.checked,
+                      }))
+                    }
+                    className="size-4"
+                  />
+                  <Badge
+                    variant={newScheduleDraft.isActive ? "success" : "outline"}
+                  >
+                    {newScheduleDraft.isActive ? "active" : "inactive"}
+                  </Badge>
+                </label>
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={busyId === "new-schedule" || !classes.length}
+                  onClick={() => saveSchedule(null)}
+                >
+                  <Plus />
+                  {busyId === "new-schedule" ? "Saving" : "Add Schedule"}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+          {schedules.map((schedule) => {
+            const draft =
+              drafts[schedule.scheduleId] ?? getDefaultDraft(schedule)
+            const isExpanded =
+              expandedScheduleCardId === schedule.scheduleId
+
+            return (
+              <div key={schedule.scheduleId} className="rounded-lg border p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium">{schedule.className}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {schedule.scheduleLabel ?? `Schedule #${schedule.scheduleId}`}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <Badge variant={draft.isActive ? "success" : "outline"}>
+                      {draft.isActive ? "active" : "inactive"}
+                    </Badge>
+                    <Badge variant="outline">
+                      {schedule.enrollmentCount} enrolled
+                    </Badge>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="lg"
+                  variant={isExpanded ? "secondary" : "outline"}
+                  className="mt-3 h-10 w-full justify-between"
+                  aria-expanded={isExpanded}
+                  onClick={() =>
+                    setExpandedScheduleCardId((current) =>
+                      current === schedule.scheduleId
+                        ? null
+                        : schedule.scheduleId
+                    )
+                  }
+                >
+                  {isExpanded ? "Hide Details" : "View Details"}
+                  <ChevronDown
+                    className={
+                      isExpanded
+                        ? "rotate-180 transition-transform"
+                        : "transition-transform"
+                    }
+                  />
+                </Button>
+                {isExpanded ? (
+                  <div className="mt-3 grid gap-3">
+                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                      Class
+                      {renderClassSelect({
+                        value: draft.classId,
+                        onChange: (classId) =>
+                          setDraft(schedule.scheduleId, { classId }),
+                        className:
+                          "h-10 w-full rounded-lg border border-input bg-background px-2 text-base",
+                      })}
+                    </label>
+                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                      Day
+                      {renderDaySelect({
+                        value: draft.dayOfWeek,
+                        onChange: (dayOfWeek) =>
+                          setDraft(schedule.scheduleId, { dayOfWeek }),
+                        className:
+                          "h-10 w-full rounded-lg border border-input bg-background px-2 text-base",
+                      })}
+                    </label>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                        Start
+                        <Input
+                          type="time"
+                          value={draft.startTime}
+                          onChange={(event) =>
+                            setDraft(schedule.scheduleId, {
+                              startTime: event.target.value,
+                            })
+                          }
+                          className="h-10"
+                        />
+                      </label>
+                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                        End
+                        <Input
+                          type="time"
+                          value={draft.endTime}
+                          onChange={(event) =>
+                            setDraft(schedule.scheduleId, {
+                              endTime: event.target.value,
+                            })
+                          }
+                          className="h-10"
+                        />
+                      </label>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={draft.isActive}
+                        onChange={(event) =>
+                          setDraft(schedule.scheduleId, {
+                            isActive: event.target.checked,
+                          })
+                        }
+                        className="size-4"
+                      />
+                      <Badge variant={draft.isActive ? "success" : "outline"}>
+                        {draft.isActive ? "active" : "inactive"}
+                      </Badge>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="lg"
+                        className="min-w-0 flex-1"
+                        disabled={busyId === schedule.scheduleId}
+                        onClick={() => saveSchedule(schedule)}
+                      >
+                        <Save />
+                        {busyId === schedule.scheduleId ? "Saving" : "Save"}
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-lg"
+                            aria-label="Open schedule actions"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={() => setScheduleToDelete(schedule)}
+                          >
+                            Delete schedule
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+        <div className="hidden rounded-md border md:block">
         <Table>
           <TableHeader>
             <TableRow>

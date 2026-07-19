@@ -297,7 +297,7 @@ function CoachPunchGroup({
           </div>
           {entries.length ? (
             <>
-              <div className="mt-4 max-h-[32rem] space-y-3 overflow-auto md:hidden">
+              <div className="mt-4 space-y-3 pr-1 md:hidden">
                 {entries.map((entry) => {
                   const status = localStatuses[entry.entryId] ?? entry.status
 
@@ -312,7 +312,7 @@ function CoachPunchGroup({
                   )
                 })}
               </div>
-              <div className="mt-4 hidden max-h-[32rem] overflow-auto rounded-md border md:block">
+              <div className="mt-4 hidden max-h-[32rem] min-h-0 overflow-y-auto rounded-md border md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -484,7 +484,7 @@ export function AdminTimeClockReview({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="max-h-[36rem] space-y-4 overflow-auto">
+      <CardContent className="max-h-[min(42rem,75svh)] min-h-0 space-y-4 overflow-y-auto overscroll-contain pr-3 [scrollbar-gutter:stable]">
         {!timeClockReview.tableReady ? (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
             {timeClockReview.message}

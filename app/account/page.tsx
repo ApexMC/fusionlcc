@@ -2,20 +2,7 @@ import ParentList from "@/components/account/parents/parent_list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatPhoneNumber } from "@/functions/shared_functions";
-import {
-    BarChart3,
-    CalendarDays,
-    ClipboardCheck,
-    Clock,
-    CreditCard,
-    ListChecks,
-    Phone,
-    Mail,
-    MapPin,
-    Plus,
-    UserRound,
-    Users,
-} from "lucide-react";
+import {BarChart3, CalendarDays, ClipboardCheck, Clock, CreditCard, ListChecks, Phone, Mail, MapPin, Plus, UserRound, Users,} from "lucide-react";
 import { redirect } from "next/navigation";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
 import AthleteCardList from "@/components/account/athletes/athlete_card";
@@ -31,11 +18,7 @@ import { AdminTimeClockReview } from "@/components/account/admin/time_clock_revi
 import { ParentEnrollments } from "@/components/account/parent_enrollments";
 import { CoachTimeClock } from "@/components/account/coach/time_clock";
 import { getAccountSession, getParentForUser } from "@/lib/account/auth";
-import {
-    getAdminDashboardData,
-    getCoachDashboardData,
-    getParentAthleteEnrollments,
-} from "@/lib/account/data";
+import {getAdminDashboardData, getCoachDashboardData, getParentAthleteEnrollments,} from "@/lib/account/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ParentRecord } from "@/lib/account/types";
 
@@ -161,7 +144,7 @@ export default async function AccountPage() {
                         </Card>
                         )
                     )}
-                    <div className="mt-1 block min-w-70 bg-white dark:bg-black rounded-xl px-4 py-2 mb-4 text-sm font-bold text-black dark:text-white border border-zinc-300 dark:border-zinc-700">
+                    <div className="mt-1 block min-w-70 bg-white dark:bg-black rounded-xl px-3 py-2 mb-4 text-sm font-bold text-black dark:text-white border border-zinc-300 dark:border-zinc-700">
                         Account Balance: <span className="text-orange-400">{typeof parents?.[0]?.balance === "number" ? `$${parents[0].balance.toFixed(2)}` : "N/A"}</span>
                     </div>
                 </div>
@@ -191,14 +174,14 @@ export default async function AccountPage() {
 
         return (
         <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans w-full">
-            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-12 px-4 justify-start bg-zinc-100 dark:bg-zinc-900 sm:px-8">
+            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-12 px-3 justify-start bg-zinc-100 dark:bg-zinc-900 sm:px-8">
                 <div className="flex w-full max-w-8xl flex-col items-center justify-center gap-6 bg-zinc-100 dark:bg-zinc-900 font-sans">
                     <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-2">
                         Dashboard
                     </h1>
                     <nav
                         aria-label="Dashboard sections"
-                        className="sticky top-15 z-20 flex w-full flex-wrap items-center justify-center gap-2 rounded-lg border bg-transparent p-2 shadow-sm backdrop-blur"
+                        className="sticky top-20 z-20 flex w-full flex-wrap items-center justify-center gap-2 rounded-lg border bg-transparent p-2 shadow-sm backdrop-blur"
                     >
                         {adminDashboardSections.map((section) => {
                             const Icon = section.icon;
@@ -218,42 +201,42 @@ export default async function AccountPage() {
                             );
                         })}
                     </nav>
-                    <section id="overview" className="w-full scroll-mt-30">
+                    <section id="overview" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
                         <OperationsSummary actionItems={dashboardData.actionItems} />
                         <AdminMetrics metrics={dashboardData.metrics} />
                     </section>
-                    <section id="charts" className="w-full scroll-mt-30">
+                    <section id="charts" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
                         <AdminCharts
                             statusBreakdown={dashboardData.statusBreakdown}
                             monthlyTrend={dashboardData.monthlyTrend}
                         />
                     </section>
-                    <section id="enrollments" className="w-full scroll-mt-30">
+                    <section id="enrollments" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
                         <EnrollmentManagement
                             enrollments={dashboardData.allEnrollments}
                             athletes={dashboardData.enrollmentAthletes}
                             schedules={dashboardData.classSchedules}
                         />
                     </section>
-                    <section id="billing" className="w-full scroll-mt-30">
+                    <section id="billing" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
                         <ClassBillingManager classes={dashboardData.classBilling} />
                     </section>
-                    <section id="schedules" className="w-full scroll-mt-30">
+                    <section id="schedules" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
                         <ClassScheduleManager
                             schedules={dashboardData.classSchedules}
                             classes={dashboardData.classBilling}
                         />
                     </section>
-                    <section id="sessions" className="w-full scroll-mt-30">
+                    <section id="sessions" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
                         <ClassSessionReview sessions={dashboardData.classSessions} />
                     </section>
                     <section
                         id="customers"
-                        className="flex w-full scroll-mt-30 flex-col items-center justify-center gap-6"
+                        className="flex w-full scroll-mt-44 md:scroll-mt-30 px-3 flex-col items-center justify-center gap-6"
                     >
                         <ParentList />
                     </section>
-                    <section id="time-clock" className="w-full scroll-mt-30">
+                    <section id="time-clock" className="w-full scroll-mt-44 md:scroll-mt-30 px-3">
                         <AdminTimeClockReview timeClockReview={dashboardData.timeClockReview} />
                     </section>
                 </div>
@@ -268,7 +251,7 @@ export default async function AccountPage() {
 
         return (
         <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans w-full">
-            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-12 px-4 justify-start bg-zinc-100 dark:bg-zinc-900 sm:px-8">
+            <main className="flex flex-1 min-h-[50vh] w-full flex-col items-center py-12 px-3 justify-start bg-zinc-100 dark:bg-zinc-900 sm:px-8">
                 <div className="flex w-full max-w-8xl flex-col items-center justify-center gap-6 bg-zinc-100 dark:bg-zinc-900 font-sans">
                     <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-2">
                         Coach Dashboard
@@ -295,10 +278,10 @@ export default async function AccountPage() {
                             );
                         })}
                     </nav>
-                    <section id="sessions" className="w-full scroll-mt-30">
+                    <section id="sessions" className="w-full scroll-mt-30 px-3">
                         <ClassSessionReview sessions={dashboardData.classSessions} />
                     </section>
-                    <section id="time-clock" className="w-full scroll-mt-30">
+                    <section id="time-clock" className="w-full scroll-mt-30 px-3">
                         <CoachTimeClock timeClock={dashboardData.timeClock} />
                     </section>
                 </div>

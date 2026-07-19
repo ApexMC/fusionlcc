@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table"
 import AddParentCard from "@/components/account/parents/add_parent"
 import { Card } from "@/components/ui/card"
+import { MobileDataTable } from "@/components/account/parents/mobile-data-table"
 
 interface DataTableProps<TData, TValue> {
   title: string
@@ -68,19 +69,19 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="w-full flex flex-col items-start">
-      <Card className="max-h-[32rem] min-h-0 w-full bg-white dark:bg-black p-4 flex flex-col">
+      <Card className="w-full bg-white p-4 dark:bg-black">
         <h1 className="text-2xl font-bold">
           {title}
         </h1>
-        <div className="flex flex-row gap-3 justify-between mb-2">
-          <div className="flex flex-row gap-3 items-center">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
               placeholder="Filter by last name..."
               value={(table.getColumn("last_name")?.getFilterValue() as string) ?? ""}
               onChange={(event) =>
                 table.getColumn("last_name")?.setFilterValue(event.target.value)
               }
-              className="max-w-sm"
+              className="sm:max-w-sm"
             />
             {table.getRowModel().rows?.length ? (
               <p className="text-sm text-muted-foreground">
@@ -91,7 +92,16 @@ export function DataTable<TData, TValue>({
           </div>
           <AddParentCard />
         </div>
-        <div className="min-h-0 flex-1 overflow-auto rounded-md border">
+        <div className="md:hidden">
+          <MobileDataTable
+            rows={table.getRowModel().rows}
+            getRowId={getRowId}
+            expandedRowId={expandedRowId}
+            onExpandedRowIdChange={setExpandedRowId}
+            renderExpandedRow={renderExpandedRow}
+          />
+        </div>
+        <div className="hidden max-h-[32rem] overflow-y-auto rounded-md border md:block">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (

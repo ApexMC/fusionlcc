@@ -1,7 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Check, Search, SlidersHorizontal, UserPlus, X } from "lucide-react"
+import {
+  Check,
+  ChevronDown,
+  Search,
+  SlidersHorizontal,
+  UserPlus,
+  X,
+} from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import {
@@ -298,6 +305,11 @@ export function EnrollmentManagement({
   const [query, setQuery] = React.useState("")
   const [status, setStatus] = React.useState<(typeof statuses)[number]>("all")
   const [busyId, setBusyId] = React.useState<string | null>(null)
+  const [expandedPendingEnrollmentId, setExpandedPendingEnrollmentId] =
+    React.useState<string | null>(null)
+  const [expandedEnrollmentId, setExpandedEnrollmentId] = React.useState<
+    string | null
+  >(null)
   const [localStatuses, setLocalStatuses] = React.useState<
     Record<string, string>
   >({})
@@ -379,7 +391,7 @@ export function EnrollmentManagement({
           <CreateEnrollmentDialog athletes={athletes} schedules={schedules} />
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="overscroll-contain pr-3 [scrollbar-gutter:stable]">
         <div className="space-y-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -410,7 +422,7 @@ export function EnrollmentManagement({
               </label>
             </div>
           </div>
-          <div className="rounded-lg border bg-muted/20 p-4">
+          <div className="rounded-lg border bg-muted/50 p-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="font-semibold">Pending Review</h3>
@@ -424,7 +436,135 @@ export function EnrollmentManagement({
               </div>
             </div>
             {pendingEnrollments.length ? (
-              <div className="mt-4 max-h-[16rem] overflow-auto rounded-md border bg-background">
+              <div className="mt-4 space-y-3 md:hidden">
+                {pendingEnrollments.map((enrollment) => {
+                  const isExpanded =
+                    expandedPendingEnrollmentId === enrollment.enrollmentId
+
+                  return (
+                    <div
+                      key={enrollment.enrollmentId}
+                      className="rounded-lg border bg-background p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium">
+                            Enrollment #{enrollment.enrollmentId}
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {enrollment.athleteName} / {enrollment.className}
+                          </div>
+                        </div>
+                        <EnrollmentStatusBadge status={enrollment.status} />
+                      </div>
+                      <Button
+                        type="button"
+                        size="lg"
+                        variant={isExpanded ? "secondary" : "outline"}
+                        className="mt-3 h-10 w-full justify-between"
+                        aria-expanded={isExpanded}
+                        onClick={() =>
+                          setExpandedPendingEnrollmentId((current) =>
+                            current === enrollment.enrollmentId
+                              ? null
+                              : enrollment.enrollmentId
+                          )
+                        }
+                      >
+                        {isExpanded ? "Hide Details" : "View Details"}
+                        <ChevronDown
+                          className={
+                            isExpanded
+                              ? "rotate-180 transition-transform"
+                              : "transition-transform"
+                          }
+                        />
+                      </Button>
+                      {isExpanded ? (
+                        <div className="mt-3">
+                          <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                            <div>
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Requested
+                              </div>
+                              <div>{formatDate(enrollment.createdAt)}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Athlete
+                              </div>
+                              <div>{enrollment.athleteName}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Parent
+                              </div>
+                              <div>{enrollment.parentName}</div>
+                              {enrollment.parentEmail ? (
+                                <div className="break-all text-xs text-muted-foreground">
+                                  {enrollment.parentEmail}
+                                </div>
+                              ) : null}
+                            </div>
+                            <div>
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Class
+                              </div>
+                              <div>{enrollment.className}</div>
+                              {enrollment.scheduleLabel ? (
+                                <div className="text-xs text-muted-foreground">
+                                  {enrollment.scheduleLabel}
+                                </div>
+                              ) : null}
+                              {enrollment.classType ? (
+                                <div className="text-xs text-muted-foreground">
+                                  {enrollment.classType}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <Button
+                              type="button"
+                              size="lg"
+                              disabled={Boolean(busyId)}
+                              onClick={() =>
+                                updateStatus(
+                                  enrollment.enrollmentId,
+                                  "approved"
+                                )
+                              }
+                            >
+                              <Check />
+                              {busyId === enrollment.enrollmentId
+                                ? "Saving"
+                                : "Approve"}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="lg"
+                              variant="destructive"
+                              disabled={Boolean(busyId)}
+                              onClick={() =>
+                                updateStatus(
+                                  enrollment.enrollmentId,
+                                  "denied"
+                                )
+                              }
+                            >
+                              <X />
+                              Deny
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
+            {pendingEnrollments.length ? (
+              <div className="mt-4 hidden max-h-[16rem] min-h-0 overflow-y-auto rounded-md border bg-background md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -502,7 +642,150 @@ export function EnrollmentManagement({
               </div>
             ) : null}
           </div>
-          <div className="max-h-[32rem] overflow-auto rounded-md border">
+          <div className="max-h-[min(30rem,55svh)] min-h-0 overflow-y-auto space-y-3 md:hidden">
+            {filteredEnrollments.length ? (
+              filteredEnrollments.map((enrollment) => {
+                const isExpanded =
+                  expandedEnrollmentId === enrollment.enrollmentId
+
+                return (
+                  <div
+                    key={enrollment.enrollmentId}
+                    className="rounded-lg border p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium">
+                          {enrollment.athleteName} — {enrollment.className}
+                        </div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          Enrollment #{enrollment.enrollmentId}
+                        </div>
+                      </div>
+                      <EnrollmentStatusBadge status={enrollment.status} />
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {enrollment.paymentStatus ||
+                      enrollment.subscriptionStatus ? (
+                        <EnrollmentStatusBadge
+                          status={
+                            enrollment.paymentStatus ??
+                            enrollment.subscriptionStatus
+                          }
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          Payment not started
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant={isExpanded ? "secondary" : "outline"}
+                      className="mt-3 h-10 w-full justify-between"
+                      aria-expanded={isExpanded}
+                      onClick={() =>
+                        setExpandedEnrollmentId((current) =>
+                          current === enrollment.enrollmentId
+                            ? null
+                            : enrollment.enrollmentId
+                        )
+                      }
+                    >
+                      {isExpanded ? "Hide Details" : "View Details"}
+                      <ChevronDown
+                        className={
+                          isExpanded
+                            ? "rotate-180 transition-transform"
+                            : "transition-transform"
+                        }
+                      />
+                    </Button>
+                    {isExpanded ? (
+                      <div className="mt-3">
+                        <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">
+                              Requested
+                            </div>
+                            <div>{formatDate(enrollment.createdAt)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">
+                              Athlete
+                            </div>
+                            <div>{enrollment.athleteName}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">
+                              Parent
+                            </div>
+                            <div>{enrollment.parentName}</div>
+                            {enrollment.parentEmail ? (
+                              <div className="break-all text-xs text-muted-foreground">
+                                {enrollment.parentEmail}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">
+                              Class
+                            </div>
+                            <div>{enrollment.className}</div>
+                            {enrollment.scheduleLabel ? (
+                              <div className="text-xs text-muted-foreground">
+                                {enrollment.scheduleLabel}
+                              </div>
+                            ) : null}
+                            {enrollment.classType ? (
+                              <div className="text-xs text-muted-foreground">
+                                {enrollment.classType}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                        <label className="mt-3 grid gap-1 text-xs font-medium text-muted-foreground">
+                          Update Status
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={enrollment.status}
+                              disabled={busyId === enrollment.enrollmentId}
+                              onChange={(event) =>
+                                updateStatus(
+                                  enrollment.enrollmentId,
+                                  event.target.value
+                                )
+                              }
+                              className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-base"
+                            >
+                              {statuses
+                                .filter((option) => option !== "all")
+                                .map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                            </select>
+                            {busyId === enrollment.enrollmentId ? (
+                              <span className="text-xs text-muted-foreground">
+                                Saving
+                              </span>
+                            ) : null}
+                          </div>
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })
+            ) : (
+              <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                No enrollments match the current filters.
+              </div>
+            )}
+          </div>
+          <div className="hidden rounded-md border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
