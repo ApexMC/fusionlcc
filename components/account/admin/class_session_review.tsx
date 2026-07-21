@@ -3,6 +3,8 @@
 import * as React from "react"
 import {
   ArrowUpDown,
+  Ban,
+  CalendarDays,
   ChevronDown,
   ClipboardCheck,
   Save,
@@ -12,8 +14,17 @@ import {
 import { useRouter } from "next/navigation"
 
 import { updateClassSessionAttendanceBatch } from "@/app/actions/class-attendance"
+import { cancelClassSession } from "@/app/actions/class-sessions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -56,6 +67,7 @@ const sortOptions = [
 
 const selectControlClassName =
   "h-8 rounded-lg border border-input bg-background px-2 text-sm"
+const defaultHistoryDays = 7
 
 type AttendanceDraft = {
   attendanceStatus: ClassSessionAttendanceStatus | ""
@@ -70,6 +82,35 @@ type SortDirection = "asc" | "desc"
 type FilterOption = {
   value: string
   label: string
+}
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+
+  return `${year}-${month}-${day}`
+}
+
+function shiftDateKey(dateKey: string, days: number) {
+  const date = dateKeyToLocalDate(dateKey)
+
+  if (!date) {
+    return dateKey
+  }
+
+  date.setDate(date.getDate() + days)
+
+  return getLocalDateKey(date)
+}
+
+function getDefaultDateRange() {
+  const endDate = getLocalDateKey()
+
+  return {
+    dateFrom: shiftDateKey(endDate, -(defaultHistoryDays - 1)),
+    dateTo: endDate,
+  }
 }
 
 function getDateKey(value: string | null) {
@@ -250,6 +291,104 @@ function getScheduleFilterValue(session: ClassSessionDisplayRecord) {
 
 function formatSessionStatus(status: string | null | undefined) {
   return (status || "unknown").replace(/_/g, " ")
+}
+
+function normalizeSessionStatus(status: string | null | undefined) {
+  return status?.trim().toLowerCase() || "scheduled"
+}
+
+function isScheduledSession(session: ClassSessionDisplayRecord) {
+  return normalizeSessionStatus(session.status) === "scheduled"
+}
+
+function isFutureScheduledSession(
+  session: ClassSessionDisplayRecord,
+  todayDateKey: string
+) {
+  const dateKey = getDateKey(session.sessionDate)
+
+  return Boolean(dateKey && dateKey > todayDateKey && isScheduledSession(session))
+}
+
+function getParentEmailCount(session: ClassSessionDisplayRecord) {
+  return new Set(
+    session.expectedAthletes
+      .map((athlete) => athlete.parentEmail?.trim().toLowerCase())
+      .filter(Boolean)
+  ).size
+}
+
+function getWeekStartDateKey(dateKey: string) {
+  const date = dateKeyToLocalDate(dateKey)
+
+  if (!date) {
+    return dateKey || "unknown"
+  }
+
+  const day = date.getDay()
+  const mondayOffset = day === 0 ? -6 : 1 - day
+  date.setDate(date.getDate() + mondayOffset)
+
+  return getLocalDateKey(date)
+}
+
+function getWeekEndDateKey(weekStartDateKey: string) {
+  return shiftDateKey(weekStartDateKey, 6)
+}
+
+function formatWeekRange(weekStartDateKey: string) {
+  if (weekStartDateKey === "unknown") {
+    return "Week TBD"
+  }
+
+  const start = dateKeyToLocalDate(weekStartDateKey)
+  const end = dateKeyToLocalDate(getWeekEndDateKey(weekStartDateKey))
+
+  if (!start || !end) {
+    return weekStartDateKey
+  }
+
+  const monthDayFormatter = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  })
+  const fullFormatter = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
+
+  return `${monthDayFormatter.format(start)} - ${fullFormatter.format(end)}`
+}
+
+function groupSessionsByWeek(sessions: ClassSessionDisplayRecord[]) {
+  const groupsByWeek = new Map<
+    string,
+    {
+      weekStartDateKey: string
+      sessions: ClassSessionDisplayRecord[]
+    }
+  >()
+
+  sessions.forEach((session) => {
+    const weekStartDateKey = getWeekStartDateKey(getDateKey(session.sessionDate))
+    const group =
+      groupsByWeek.get(weekStartDateKey) ??
+      ({
+        weekStartDateKey,
+        sessions: [],
+      } satisfies {
+        weekStartDateKey: string
+        sessions: ClassSessionDisplayRecord[]
+      })
+
+    group.sessions.push(session)
+    groupsByWeek.set(weekStartDateKey, group)
+  })
+
+  return Array.from(groupsByWeek.values()).sort((first, second) =>
+    compareText(first.weekStartDateKey, second.weekStartDateKey)
+  )
 }
 
 function getSessionStatusVariant(status: string | null | undefined) {
@@ -823,14 +962,229 @@ function AttendanceReviewTable({
   )
 }
 
-export function ClassSessionReview({
+function SessionCancelButton({
+  session,
+  canCancelSessions,
+  isCanceling,
+  onCancelSession,
+  className,
+  size = "sm",
+}: {
+  session: ClassSessionDisplayRecord
+  canCancelSessions: boolean
+  isCanceling: boolean
+  onCancelSession: (session: ClassSessionDisplayRecord) => void
+  className?: string
+  size?: React.ComponentProps<typeof Button>["size"]
+}) {
+  if (!canCancelSessions || !isScheduledSession(session)) {
+    return null
+  }
+
+  return (
+    <Button
+      type="button"
+      size={size}
+      variant="destructive"
+      className={className}
+      disabled={isCanceling}
+      onClick={(event) => {
+        event.stopPropagation()
+        onCancelSession(session)
+      }}
+    >
+      <Ban />
+      {isCanceling ? "Canceling" : "Cancel"}
+    </Button>
+  )
+}
+
+function UpcomingSessionsPanel({
   sessions,
+  open,
+  canCancelSessions,
+  cancelingSessionId,
+  onOpenChange,
+  onCancelSession,
 }: {
   sessions: ClassSessionDisplayRecord[]
+  open: boolean
+  canCancelSessions: boolean
+  cancelingSessionId: string | null
+  onOpenChange: (open: boolean) => void
+  onCancelSession: (session: ClassSessionDisplayRecord) => void
 }) {
+  const contentId = React.useId()
+  const weekGroups = React.useMemo(() => groupSessionsByWeek(sessions), [sessions])
+  const [openWeekKeys, setOpenWeekKeys] = React.useState<Set<string>>(
+    () =>
+      new Set(
+        weekGroups[0]?.weekStartDateKey
+          ? [weekGroups[0].weekStartDateKey]
+          : []
+      )
+  )
+
+  function toggleWeek(weekStartDateKey: string) {
+    setOpenWeekKeys((current) => {
+      const next = new Set(current)
+      
+      if (next.has(weekStartDateKey)) {
+        next.delete(weekStartDateKey)
+      } else {
+        next.add(weekStartDateKey)
+      }
+
+      return next
+    })
+  }
+
+  return (
+    <div className="rounded-lg border bg-muted/20 p-3">
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 w-full justify-between"
+        aria-expanded={open}
+        aria-controls={contentId}
+        onClick={() => onOpenChange(!open)}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <CalendarDays />
+          <span className="truncate">{open ? "Hide upcoming sessions" : "View upcoming sessions"}</span>
+        </span>
+        <span className="flex items-center gap-2">
+          <Badge variant="secondary">{sessions.length}</Badge>
+          <ChevronDown
+            className={
+              open ? "rotate-180 transition-transform" : "transition-transform"
+            }
+          />
+        </span>
+      </Button>
+      {open ? (
+        <div
+          id={contentId}
+          className="mt-3 max-h-[min(34rem,58svh)] space-y-3 overflow-y-auto overscroll-contain pr-1"
+        >
+          {weekGroups.length ? (
+            weekGroups.map((group) => {
+              const weekOpen = openWeekKeys.has(group.weekStartDateKey)
+
+            return (
+                <div
+                  key={group.weekStartDateKey}
+                  className="rounded-lg border bg-background"
+                >
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-11 w-full justify-between rounded-lg px-3"
+                    aria-expanded={weekOpen}
+                    onClick={() => toggleWeek(group.weekStartDateKey)}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <CalendarDays />
+                      <span className="truncate">
+                        {formatWeekRange(group.weekStartDateKey)}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Badge variant="outline">{group.sessions.length}</Badge>
+                      <ChevronDown
+                        className={
+                          weekOpen
+                            ? "rotate-180 transition-transform"
+                            : "transition-transform"
+                        }
+                      />
+                    </span>
+                  </Button>
+                  {weekOpen ? (
+                    <div className="space-y-3 border-t p-3 max-h-[min(34rem,58svh)] overflow-y-auto">
+                      {group.sessions.map((session) => (
+                        <div
+                          key={session.sessionId}
+                          className="rounded-lg border bg-muted/20 p-3"
+                        >
+                          <div className="flex flex-row sm:flex-row sm:items-start justify-between">
+                            <div>
+                              <div className="font-medium">
+                                {session.className}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatDate(session.sessionDate)} -{" "}
+                                {getSessionTime(session)}
+                              </div>
+                            </div>
+                            <div className="flex flex-row gap-3 items-center justify-end">
+                              <Badge
+                                className="w-fit"
+                                variant={getSessionStatusVariant(session.status)}
+                              >
+                                {formatSessionStatus(session.status)}
+                              </Badge>
+                              <SessionCancelButton
+                                session={session}
+                                canCancelSessions={canCancelSessions}
+                                isCanceling={
+                                cancelingSessionId === session.sessionId
+                                }
+                                onCancelSession={onCancelSession}
+                                className="mt-3 h-10 w-auto"
+                                size="lg"
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-1 grid gap-3 text-sm sm:grid-cols-3">
+                            <div>
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Schedule
+                              </div>
+                              <div>{getScheduleDisplay(session)}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Expected
+                              </div>
+                              <div>{session.expectedAthletes.length}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Parent emails
+                              </div>
+                              <div>{getParentEmailCount(session)}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                )
+            })
+          ) : (
+            <div className="rounded-lg border border-dashed bg-background p-5 text-center text-sm text-muted-foreground">
+              No upcoming scheduled sessions match the current filters.
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export function ClassSessionReview({
+  sessions,
+  canCancelSessions = false,
+}: {
+  sessions: ClassSessionDisplayRecord[]
+  canCancelSessions?: boolean
+}) {
+  const defaultDateRange = React.useMemo(() => getDefaultDateRange(), [])
   const [query, setQuery] = React.useState("")
-  const [dateFrom, setDateFrom] = React.useState("")
-  const [dateTo, setDateTo] = React.useState("")
+  const [dateFrom, setDateFrom] = React.useState(defaultDateRange.dateFrom)
+  const [dateTo, setDateTo] = React.useState(defaultDateRange.dateTo)
   const [classFilter, setClassFilter] = React.useState("all")
   const [scheduleFilter, setScheduleFilter] = React.useState("all")
   const [statusFilter, setStatusFilter] = React.useState("all")
@@ -842,8 +1196,18 @@ export function ClassSessionReview({
   const [expandedSessionId, setExpandedSessionId] = React.useState<
     string | null
   >(null)
+  const [upcomingSessionsOpen, setUpcomingSessionsOpen] =
+    React.useState(false)
+  const [cancelSessionTarget, setCancelSessionTarget] =
+    React.useState<ClassSessionDisplayRecord | null>(null)
+  const [cancelingSessionId, setCancelingSessionId] = React.useState<
+    string | null
+  >(null)
   const [mobileFiltersOpen, setMobileFiltersOpen] = React.useState(false)
+  const todayDateKey = React.useMemo(() => getLocalDateKey(), [])
   const filterPanelId = React.useId()
+  const router = useRouter()
+  const { toast } = useToast()
   const classOptions = React.useMemo(
     () =>
       Array.from(new Set(sessions.map((session) => session.className)))
@@ -876,6 +1240,10 @@ export function ClassSessionReview({
     () =>
       sessions
         .filter((session) => {
+          if (isFutureScheduledSession(session, todayDateKey)) {
+            return false
+          }
+
           if (!matchesSearch(session, query)) {
             return false
           }
@@ -915,6 +1283,49 @@ export function ClassSessionReview({
       sortDirection,
       sortKey,
       statusFilter,
+      todayDateKey,
+    ]
+  )
+  const upcomingSessions = React.useMemo(
+    () =>
+      sessions
+        .filter((session) => {
+          if (!isFutureScheduledSession(session, todayDateKey)) {
+            return false
+          }
+
+          if (!matchesSearch(session, query)) {
+            return false
+          }
+
+          if (classFilter !== "all" && session.className !== classFilter) {
+            return false
+          }
+
+          if (
+            scheduleFilter !== "all" &&
+            getScheduleFilterValue(session) !== scheduleFilter
+          ) {
+            return false
+          }
+
+          if (statusFilter !== "all" && session.status !== statusFilter) {
+            return false
+          }
+
+          return matchesAttendanceFilter(session, attendanceFilter)
+        })
+        .sort((first, second) =>
+          compareSessions(first, second, "date", "asc")
+        ),
+    [
+      attendanceFilter,
+      classFilter,
+      query,
+      scheduleFilter,
+      sessions,
+      statusFilter,
+      todayDateKey,
     ]
   )
   const visibleExpandedSessionId = filteredSessions.some(
@@ -922,10 +1333,11 @@ export function ClassSessionReview({
   )
     ? expandedSessionId
     : null
+  const hasCustomDateRange =
+    dateFrom !== defaultDateRange.dateFrom || dateTo !== defaultDateRange.dateTo
   const hasActiveFilters = Boolean(
     query.trim() ||
-      dateFrom ||
-      dateTo ||
+      hasCustomDateRange ||
       classFilter !== "all" ||
       scheduleFilter !== "all" ||
       statusFilter !== "all" ||
@@ -949,8 +1361,8 @@ export function ClassSessionReview({
 
   function resetFilters() {
     setQuery("")
-    setDateFrom("")
-    setDateTo("")
+    setDateFrom(defaultDateRange.dateFrom)
+    setDateTo(defaultDateRange.dateTo)
     setClassFilter("all")
     setScheduleFilter("all")
     setStatusFilter("all")
@@ -959,7 +1371,50 @@ export function ClassSessionReview({
     setSortDirection("desc")
   }
 
+  function requestCancelSession(session: ClassSessionDisplayRecord) {
+    setCancelSessionTarget(session)
+  }
+
+  async function confirmCancelSession() {
+    if (!cancelSessionTarget) {
+      return
+    }
+
+    setCancelingSessionId(cancelSessionTarget.sessionId)
+
+    try {
+      const result = await cancelClassSession(cancelSessionTarget.sessionId)
+
+      if (!result.ok) {
+        toast({
+          title: "Session not canceled",
+          description: result.message,
+          variant: "error",
+        })
+        return
+      }
+
+      toast({
+        title: "Session canceled",
+        description: result.message,
+        variant: result.warning ? "error" : "success",
+      })
+      setCancelSessionTarget(null)
+      router.refresh()
+    } catch (error) {
+      toast({
+        title: "Session not canceled",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "error",
+      })
+    } finally {
+      setCancelingSessionId(null)
+    }
+  }
+
   return (
+    <>
     <Card className="w-full bg-white dark:bg-black">
       <CardHeader>
         <CardTitle>Class Sessions</CardTitle>
@@ -1136,7 +1591,15 @@ export function ClassSessionReview({
             </Button>
           </div>
         </div>
-        <div className="max-h-[min(30rem,45svh)] min-h-0 overflow-y-auto space-y-3 md:hidden">
+        <UpcomingSessionsPanel
+          sessions={upcomingSessions}
+          open={upcomingSessionsOpen}
+          canCancelSessions={canCancelSessions}
+          cancelingSessionId={cancelingSessionId}
+          onOpenChange={setUpcomingSessionsOpen}
+          onCancelSession={requestCancelSession}
+        />
+        <div className="max-h-[min(65rem,65svh)] min-h-0 overflow-y-auto space-y-3 md:hidden">
           {filteredSessions.length ? (
             filteredSessions.map((session) => {
               const isExpanded = visibleExpandedSessionId === session.sessionId
@@ -1185,24 +1648,26 @@ export function ClassSessionReview({
                       </div>
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    size="lg"
-                    variant={isExpanded ? "secondary" : "outline"}
-                    className="mt-3 h-10 w-full"
-                    aria-expanded={isExpanded}
-                    onClick={() => toggleSession(session.sessionId)}
-                  >
-                    <ClipboardCheck />
-                    {isExpanded ? "Close Review" : "Review Attendance"}
-                    <ChevronDown
-                      className={
-                        isExpanded
-                          ? "rotate-180 transition-transform"
-                          : "transition-transform"
-                      }
-                    />
-                  </Button>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant={isExpanded ? "secondary" : "outline"}
+                      className="py-3 flex-1"
+                      aria-expanded={isExpanded}
+                      onClick={() => toggleSession(session.sessionId)}
+                    >
+                      <ClipboardCheck />
+                      {isExpanded ? "Close Review" : "Review Attendance"}
+                      <ChevronDown
+                        className={
+                          isExpanded
+                            ? "rotate-180 transition-transform"
+                            : "transition-transform"
+                        }
+                      />
+                    </Button>
+                  </div>
                   {isExpanded ? (
                     <div className="mt-3">
                       <AttendanceReviewTable session={session} />
@@ -1374,5 +1839,66 @@ export function ClassSessionReview({
         </div>
       </CardContent>
     </Card>
+    <Dialog
+      open={Boolean(cancelSessionTarget)}
+      onOpenChange={(open) => {
+        if (!open && !cancelingSessionId) {
+          setCancelSessionTarget(null)
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Cancel Class Session</DialogTitle>
+          <DialogDescription>
+            This will mark the session canceled and email parents with enrolled
+            athletes.
+          </DialogDescription>
+        </DialogHeader>
+        {cancelSessionTarget ? (
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+            <div className="font-medium">{cancelSessionTarget.className}</div>
+            <div className="mt-1 text-muted-foreground">
+              {formatDate(cancelSessionTarget.sessionDate)} -{" "}
+              {getSessionTime(cancelSessionTarget)}
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div>
+                <div className="text-xs font-medium text-muted-foreground">
+                  Schedule
+                </div>
+                <div>{getScheduleDisplay(cancelSessionTarget)}</div>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-muted-foreground">
+                  Parent emails
+                </div>
+                <div>{getParentEmailCount(cancelSessionTarget)}</div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={Boolean(cancelingSessionId)}
+            onClick={() => setCancelSessionTarget(null)}
+          >
+            Keep Session
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={Boolean(cancelingSessionId)}
+            onClick={confirmCancelSession}
+          >
+            <Ban />
+            {cancelingSessionId ? "Canceling" : "Cancel Session"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

@@ -21,7 +21,10 @@ export default async function AdminSessionsPage() {
         icon={ClipboardCheck}
         backLabel="Dashboard"
       />
-      <ClassSessionReview sessions={dashboardData.classSessions} />
+      <ClassSessionReview
+        sessions={dashboardData.classSessions}
+        canCancelSessions
+      />
     </AccountDashboardFrame>
   )
 }
