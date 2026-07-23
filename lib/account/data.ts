@@ -101,6 +101,7 @@ type ClassSessionRow = {
   starts_at?: string | null
   ends_at?: string | null
   status?: string | null
+  type?: string | null
 }
 
 type ClassSessionAttendanceRow = {
@@ -506,7 +507,9 @@ async function fetchClassSessionRows() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("ClassSessions")
-    .select("session_id,class_id,schedule_id,session_date,starts_at,ends_at,status")
+    .select(
+      "session_id,class_id,schedule_id,session_date,starts_at,ends_at,status,type"
+    )
     .order("session_date", { ascending: false })
     .order("starts_at", { ascending: true })
 
@@ -1037,6 +1040,7 @@ function buildClassSessionRows({
       startsAt: row.starts_at ?? null,
       endsAt: row.ends_at ?? null,
       status: row.status ?? "scheduled",
+      type: row.type ?? null,
       expectedAthletes,
     }
   })

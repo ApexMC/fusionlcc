@@ -219,6 +219,7 @@ export type ClassSessionDisplayRecord = {
   startsAt: string | null
   endsAt: string | null
   status: string
+  type: string | null
   expectedAthletes: ClassSessionExpectedAthlete[]
 }
 

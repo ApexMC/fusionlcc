@@ -13,6 +13,21 @@ type ActionResult = {
   warning?: string
 }
 
+type MakeupSessionInput = {
+  sourceSessionId: string
+  sessionDate: string
+  startTime: string
+  durationMinutes: number
+}
+
+type CancellationNoticeContext = {
+  classSession: ClassSessionRow
+  className: string
+  schedule: ClassScheduleRow | null
+  athleteNames: string[]
+  parentEmails: string[]
+}
+
 type ClassSessionRow = {
   session_id: string | number
   class_id?: string | number | null
@@ -21,6 +36,7 @@ type ClassSessionRow = {
   starts_at?: string | null
   ends_at?: string | null
   status?: string | null
+  type?: string | null
 }
 
 type ClassRow = {
@@ -56,6 +72,7 @@ type EnrollmentRow = {
 }
 
 const rosterEnrollmentStatuses = ["approved", "active"] as const
+const classSessionTimeZone = "America/Indiana/Tell_City"
 const dayOrder = [
   "monday",
   "tuesday",
@@ -65,6 +82,17 @@ const dayOrder = [
   "saturday",
   "sunday",
 ]
+
+type DateParts = {
+  year: number
+  month: number
+  day: number
+}
+
+type DateTimeParts = DateParts & {
+  hour: number
+  minute: number
+}
 
 function firstRelation<T>(value: T | T[] | null | undefined) {
   return Array.isArray(value) ? value[0] : value
@@ -76,6 +104,139 @@ function toId(value: string | number | null | undefined) {
 
 function normalizeStatus(value: string | null | undefined) {
   return value?.trim().toLowerCase() || "scheduled"
+}
+
+function parseDateParts(value: string): DateParts | null {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+
+  if (!match) {
+    return null
+  }
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null
+  }
+
+  return { year, month, day }
+}
+
+function normalizeDateInput(value: string) {
+  const normalized = value.trim()
+
+  return parseDateParts(normalized) ? normalized : null
+}
+
+function normalizeTimeInput(value: string) {
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)
+
+  if (!match) {
+    return null
+  }
+
+  const hour = Number(match[1])
+  const minute = Number(match[2])
+
+  if (
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null
+  }
+
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+}
+
+function getDateTimeParts(dateKey: string, timeKey: string): DateTimeParts | null {
+  const dateParts = parseDateParts(dateKey)
+  const normalizedTime = normalizeTimeInput(timeKey)
+
+  if (!dateParts || !normalizedTime) {
+    return null
+  }
+
+  const [hour, minute] = normalizedTime.split(":").map(Number)
+
+  return {
+    ...dateParts,
+    hour,
+    minute,
+  }
+}
+
+function getTimeZoneOffsetMinutes(date: Date, timeZone: string) {
+  const timeZoneName = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "shortOffset",
+  })
+    .formatToParts(date)
+    .find((part) => part.type === "timeZoneName")?.value
+
+  if (!timeZoneName || timeZoneName === "GMT") {
+    return 0
+  }
+
+  const match = timeZoneName.match(/^GMT([+-])(\d{1,2})(?::?(\d{2}))?$/)
+
+  if (!match) {
+    throw new Error(`Unable to determine timezone offset for ${timeZone}.`)
+  }
+
+  const sign = match[1] === "-" ? -1 : 1
+  const hours = Number(match[2])
+  const minutes = Number(match[3] ?? "0")
+
+  return sign * (hours * 60 + minutes)
+}
+
+function toZonedTimestampIso(
+  dateKey: string,
+  timeKey: string,
+  timeZone = classSessionTimeZone
+) {
+  const parts = getDateTimeParts(dateKey, timeKey)
+
+  if (!parts) {
+    return null
+  }
+
+  const localTimeAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute
+  )
+  let utcMilliseconds = localTimeAsUtc
+
+  for (let index = 0; index < 3; index += 1) {
+    const offsetMinutes = getTimeZoneOffsetMinutes(
+      new Date(utcMilliseconds),
+      timeZone
+    )
+    const nextUtcMilliseconds = localTimeAsUtc - offsetMinutes * 60_000
+
+    if (nextUtcMilliseconds === utcMilliseconds) {
+      break
+    }
+
+    utcMilliseconds = nextUtcMilliseconds
+  }
+
+  return new Date(utcMilliseconds).toISOString()
 }
 
 function normalizeDay(value: string | number | null | undefined) {
@@ -131,6 +292,18 @@ function formatTime(value: string | null | undefined) {
     return "Time TBD"
   }
 
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const date = new Date(value)
+
+    if (!Number.isNaN(date.getTime())) {
+      return new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: classSessionTimeZone,
+      }).format(date)
+    }
+  }
+
   const timeMatch = value.match(/(\d{1,2}):(\d{2})(?::\d{2})?/)
   const hour = Number(timeMatch?.[1])
   const minute = Number(timeMatch?.[2] ?? "00")
@@ -177,13 +350,15 @@ function buildCancellationMessage({
   session,
   schedule,
   athleteNames,
+  makeupSession,
 }: {
   className: string
   session: ClassSessionRow
   schedule: ClassScheduleRow | null
   athleteNames: string[]
+  makeupSession?: ClassSessionRow
 }) {
-  return [
+  const lines = [
     "Hello,",
     "",
     "The following Limitless Cheer and Gymnastics class session has been canceled:",
@@ -193,30 +368,40 @@ function buildCancellationMessage({
     `Time: ${formatSessionTime(session, schedule)}`,
     `Schedule: ${formatScheduleLabel(schedule)}`,
     "",
+  ]
+
+  if (makeupSession) {
+    lines.push(
+      "A makeup session has been scheduled:",
+      "",
+      `Makeup Class: ${className}`,
+      `Makeup Date: ${formatDate(makeupSession.session_date)}`,
+      `Makeup Time: ${formatSessionTime(makeupSession, null)}`,
+      ""
+    )
+  }
+
+  lines.push(
     athleteNames.length
       ? `Students enrolled: ${athleteNames.join(", ")}`
       : "Students enrolled: No active enrollments found",
     "",
-    "Please contact us if you have any questions.",
-  ].join("\n")
+    "Please contact us if you have any questions."
+  )
+
+  return lines.join("\n")
 }
 
-export async function cancelClassSession(
+async function getCancellationNoticeContext(
   sessionId: string
-): Promise<ActionResult> {
-  requireAdminSession(await getAccountSession())
-
-  if (!sessionId.trim()) {
-    return {
-      ok: false,
-      message: "Choose a session before canceling.",
-    }
-  }
-
+): Promise<
+  | { ok: true; context: CancellationNoticeContext }
+  | { ok: false; message: string }
+> {
   const supabase = createAdminClient()
   const { data: sessionData, error: sessionError } = await supabase
     .from("ClassSessions")
-    .select("session_id,class_id,schedule_id,session_date,starts_at,ends_at,status")
+    .select("session_id,class_id,schedule_id,session_date,starts_at,ends_at,status,type")
     .eq("session_id", sessionId)
     .maybeSingle()
 
@@ -235,22 +420,6 @@ export async function cancelClassSession(
   }
 
   const classSession = sessionData as ClassSessionRow
-  const normalizedStatus = normalizeStatus(classSession.status)
-
-  if (["canceled", "cancelled"].includes(normalizedStatus)) {
-    return {
-      ok: false,
-      message: "This session is already canceled.",
-    }
-  }
-
-  if (normalizedStatus !== "scheduled") {
-    return {
-      ok: false,
-      message: "Only scheduled sessions can be canceled.",
-    }
-  }
-
   const classId = toId(classSession.class_id)
   const scheduleId = toId(classSession.schedule_id)
   let className = classId ? `Class #${classId}` : "Class session"
@@ -335,6 +504,145 @@ export async function cancelClassSession(
     }
   })
 
+  return {
+    ok: true,
+    context: {
+      classSession,
+      className,
+      schedule,
+      athleteNames,
+      parentEmails: Array.from(parentEmailByAddress.values()),
+    },
+  }
+}
+
+async function sendCancellationDecisionEmail({
+  sourceSessionId,
+  makeupSession,
+}: {
+  sourceSessionId: string
+  makeupSession?: ClassSessionRow
+}): Promise<ActionResult> {
+  const contextResult = await getCancellationNoticeContext(sourceSessionId)
+
+  if (!contextResult.ok) {
+    return contextResult
+  }
+
+  const {
+    classSession,
+    className,
+    schedule,
+    athleteNames,
+    parentEmails,
+  } = contextResult.context
+
+  if (!["canceled", "cancelled"].includes(normalizeStatus(classSession.status))) {
+    return {
+      ok: false,
+      message: "Cancel the session before emailing parents.",
+      emailedParentCount: 0,
+    }
+  }
+
+  if (!parentEmails.length) {
+    return {
+      ok: true,
+      message: "No parent email addresses were found.",
+      emailedParentCount: 0,
+    }
+  }
+
+  const subject = makeupSession
+    ? `LCC Session Canceled / Makeup Scheduled: ${className}`
+    : `LCC Session Canceled: ${className} on ${formatDate(
+        classSession.session_date
+      )}`
+
+  try {
+    await sendContactEmail({
+      email: process.env.CONTACT_FROM_EMAIL,
+      subject,
+      message: buildCancellationMessage({
+        className,
+        session: classSession,
+        schedule,
+        athleteNames,
+        makeupSession,
+      }),
+      bcc: parentEmails,
+    })
+  } catch (error) {
+    return {
+      ok: false,
+      message: getErrorMessage(error),
+      emailedParentCount: 0,
+    }
+  }
+
+  return {
+    ok: true,
+    message: makeupSession
+      ? `Emailed ${parentEmails.length} parent${
+          parentEmails.length === 1 ? "" : "s"
+        } with cancellation and makeup details.`
+      : `Emailed ${parentEmails.length} parent${
+          parentEmails.length === 1 ? "" : "s"
+        } with cancellation details.`,
+    emailedParentCount: parentEmails.length,
+  }
+}
+
+export async function cancelClassSession(
+  sessionId: string
+): Promise<ActionResult> {
+  requireAdminSession(await getAccountSession())
+
+  if (!sessionId.trim()) {
+    return {
+      ok: false,
+      message: "Choose a session before canceling.",
+    }
+  }
+
+  const supabase = createAdminClient()
+  const { data: sessionData, error: sessionError } = await supabase
+    .from("ClassSessions")
+    .select("session_id,class_id,schedule_id,session_date,starts_at,ends_at,status")
+    .eq("session_id", sessionId)
+    .maybeSingle()
+
+  if (sessionError) {
+    return {
+      ok: false,
+      message: sessionError.message,
+    }
+  }
+
+  if (!sessionData) {
+    return {
+      ok: false,
+      message: "Session not found.",
+    }
+  }
+
+  const classSession = sessionData as ClassSessionRow
+  const normalizedStatus = normalizeStatus(classSession.status)
+
+  if (["canceled", "cancelled"].includes(normalizedStatus)) {
+    return {
+      ok: false,
+      message: "This session is already canceled.",
+    }
+  }
+
+  if (normalizedStatus !== "scheduled") {
+    return {
+      ok: false,
+      message: "Only scheduled sessions can be canceled.",
+    }
+  }
+
   const { error: updateError } = await supabase
     .from("ClassSessions")
     .update({ status: "canceled" })
@@ -347,50 +655,175 @@ export async function cancelClassSession(
     }
   }
 
-  const parentEmails = Array.from(parentEmailByAddress.values())
-  const subject = `LCC Session Canceled: ${className} on ${formatDate(
-    classSession.session_date
-  )}`
-  let warning: string | undefined
+  revalidatePath("/account")
+  revalidatePath("/account/admin/sessions")
+  revalidatePath("/account/coach/sessions")
 
-  if (parentEmails.length) {
-    try {
-      await sendContactEmail({
-        email: process.env.CONTACT_FROM_EMAIL,
-        subject,
-        message: buildCancellationMessage({
-          className,
-          session: classSession,
-          schedule,
-          athleteNames,
-        }),
-        bcc: parentEmails,
-      })
-    } catch (error) {
-      warning = getErrorMessage(error)
+  return {
+    ok: true,
+    message:
+      "Session canceled. Choose whether to create a makeup session before notifying parents.",
+  }
+}
+
+export async function sendClassSessionCancellationNotice(
+  sessionId: string
+): Promise<ActionResult> {
+  requireAdminSession(await getAccountSession())
+
+  if (!sessionId.trim()) {
+    return {
+      ok: false,
+      message: "Choose a canceled session before emailing parents.",
     }
   }
+
+  const noticeResult = await sendCancellationDecisionEmail({
+    sourceSessionId: sessionId,
+  })
+
+  if (!noticeResult.ok) {
+    return {
+      ...noticeResult,
+      message: `Cancellation email failed to send: ${noticeResult.message}`,
+    }
+  }
+
+  return noticeResult
+}
+
+export async function createMakeupClassSession({
+  sourceSessionId,
+  sessionDate,
+  startTime,
+  durationMinutes,
+}: MakeupSessionInput): Promise<ActionResult & { sessionId?: string }> {
+  requireAdminSession(await getAccountSession())
+
+  const normalizedDate = normalizeDateInput(sessionDate)
+  const normalizedStartTime = normalizeTimeInput(startTime)
+  const normalizedDuration = Number(durationMinutes)
+
+  if (!sourceSessionId.trim()) {
+    return {
+      ok: false,
+      message: "Choose the canceled session before creating a makeup.",
+    }
+  }
+
+  if (!normalizedDate) {
+    return {
+      ok: false,
+      message: "Choose a valid makeup session date.",
+    }
+  }
+
+  if (!normalizedStartTime) {
+    return {
+      ok: false,
+      message: "Choose a valid makeup session start time.",
+    }
+  }
+
+  if (
+    !Number.isInteger(normalizedDuration) ||
+    normalizedDuration < 15 ||
+    normalizedDuration > 480
+  ) {
+    return {
+      ok: false,
+      message: "Duration must be between 15 minutes and 8 hours.",
+    }
+  }
+
+  const startsAt = toZonedTimestampIso(normalizedDate, normalizedStartTime)
+
+  if (!startsAt) {
+    return {
+      ok: false,
+      message: "Choose a valid makeup session date and start time.",
+    }
+  }
+
+  const endsAt = new Date(
+    new Date(startsAt).getTime() + normalizedDuration * 60_000
+  ).toISOString()
+
+  const supabase = createAdminClient()
+  const { data: sourceSessionData, error: sourceSessionError } = await supabase
+    .from("ClassSessions")
+    .select("session_id,class_id,schedule_id,status")
+    .eq("session_id", sourceSessionId)
+    .maybeSingle()
+
+  if (sourceSessionError) {
+    return {
+      ok: false,
+      message: sourceSessionError.message,
+    }
+  }
+
+  if (!sourceSessionData) {
+    return {
+      ok: false,
+      message: "Canceled session not found.",
+    }
+  }
+
+  const sourceSession = sourceSessionData as ClassSessionRow
+
+  if (!["canceled", "cancelled"].includes(normalizeStatus(sourceSession.status))) {
+    return {
+      ok: false,
+      message: "Cancel the original session before creating a makeup.",
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("ClassSessions")
+    .insert({
+      class_id: sourceSession.class_id ?? null,
+      schedule_id: sourceSession.schedule_id ?? null,
+      session_date: normalizedDate,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      status: "scheduled",
+      type: "makeup",
+    })
+    .select("session_id,class_id,schedule_id,session_date,starts_at,ends_at,status,type")
+    .single()
+
+  if (error) {
+    return {
+      ok: false,
+      message: error.message,
+    }
+  }
+
+  const makeupSession = data as ClassSessionRow
+  const noticeResult = await sendCancellationDecisionEmail({
+    sourceSessionId,
+    makeupSession,
+  })
 
   revalidatePath("/account")
   revalidatePath("/account/admin/sessions")
   revalidatePath("/account/coach/sessions")
 
-  if (warning) {
+  if (!noticeResult.ok) {
     return {
       ok: true,
-      message: `Session canceled, but the parent email failed to send: ${warning}`,
+      message: `Makeup session created, but the parent email failed to send: ${noticeResult.message}`,
+      sessionId: String(makeupSession.session_id),
       emailedParentCount: 0,
-      warning,
+      warning: noticeResult.message,
     }
   }
 
   return {
     ok: true,
-    message: parentEmails.length
-      ? `Session canceled and emailed ${parentEmails.length} parent${
-          parentEmails.length === 1 ? "" : "s"
-        }.`
-      : "Session canceled. No parent email addresses were found.",
-    emailedParentCount: parentEmails.length,
+    message: `Makeup session created. ${noticeResult.message}`,
+    sessionId: String(makeupSession.session_id),
+    emailedParentCount: noticeResult.emailedParentCount,
   }
 }

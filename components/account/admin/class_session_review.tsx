@@ -14,7 +14,11 @@ import {
 import { useRouter } from "next/navigation"
 
 import { updateClassSessionAttendanceBatch } from "@/app/actions/class-attendance"
-import { cancelClassSession } from "@/app/actions/class-sessions"
+import {
+  cancelClassSession,
+  createMakeupClassSession,
+  sendClassSessionCancellationNotice,
+} from "@/app/actions/class-sessions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -67,6 +71,7 @@ const sortOptions = [
 
 const selectControlClassName =
   "h-8 rounded-lg border border-input bg-background px-2 text-sm"
+const classSessionTimeZone = "America/Indiana/Tell_City"
 const defaultHistoryDays = 7
 
 type AttendanceDraft = {
@@ -190,6 +195,18 @@ function formatTime(value: string | null) {
     return "Time TBD"
   }
 
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const date = new Date(value)
+
+    if (!Number.isNaN(date.getTime())) {
+      return new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: classSessionTimeZone,
+      }).format(date)
+    }
+  }
+
   const timeMatch = value.match(/(\d{1,2}):(\d{2})(?::\d{2})?/)
   const hour = Number(timeMatch?.[1])
   const minute = Number(timeMatch?.[2] ?? "00")
@@ -213,6 +230,26 @@ function getTimeSortKey(value: string | null) {
     return ""
   }
 
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const date = new Date(value)
+
+    if (!Number.isNaN(date.getTime())) {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        hour12: false,
+        hourCycle: "h23",
+        minute: "2-digit",
+        timeZone: classSessionTimeZone,
+      }).formatToParts(date)
+      const hour = parts.find((part) => part.type === "hour")?.value
+      const minute = parts.find((part) => part.type === "minute")?.value
+
+      if (hour && minute) {
+        return `${hour}:${minute}`
+      }
+    }
+  }
+
   const timeMatch = value.match(/(\d{1,2}):(\d{2})(?::\d{2})?/)
   const hour = Number(timeMatch?.[1])
   const minute = Number(timeMatch?.[2] ?? "00")
@@ -222,6 +259,33 @@ function getTimeSortKey(value: string | null) {
   }
 
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+}
+
+function getTimeInputValue(value: string | null) {
+  return getTimeSortKey(value)
+}
+
+function getTimeMinutes(value: string | null) {
+  const timeKey = getTimeSortKey(value)
+
+  if (!timeKey) {
+    return null
+  }
+
+  const [hour, minute] = timeKey.split(":").map(Number)
+
+  return hour * 60 + minute
+}
+
+function getSessionDurationMinutes(session: ClassSessionDisplayRecord) {
+  const startsAt = getTimeMinutes(session.startsAt)
+  const endsAt = getTimeMinutes(session.endsAt)
+
+  if (startsAt === null || endsAt === null || endsAt <= startsAt) {
+    return 60
+  }
+
+  return endsAt - startsAt
 }
 
 function getAttendanceSummary(session: ClassSessionDisplayRecord) {
@@ -438,6 +502,7 @@ function matchesSearch(session: ClassSessionDisplayRecord, query: string) {
     session.scheduleLabel,
     session.sessionDate,
     session.status,
+    session.type,
     getSessionTime(session),
     ...session.expectedAthletes.flatMap((athlete) => [
       athlete.athleteName,
@@ -1018,11 +1083,7 @@ function UpcomingSessionsPanel({
   const weekGroups = React.useMemo(() => groupSessionsByWeek(sessions), [sessions])
   const [openWeekKeys, setOpenWeekKeys] = React.useState<Set<string>>(
     () =>
-      new Set(
-        weekGroups[0]?.weekStartDateKey
-          ? [weekGroups[0].weekStartDateKey]
-          : []
-      )
+      new Set()
   )
 
   function toggleWeek(weekStartDateKey: string) {
@@ -1118,12 +1179,22 @@ function UpcomingSessionsPanel({
                               </div>
                             </div>
                             <div className="flex flex-row gap-3 items-center justify-end">
-                              <Badge
-                                className="w-fit"
-                                variant={getSessionStatusVariant(session.status)}
-                              >
-                                {formatSessionStatus(session.status)}
-                              </Badge>
+                              <div className="flex flex-col gap-1 items-center">
+                                <Badge
+                                  className="w-fit"
+                                  variant={getSessionStatusVariant(session.status)}
+                                >
+                                  {formatSessionStatus(session.status)}
+                                </Badge>
+                                {session.type === "makeup" && (
+                                  <Badge
+                                    className="w-fit"
+                                    variant="warning"
+                                  >
+                                    {session.type}
+                                  </Badge>
+                                )}
+                              </div>
                               <SessionCancelButton
                                 session={session}
                                 canCancelSessions={canCancelSessions}
@@ -1200,9 +1271,19 @@ export function ClassSessionReview({
     React.useState(false)
   const [cancelSessionTarget, setCancelSessionTarget] =
     React.useState<ClassSessionDisplayRecord | null>(null)
+  const [makeupSessionTarget, setMakeupSessionTarget] =
+    React.useState<ClassSessionDisplayRecord | null>(null)
+  const [makeupDate, setMakeupDate] = React.useState("")
+  const [makeupStartTime, setMakeupStartTime] = React.useState("")
+  const [makeupDurationMinutes, setMakeupDurationMinutes] =
+    React.useState("60")
   const [cancelingSessionId, setCancelingSessionId] = React.useState<
     string | null
   >(null)
+  const [creatingMakeupSession, setCreatingMakeupSession] =
+    React.useState(false)
+  const [sendingCancellationNotice, setSendingCancellationNotice] =
+    React.useState(false)
   const [mobileFiltersOpen, setMobileFiltersOpen] = React.useState(false)
   const todayDateKey = React.useMemo(() => getLocalDateKey(), [])
   const filterPanelId = React.useId()
@@ -1380,10 +1461,12 @@ export function ClassSessionReview({
       return
     }
 
+    const canceledSession = cancelSessionTarget
+
     setCancelingSessionId(cancelSessionTarget.sessionId)
 
     try {
-      const result = await cancelClassSession(cancelSessionTarget.sessionId)
+      const result = await cancelClassSession(canceledSession.sessionId)
 
       if (!result.ok) {
         toast({
@@ -1400,6 +1483,10 @@ export function ClassSessionReview({
         variant: result.warning ? "error" : "success",
       })
       setCancelSessionTarget(null)
+      setMakeupDate("")
+      setMakeupStartTime(getTimeInputValue(canceledSession.startsAt))
+      setMakeupDurationMinutes(String(getSessionDurationMinutes(canceledSession)))
+      setMakeupSessionTarget(canceledSession)
       router.refresh()
     } catch (error) {
       toast({
@@ -1410,6 +1497,98 @@ export function ClassSessionReview({
       })
     } finally {
       setCancelingSessionId(null)
+    }
+  }
+
+  function resetMakeupSessionDecision() {
+    setMakeupSessionTarget(null)
+    setMakeupDate("")
+    setMakeupStartTime("")
+    setMakeupDurationMinutes("60")
+  }
+
+  async function skipMakeupSession() {
+    if (!makeupSessionTarget) {
+      return
+    }
+
+    setSendingCancellationNotice(true)
+
+    try {
+      const result = await sendClassSessionCancellationNotice(
+        makeupSessionTarget.sessionId
+      )
+
+      if (!result.ok) {
+        toast({
+          title: "Cancellation email not sent",
+          description: result.message,
+          variant: "error",
+        })
+        return
+      }
+
+      toast({
+        title: "Makeup skipped",
+        description: result.message,
+        variant: "success",
+      })
+      resetMakeupSessionDecision()
+      router.refresh()
+    } catch (error) {
+      toast({
+        title: "Cancellation email not sent",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "error",
+      })
+    } finally {
+      setSendingCancellationNotice(false)
+    }
+  }
+
+  async function submitMakeupSession(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!makeupSessionTarget) {
+      return
+    }
+
+    setCreatingMakeupSession(true)
+
+    try {
+      const result = await createMakeupClassSession({
+        sourceSessionId: makeupSessionTarget.sessionId,
+        sessionDate: makeupDate,
+        startTime: makeupStartTime,
+        durationMinutes: Number(makeupDurationMinutes),
+      })
+
+      if (!result.ok) {
+        toast({
+          title: "Makeup session not created",
+          description: result.message,
+          variant: "error",
+        })
+        return
+      }
+
+      toast({
+        title: "Makeup session created",
+        description: result.message,
+        variant: result.warning ? "error" : "success",
+      })
+      resetMakeupSessionDecision()
+      router.refresh()
+    } catch (error) {
+      toast({
+        title: "Makeup session not created",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "error",
+      })
+    } finally {
+      setCreatingMakeupSession(false)
     }
   }
 
@@ -1599,7 +1778,7 @@ export function ClassSessionReview({
           onOpenChange={setUpcomingSessionsOpen}
           onCancelSession={requestCancelSession}
         />
-        <div className="max-h-[min(65rem,65svh)] min-h-0 overflow-y-auto space-y-3 md:hidden">
+        <div className="max-h-[min(55rem,55svh)] min-h-0 overflow-y-auto space-y-3 md:hidden">
           {filteredSessions.length ? (
             filteredSessions.map((session) => {
               const isExpanded = visibleExpandedSessionId === session.sessionId
@@ -1667,6 +1846,14 @@ export function ClassSessionReview({
                         }
                       />
                     </Button>
+                    <SessionCancelButton
+                      session={session}
+                      canCancelSessions={canCancelSessions}
+                      isCanceling={cancelingSessionId === session.sessionId}
+                      onCancelSession={requestCancelSession}
+                      className="h-10 flex-1"
+                      size="lg"
+                    />
                   </div>
                   {isExpanded ? (
                     <div className="mt-3">
@@ -1811,6 +1998,12 @@ export function ClassSessionReview({
                               }
                             />
                           </Button>
+                          <SessionCancelButton
+                            session={session}
+                            canCancelSessions={canCancelSessions}
+                            isCanceling={cancelingSessionId === session.sessionId}
+                            onCancelSession={requestCancelSession}
+                          />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1851,8 +2044,8 @@ export function ClassSessionReview({
         <DialogHeader>
           <DialogTitle>Cancel Class Session</DialogTitle>
           <DialogDescription>
-            This will mark the session canceled and email parents with enrolled
-            athletes.
+            This will mark the session canceled. Parents will be emailed after
+            you decide whether to create a makeup session.
           </DialogDescription>
         </DialogHeader>
         {cancelSessionTarget ? (
@@ -1862,7 +2055,7 @@ export function ClassSessionReview({
               {formatDate(cancelSessionTarget.sessionDate)} -{" "}
               {getSessionTime(cancelSessionTarget)}
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="mt-3 grid gap-2 md:gap-8 sm:grid-cols-2">
               <div>
                 <div className="text-xs font-medium text-muted-foreground">
                   Schedule
@@ -1897,6 +2090,86 @@ export function ClassSessionReview({
             {cancelingSessionId ? "Canceling" : "Cancel Session"}
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <Dialog
+      open={Boolean(makeupSessionTarget)}
+      onOpenChange={() => {}}
+    >
+      <DialogContent showCloseButton={false}>
+        <form onSubmit={submitMakeupSession} className="grid gap-4">
+          <DialogHeader>
+            <DialogTitle>Create Makeup Session?</DialogTitle>
+            <DialogDescription>
+              Add a scheduled makeup class, or skip to email cancellation-only
+              details.
+            </DialogDescription>
+          </DialogHeader>
+          {makeupSessionTarget ? (
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+              <div className="font-medium">{makeupSessionTarget.className}</div>
+              <div className="mt-1 text-muted-foreground">
+                Canceled session: {formatDate(makeupSessionTarget.sessionDate)} -{" "}
+                {getSessionTime(makeupSessionTarget)}
+              </div>
+            </div>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Date
+              <Input
+                type="date"
+                min={todayDateKey}
+                value={makeupDate}
+                required
+                disabled={creatingMakeupSession || sendingCancellationNotice}
+                onChange={(event) => setMakeupDate(event.target.value)}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+              Start Time
+              <Input
+                type="time"
+                value={makeupStartTime}
+                required
+                disabled={creatingMakeupSession || sendingCancellationNotice}
+                onChange={(event) => setMakeupStartTime(event.target.value)}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground sm:col-span-2">
+              Duration (minutes)
+              <Input
+                type="number"
+                min={15}
+                max={480}
+                step={15}
+                value={makeupDurationMinutes}
+                required
+                disabled={creatingMakeupSession || sendingCancellationNotice}
+                onChange={(event) =>
+                  setMakeupDurationMinutes(event.target.value)
+                }
+              />
+            </label>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={creatingMakeupSession || sendingCancellationNotice}
+              onClick={skipMakeupSession}
+            >
+              {sendingCancellationNotice ? "Sending" : "Skip"}
+            </Button>
+            <Button
+              type="submit"
+              disabled={creatingMakeupSession || sendingCancellationNotice}
+            >
+              <CalendarDays />
+              {creatingMakeupSession ? "Creating" : "Create Makeup"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
     </>
