@@ -1101,7 +1101,7 @@ function UpcomingSessionsPanel({
   }
 
   return (
-    <div className="rounded-lg border bg-muted/20 p-3">
+    <div className="rounded-lg border bg-muted/20">
       <Button
         type="button"
         variant="outline"
@@ -1207,7 +1207,7 @@ function UpcomingSessionsPanel({
                               />
                             </div>
                           </div>
-                          <div className="mt-1 grid gap-3 text-sm sm:grid-cols-3">
+                          <div className="mt-3 md:mt-1 grid gap-3 text-sm sm:grid-cols-3">
                             <div>
                               <div className="text-xs font-medium text-muted-foreground">
                                 Schedule
@@ -1599,7 +1599,7 @@ export function ClassSessionReview({
         <CardTitle>Class Sessions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6 overscroll-contain pr-3 scrollbar-gutter:stable">
-        <div className="space-y-4 bg-white pb-4 dark:bg-black">
+        <div className="space-y-4 bg-white dark:bg-black">
           <div className="flex items-center justify-between gap-3 md:hidden">
             <Button
               type="button"

@@ -7,9 +7,31 @@ import { getAccountSession, getParentForUser } from "@/lib/account/auth";
 import { ParentEnrollments } from "@/components/account/parent_enrollments";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {getAdminDashboardData, getCoachDashboardData, getParentAthleteEnrollments,} from "@/lib/account/data";
-import type {AdminDashboardData, CoachDashboardData, OperationsActionItem, ParentRecord,} from "@/lib/account/types";
-import {BarChart3, CalendarDays, ClipboardCheck, Clock, CreditCard, Phone, Mail, MapPin, Plus, UserRound, Users,} from "lucide-react";
+import {
+    getAdminDashboardData,
+    getCoachDashboardData,
+    getParentAthleteEnrollments,
+} from "@/lib/account/data";
+import type {
+    AdminDashboardData,
+    CoachDashboardData,
+    ClassSessionDisplayRecord,
+    OperationsActionItem,
+    ParentRecord,
+} from "@/lib/account/types";
+import {
+    BarChart3,
+    CalendarDays,
+    ClipboardCheck,
+    Clock,
+    CreditCard,
+    Mail,
+    MapPin,
+    Phone,
+    Plus,
+    UserRound,
+    Users,
+} from "lucide-react";
 import {
     AccountDashboardFrame,
     DashboardHeader,
@@ -79,6 +101,88 @@ const coachDashboardSections = [
     },
 ] satisfies DashboardNavItem[];
 
+const classSessionTimeZone = "America/Indiana/Tell_City";
+
+function getLocalDateKey(date = new Date()) {
+    const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: classSessionTimeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(date);
+    const dateParts = Object.fromEntries(
+        parts.map((part) => [part.type, part.value])
+    );
+
+    return `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
+}
+
+function getDateKey(value: string | null) {
+    if (!value) {
+        return null;
+    }
+
+    const directDate = value.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+
+    if (directDate) {
+        return directDate;
+    }
+
+    const parsedDate = new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+        return null;
+    }
+
+    return getLocalDateKey(parsedDate);
+}
+
+function normalizeSessionStatus(status: string | null | undefined) {
+    return status?.trim().toLowerCase() || "scheduled";
+}
+
+function isFutureScheduledSession(
+    session: ClassSessionDisplayRecord,
+    todayDateKey: string
+) {
+    const dateKey = getDateKey(session.sessionDate);
+
+    return (
+        Boolean(dateKey && dateKey > todayDateKey) &&
+        normalizeSessionStatus(session.status) === "scheduled"
+    );
+}
+
+function needsAttendanceReview(
+    session: ClassSessionDisplayRecord,
+    todayDateKey: string
+) {
+    const normalizedStatus = normalizeSessionStatus(session.status);
+
+    if (normalizedStatus === "canceled" || normalizedStatus === "cancelled") {
+        return false;
+    }
+
+    if (isFutureScheduledSession(session, todayDateKey)) {
+        return false;
+    }
+
+    return (
+        session.expectedAthletes.length > 0 &&
+        session.expectedAthletes.some((athlete) => !athlete.attendanceStatus)
+    );
+}
+
+function getUnfilledAttendanceSessionCount(
+    sessions: ClassSessionDisplayRecord[]
+) {
+    const todayDateKey = getLocalDateKey();
+
+    return sessions.filter((session) =>
+        needsAttendanceReview(session, todayDateKey)
+    ).length;
+}
+
 function findActionItem(
     dashboardData: AdminDashboardData,
     label: string
@@ -112,6 +216,12 @@ function countLabel(value: number, singular: string, plural = `${singular}s`) {
     return `${value.toLocaleString()} ${value === 1 ? singular : plural}`;
 }
 
+function attendanceReviewLabel(value: number) {
+    return `${countLabel(value, "session")} ${
+        value === 1 ? "needs" : "need"
+    } attendance`;
+}
+
 function actionBadge(
     item: OperationsActionItem | undefined,
     singular: string,
@@ -125,6 +235,9 @@ function getAdminDashboardLinks(
 ): DashboardNavItem[] {
     const reviewQueue = findActionItem(dashboardData, "Review queue");
     const billingSetup = findActionItem(dashboardData, "Class billing setup");
+    const unfilledAttendanceSessions = getUnfilledAttendanceSessionCount(
+        dashboardData.classSessions
+    );
     const activeSchedules = dashboardData.classSchedules.filter(
         (schedule) => schedule.isActive
     ).length;
@@ -169,7 +282,7 @@ function getAdminDashboardLinks(
         if (section.href.endsWith("/sessions")) {
             return {
                 ...section,
-                detail: countLabel(dashboardData.classSessions.length, "session"),
+                detail: attendanceReviewLabel(unfilledAttendanceSessions),
             };
         }
 
@@ -243,11 +356,15 @@ function getAdminDashboardStats(
 function getCoachDashboardLinks(
     dashboardData: CoachDashboardData
 ): DashboardNavItem[] {
+    const unfilledAttendanceSessions = getUnfilledAttendanceSessionCount(
+        dashboardData.classSessions
+    );
+
     return coachDashboardSections.map((section) => {
         if (section.href.endsWith("/sessions")) {
             return {
                 ...section,
-                detail: countLabel(dashboardData.classSessions.length, "session"),
+                detail: attendanceReviewLabel(unfilledAttendanceSessions),
             };
         }
 
@@ -267,11 +384,18 @@ function getCoachDashboardLinks(
 function getCoachDashboardStats(
     dashboardData: CoachDashboardData
 ): DashboardStat[] {
+    const unfilledAttendanceSessions = getUnfilledAttendanceSessionCount(
+        dashboardData.classSessions
+    );
+
     return [
         {
-            label: "Class sessions",
-            value: dashboardData.classSessions.length.toLocaleString(),
-            detail: "Available for attendance review",
+            label: "Session Attendance",
+            value: unfilledAttendanceSessions.toLocaleString(),
+            detail: unfilledAttendanceSessions
+                ? "Need attendance review"
+                : "Attendance is caught up",
+            tone: unfilledAttendanceSessions ? "warning" : "success",
         },
         {
             label: "Time clock",
