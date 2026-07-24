@@ -1,6 +1,22 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/toast"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { updateClassSessionAttendanceBatch } from "@/app/actions/class-attendance"
+import {cancelClassSession, createMakeupClassSession,sendClassSessionCancellationNotice} from "@/app/actions/class-sessions"
+import type {ClassSessionAttendanceStatus, ClassSessionDisplayRecord, ClassSessionExpectedAthlete} from "@/lib/account/types"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle} from "@/components/ui/dialog"
 import {
   ArrowUpDown,
   Ban,
@@ -9,42 +25,14 @@ import {
   ClipboardCheck,
   Save,
   Search,
-  X,
-} from "lucide-react"
-import { useRouter } from "next/navigation"
-
-import { updateClassSessionAttendanceBatch } from "@/app/actions/class-attendance"
-import {
-  cancelClassSession,
-  createMakeupClassSession,
-  sendClassSessionCancellationNotice,
-} from "@/app/actions/class-sessions"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+  X} from "lucide-react"
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { useToast } from "@/components/ui/toast"
-import type {
-  ClassSessionAttendanceStatus,
-  ClassSessionDisplayRecord,
-  ClassSessionExpectedAthlete,
-} from "@/lib/account/types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+  TableRow} from "@/components/ui/table"
 
 const attendanceOptions = [
   { value: "present", label: "Present" },
@@ -69,8 +57,7 @@ const sortOptions = [
   { value: "reviewed", label: "Attendance reviewed" },
 ] as const
 
-const selectControlClassName =
-  "h-8 rounded-lg border border-input bg-background px-2 text-sm"
+const selectControlClassName = "h-8 rounded-lg border border-input bg-background px-2 text-sm"
 const classSessionTimeZone = "America/Indiana/Tell_City"
 const defaultHistoryDays = 7
 
@@ -202,7 +189,7 @@ function formatTime(value: string | null) {
       return new Intl.DateTimeFormat("en-US", {
         hour: "numeric",
         minute: "2-digit",
-        timeZone: classSessionTimeZone,
+        timeZone: "America/Indiana/Tell_City",
       }).format(date)
     }
   }
@@ -1168,44 +1155,42 @@ function UpcomingSessionsPanel({
                           key={session.sessionId}
                           className="rounded-lg border bg-muted/20 p-3"
                         >
-                          <div className="flex flex-row sm:flex-row sm:items-start justify-between">
-                            <div>
-                              <div className="font-medium">
+                          <div className="flex flex-row items-start justify-between">
+                            <div className="flex flex-col gap-1">
+                              <div className="flex flex-row gap-3 font-medium">
                                 {session.className}
+                                <div className="flex flex-row gap-1 items-center">
+                                  <Badge
+                                    className="w-fit"
+                                    variant={getSessionStatusVariant(session.status)}
+                                  >
+                                    {formatSessionStatus(session.status)}
+                                  </Badge>
+                                  {session.type === "makeup" && (
+                                    <Badge
+                                      className="w-fit"
+                                      variant="warning"
+                                    >
+                                      {session.type}
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 {formatDate(session.sessionDate)} -{" "}
                                 {getSessionTime(session)}
                               </div>
                             </div>
-                            <div className="flex flex-row gap-3 items-center justify-end">
-                              <div className="flex flex-col gap-1 items-center">
-                                <Badge
-                                  className="w-fit"
-                                  variant={getSessionStatusVariant(session.status)}
-                                >
-                                  {formatSessionStatus(session.status)}
-                                </Badge>
-                                {session.type === "makeup" && (
-                                  <Badge
-                                    className="w-fit"
-                                    variant="warning"
-                                  >
-                                    {session.type}
-                                  </Badge>
-                                )}
-                              </div>
-                              <SessionCancelButton
-                                session={session}
-                                canCancelSessions={canCancelSessions}
-                                isCanceling={
-                                cancelingSessionId === session.sessionId
-                                }
-                                onCancelSession={onCancelSession}
-                                className="mt-3 h-10 w-auto"
-                                size="lg"
-                              />
-                            </div>
+                            <SessionCancelButton
+                              session={session}
+                              canCancelSessions={canCancelSessions}
+                              isCanceling={
+                              cancelingSessionId === session.sessionId
+                              }
+                              onCancelSession={onCancelSession}
+                              className="mt-3 h-10 w-auto"
+                              size="lg"
+                            />
                           </div>
                           <div className="mt-3 md:mt-1 grid gap-3 text-sm sm:grid-cols-3">
                             <div>
@@ -1846,14 +1831,6 @@ export function ClassSessionReview({
                         }
                       />
                     </Button>
-                    <SessionCancelButton
-                      session={session}
-                      canCancelSessions={canCancelSessions}
-                      isCanceling={cancelingSessionId === session.sessionId}
-                      onCancelSession={requestCancelSession}
-                      className="h-10 flex-1"
-                      size="lg"
-                    />
                   </div>
                   {isExpanded ? (
                     <div className="mt-3">
@@ -1998,12 +1975,6 @@ export function ClassSessionReview({
                               }
                             />
                           </Button>
-                          <SessionCancelButton
-                            session={session}
-                            canCancelSessions={canCancelSessions}
-                            isCanceling={cancelingSessionId === session.sessionId}
-                            onCancelSession={requestCancelSession}
-                          />
                         </div>
                       </TableCell>
                     </TableRow>
