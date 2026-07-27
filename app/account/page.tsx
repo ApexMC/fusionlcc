@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatPhoneNumber } from "@/functions/shared_functions";
 import ManageAccountCard from "@/components/account/manage_account";
@@ -6,6 +7,7 @@ import AthleteCardList from "@/components/account/athletes/athlete_card";
 import { getAccountSession, getParentForUser } from "@/lib/account/auth";
 import { ParentEnrollments } from "@/components/account/parent_enrollments";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     getAdminDashboardData,
@@ -16,15 +18,22 @@ import type {
     AdminDashboardData,
     CoachDashboardData,
     ClassSessionDisplayRecord,
+    EnrollmentDisplayRecord,
     OperationsActionItem,
+    ParentAthleteEnrollment,
     ParentRecord,
 } from "@/lib/account/types";
+import { cn } from "@/lib/utils";
 import {
+    BadgeCheck,
     BarChart3,
+    BookOpen,
     CalendarDays,
+    CircleDollarSign,
     ClipboardCheck,
     Clock,
     CreditCard,
+    ListChecks,
     Mail,
     MapPin,
     Phone,
@@ -408,6 +417,215 @@ function getCoachDashboardStats(
     ];
 }
 
+function formatCurrency(value: number | null | undefined) {
+    if (typeof value !== "number") {
+        return "N/A";
+    }
+
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+    }).format(value);
+}
+
+function formatParentName(parent: ParentRecord | null) {
+    return (
+        [parent?.first_name, parent?.last_name].filter(Boolean).join(" ") ||
+        "Family profile"
+    );
+}
+
+function formatParentAddress(parent: ParentRecord | null) {
+    const cityState = [parent?.city, parent?.state].filter(Boolean).join(", ");
+    const secondLine = [cityState, parent?.zip_code].filter(Boolean).join(" ");
+
+    return [parent?.address, secondLine].filter(Boolean).join(", ");
+}
+
+function getParentEnrollments(athletes: ParentAthleteEnrollment[]) {
+    return athletes.flatMap((athlete) => athlete.enrollments);
+}
+
+function normalizeEnrollmentStatusValue(status: string | null | undefined) {
+    return status?.trim().toLowerCase() ?? "";
+}
+
+function getParentEnrollmentCounts(enrollments: EnrollmentDisplayRecord[]) {
+    return enrollments.reduce(
+        (counts, enrollment) => {
+            const enrollmentStatus = normalizeEnrollmentStatusValue(
+                enrollment.status
+            );
+            const subscriptionStatus = normalizeEnrollmentStatusValue(
+                enrollment.subscriptionStatus
+            );
+
+            if (
+                enrollmentStatus === "active" ||
+                subscriptionStatus === "active" ||
+                subscriptionStatus === "trialing"
+            ) {
+                counts.active += 1;
+            }
+
+            if (enrollmentStatus === "approved") {
+                counts.approved += 1;
+            }
+
+            if (enrollmentStatus === "pending") {
+                counts.pending += 1;
+            }
+
+            return counts;
+        },
+        {
+            active: 0,
+            approved: 0,
+            pending: 0,
+        }
+    );
+}
+
+function getParentProfileMissingFields(parent: ParentRecord | null) {
+    if (!parent) {
+        return ["profile"];
+    }
+
+    const missingFields = [];
+
+    if (!parent.phone) {
+        missingFields.push("phone");
+    }
+
+    if (!parent.email) {
+        missingFields.push("email");
+    }
+
+    if (!formatParentAddress(parent)) {
+        missingFields.push("address");
+    }
+
+    return missingFields;
+}
+
+function getParentDashboardStats({
+    parent,
+    athleteCount,
+    enrollments,
+}: {
+    parent: ParentRecord | null;
+    athleteCount: number;
+    enrollments: EnrollmentDisplayRecord[];
+}): DashboardStat[] {
+    const counts = getParentEnrollmentCounts(enrollments);
+    const balance = parent?.balance;
+
+    return [
+        {
+            label: "Athletes",
+            value: athleteCount.toLocaleString(),
+            detail: athleteCount
+                ? countLabel(athleteCount, "athlete")
+                : "Add an athlete to request classes",
+            tone: athleteCount ? "default" : "warning",
+        },
+        {
+            label: "Active enrollments",
+            value: counts.active.toLocaleString(),
+            detail: counts.approved
+                ? countLabel(counts.approved, "approved request")
+                : countLabel(enrollments.length, "total enrollment"),
+            tone: counts.active ? "success" : "default",
+        },
+        {
+            label: "Pending requests",
+            value: counts.pending.toLocaleString(),
+            detail: counts.pending
+                ? "Awaiting staff review"
+                : "No pending requests",
+            tone: counts.pending ? "warning" : "success",
+        },
+        {
+            label: "Account balance",
+            value: formatCurrency(balance),
+            detail:
+                typeof balance !== "number"
+                    ? "Balance not available"
+                    : balance > 0
+                      ? "Outstanding balance"
+                      : "No balance due",
+            tone:
+                typeof balance === "number" && balance > 0
+                    ? "warning"
+                    : typeof balance === "number"
+                      ? "success"
+                      : "default",
+        },
+    ];
+}
+
+function getParentDashboardLinks({
+    parent,
+    athleteCount,
+    enrollments,
+    classOptionCount,
+}: {
+    parent: ParentRecord | null;
+    athleteCount: number;
+    enrollments: EnrollmentDisplayRecord[];
+    classOptionCount: number;
+}): DashboardNavItem[] {
+    const counts = getParentEnrollmentCounts(enrollments);
+    const missingProfileFields = getParentProfileMissingFields(parent);
+    const profileNeedsUpdate = missingProfileFields.length > 0;
+
+    return [
+        {
+            title: "Family Profile",
+            description: "Review the contact information staff uses for updates.",
+            href: "#family-profile",
+            icon: UserRound,
+            badge: profileNeedsUpdate ? "Needs details" : "Complete",
+            detail: profileNeedsUpdate
+                ? `${missingProfileFields.join(", ")} missing`
+                : parent?.email ?? "Profile ready",
+            tone: profileNeedsUpdate ? "warning" : "success",
+        },
+        {
+            title: "Athletes",
+            description: "Keep athlete records ready for placement and classes.",
+            href: "#athletes",
+            icon: Users,
+            badge: athleteCount ? countLabel(athleteCount, "athlete") : "Add athlete",
+            detail: athleteCount ? "Ready for class requests" : "Required first",
+            tone: athleteCount ? "default" : "warning",
+        },
+        {
+            title: "Enrollments",
+            description: "Track requests, approvals, and subscription status.",
+            href: "#enrollments",
+            icon: ListChecks,
+            badge: counts.pending
+                ? countLabel(counts.pending, "pending request")
+                : "Caught up",
+            detail: `${countLabel(counts.active, "active enrollment")}, ${countLabel(
+                counts.approved,
+                "approved request"
+            )}`,
+            tone: counts.pending ? "warning" : "success",
+        },
+        {
+            title: "Classes",
+            description: "Browse programs and request the next class schedule.",
+            href: "/classes",
+            icon: BookOpen,
+            badge: athleteCount ? "Browse" : "Add athlete first",
+            detail: countLabel(classOptionCount, "class", "classes"),
+            tone: athleteCount ? "default" : "warning",
+        },
+    ];
+}
+
 export default async function AccountPage() {
     const session = await getAccountSession();
 
@@ -419,7 +637,6 @@ export default async function AccountPage() {
     if (session.isParent && !session.isOwner && !session.isAdmin && !session.isCoach) {
         const supabase = createAdminClient();
         const parent = await getParentForUser(session.userId);
-        const parents = parent ? [parent] : [];
         const { data: athletes, error: athletesError } = await supabase
         .from("Athletes")
         .select("athlete_id, first_name, last_name, dob, phone, shirt_size")
@@ -434,67 +651,204 @@ export default async function AccountPage() {
             athlete_id: Number(athlete.athlete_id),
         }));
         const parentEnrollmentData = await getParentAthleteEnrollments(session.userId);
+        const parentEnrollments = getParentEnrollments(parentEnrollmentData.athletes);
+        const enrollmentCounts = getParentEnrollmentCounts(parentEnrollments);
+        const parentAddress = formatParentAddress(parent);
             
         return (
-        <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans">
-        <main className="flex flex-col flex-1 min-h-[50vh] w-full gap-10 items-center py-20 px-8 justify-center bg-zinc-100 dark:bg-zinc-900">
-            <div className="flex flex-col md:flex-row w-full gap-6 items-center md:items-start justify-center">
-                <div className="flex flex-col items-center">
-                    <h1 className="text-3xl font-bold mb-2">
-                        Account
-                    </h1>
-                    {(parents as ParentRecord[] | null)?.map((parent) => (
-                        <Card key={String(parent.parent_id)} className="mx-auto bg-white dark:bg-black shadow-md hover:shadow-lg transition-all duration-200 h-full mt-2">
-                            <CardHeader>
-                                <CardTitle className="text-xl font-bold flex flex-row items-center justify-between gap-2">
-                                    {parent.first_name} {parent.last_name}
-                                    <ManageAccountCard userId={session.userId} phone={parent.phone ?? undefined} address={parent.address ?? undefined} city={parent.city ?? undefined} state={parent.state ?? undefined} zip_code={parent.zip_code ?? undefined} />
+            <AccountDashboardFrame>
+                <DashboardHeader
+                    eyebrow="Parent"
+                    title="Parent Dashboard"
+                    description="A family view of athletes, enrollment requests, billing status, and the next class to request."
+                    actions={
+                        <Button asChild variant="outline">
+                            <Link href="/classes">
+                                <BookOpen />
+                                Browse classes
+                            </Link>
+                        </Button>
+                    }
+                />
+                <DashboardStatGrid
+                    stats={getParentDashboardStats({
+                        parent,
+                        athleteCount: athleteCards.length,
+                        enrollments: parentEnrollments,
+                    })}
+                />
+                <DashboardLinkGrid
+                    items={getParentDashboardLinks({
+                        parent,
+                        athleteCount: athleteCards.length,
+                        enrollments: parentEnrollments,
+                        classOptionCount: parentEnrollmentData.classOptions.length,
+                    })}
+                />
+
+                <section
+                    id="family-profile"
+                    className="grid scroll-mt-24 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.45fr)]"
+                    aria-label="Family profile"
+                >
+                    <Card className="rounded-lg bg-white dark:bg-black">
+                        <CardHeader className="flex flex-row items-start justify-between gap-4">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                    Family profile
+                                </p>
+                                <CardTitle className="mt-1 text-xl font-semibold">
+                                    {formatParentName(parent)}
                                 </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                {parent.phone && (
-                                    <div className="flex items-center gap-2">
-                                        <Phone className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
-                                        <span className="text-sm text-zinc-600 dark:text-zinc-400">{formatPhoneNumber(String(parent.phone))}</span>
+                            </div>
+                            {parent ? (
+                                <ManageAccountCard
+                                    userId={session.userId}
+                                    phone={parent.phone ?? undefined}
+                                    address={parent.address ?? undefined}
+                                    city={parent.city ?? undefined}
+                                    state={parent.state ?? undefined}
+                                    zip_code={parent.zip_code ?? undefined}
+                                />
+                            ) : null}
+                        </CardHeader>
+                        <CardContent className="grid gap-3 sm:grid-cols-2">
+                            <div className="flex items-center gap-2 rounded-lg border bg-background p-3">
+                                <Phone className="size-4 shrink-0 text-muted-foreground" />
+                                <div className="min-w-0">
+                                    <div className="text-xs text-muted-foreground">
+                                        Phone
                                     </div>
-                                )}
-                                {parent.email && (
-                                    <div className="flex items-center gap-2">
-                                        <Mail className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
-                                        <span className="text-sm text-zinc-600 dark:text-zinc-400">{String(parent.email)}</span>
+                                    <div className="truncate text-sm font-medium">
+                                        {parent?.phone
+                                            ? formatPhoneNumber(String(parent.phone))
+                                            : "Not provided"}
                                     </div>
-                                )}
-                                {parent.address && (
-                                    <div className="flex items-start gap-2">
-                                        <MapPin className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0 mt-0.5" />
-                                        <span className="text-sm text-zinc-600 dark:text-zinc-400">{String(parent.address + ", " + parent.city + ", " + parent.state + " " + parent.zip_code)}</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 rounded-lg border bg-background p-3">
+                                <Mail className="size-4 shrink-0 text-muted-foreground" />
+                                <div className="min-w-0">
+                                    <div className="text-xs text-muted-foreground">
+                                        Email
                                     </div>
-                                )}
+                                    <div className="truncate text-sm font-medium">
+                                        {parent?.email ?? "Not provided"}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-2 rounded-lg border bg-background p-3 sm:col-span-2">
+                                <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                                <div className="min-w-0">
+                                    <div className="text-xs text-muted-foreground">
+                                        Address
+                                    </div>
+                                    <div className="text-sm font-medium">
+                                        {parentAddress || "Not provided"}
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card
+                        className={cn(
+                            "rounded-lg bg-white dark:bg-black",
+                            typeof parent?.balance === "number" && parent.balance > 0
+                                ? "border-amber-300/60 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/20"
+                                : "border-emerald-300/60 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20"
+                        )}
+                    >
+                        <CardHeader className="flex flex-row items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                    Balance
+                                </p>
+                                <CardTitle className="mt-1 text-3xl font-bold">
+                                    {formatCurrency(parent?.balance)}
+                                </CardTitle>
+                            </div>
+                            <div className="rounded-lg border bg-background p-2 text-foreground shadow-sm">
+                                <CircleDollarSign className="size-5" />
+                            </div>
+                        </CardHeader>
+                        <CardContent className="text-sm leading-6 text-muted-foreground">
+                            {typeof parent?.balance === "number" && parent.balance > 0
+                                ? "Outstanding balance"
+                                : "No balance due"}
+                        </CardContent>
+                    </Card>
+                </section>
+
+                <section
+                    id="athletes"
+                    className="scroll-mt-24 space-y-3"
+                    aria-label="Athletes"
+                >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                                Athletes
+                            </h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                {athleteCards.length
+                                    ? countLabel(athleteCards.length, "athlete")
+                                    : "No athletes added yet"}
+                            </p>
+                        </div>
+                        <ManageAthleteCard
+                            userId={session.userId}
+                            icon={
+                                <>
+                                    <Plus className="size-4" />
+                                    Add athlete
+                                </>
+                            }
+                        />
+                    </div>
+                    {athleteCards.length ? (
+                        <AthleteCardList
+                            userId={session.userId}
+                            athletes={athleteCards}
+                        />
+                    ) : (
+                        <Card className="rounded-lg border-dashed bg-white dark:bg-black">
+                            <CardContent className="py-8 text-sm text-muted-foreground">
+                                Add an athlete before requesting a class.
                             </CardContent>
                         </Card>
-                        )
                     )}
-                    <div className="mt-1 block min-w-70 bg-white dark:bg-black rounded-xl px-3 py-2 mb-4 text-sm font-bold text-black dark:text-white border border-zinc-300 dark:border-zinc-700">
-                        Account Balance: <span className="text-orange-400">{typeof parents?.[0]?.balance === "number" ? `$${parents[0].balance.toFixed(2)}` : "N/A"}</span>
+                </section>
+
+                <section
+                    id="enrollments"
+                    className="scroll-mt-24 space-y-3"
+                    aria-label="Enrollments"
+                >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="flex items-center gap-2 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                                <BadgeCheck className="size-5" />
+                                Enrollments
+                            </h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                {[
+                                    countLabel(enrollmentCounts.active, "active enrollment"),
+                                    countLabel(enrollmentCounts.pending, "pending request"),
+                                    countLabel(enrollmentCounts.approved, "approved request"),
+                                ].join(", ")}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
+                            <ListChecks className="size-4" />
+                            {countLabel(parentEnrollments.length, "record")}
+                        </div>
                     </div>
-                </div>
-                <div className="h-0.5 w-65 md:h-40 md:w-0.5 md:mt-13 bg-zinc-300 dark:bg-zinc-600">
-                </div>
-                <div className="flex flex-col items-center">
-                    <div className="flex flex-row gap-2 items-center mb-2">
-                        <h1 className="text-3xl font-bold">
-                            Athletes
-                        </h1>
-                        <ManageAthleteCard userId={session.userId} icon={<Plus className="w-4 h-4 text-white font-bold" />} />
-                    </div>
-                    <AthleteCardList userId={session.userId} athletes={athleteCards} />
-                </div>
-            </div>
-            <ParentEnrollments
-                athletes={parentEnrollmentData.athletes}
-            />
-        </main>
-        </div>
+                    <ParentEnrollments
+                        athletes={parentEnrollmentData.athletes}
+                    />
+                </section>
+            </AccountDashboardFrame>
         );
     }
 

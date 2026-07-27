@@ -17,13 +17,15 @@ type Athlete = {
 
 export default function AthleteCardList({ userId, athletes }: { userId: string; athletes: Athlete[] }) {
   return (
-    <div className="flex flex-col md:flex-row gap-3 text-zinc-700 dark:text-zinc-300 mt-2">
+    <div className="grid w-full grid-cols-1 gap-4 text-zinc-700 dark:text-zinc-300 md:grid-cols-2 xl:grid-cols-3">
         {athletes.map((athlete) => (
-            <Card className="min-w-68 mx-auto bg-white dark:bg-black shadow-md hover:shadow-lg h-full">
+            <Card key={athlete.athlete_id} className="h-full rounded-lg bg-white transition-all duration-200 hover:shadow-md dark:bg-black">
                 <CardHeader>
                     <CardTitle className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                        <div className="flex flex-row items-center justify-between gap-2">
-                            {athlete.last_name}, {athlete.first_name}
+                        <div className="flex flex-row items-center justify-between gap-3">
+                            <span className="min-w-0 truncate">
+                                {athlete.last_name}, {athlete.first_name}
+                            </span>
                             <ManageAthleteCard 
                                 userId={userId} 
                                 athleteId={athlete.athlete_id} 
