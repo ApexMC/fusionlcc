@@ -12,6 +12,7 @@ type Athlete = {
   dob?: string;
   phone?: string;
   shirt_size?: string;
+  gender?: string;
   [key: string]: unknown;
 };
 
@@ -35,6 +36,7 @@ export default function AthleteCardList({ userId, athletes }: { userId: string; 
                                 phone={athlete.phone}
                                 dob={athlete.dob}
                                 shirt_size={athlete.shirt_size}
+                                gender={athlete.gender}
                             />
                         </div>
                     </CardTitle>

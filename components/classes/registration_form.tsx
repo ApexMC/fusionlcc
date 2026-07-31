@@ -24,25 +24,25 @@ type ScheduleOption = {
   scheduleLabel: string;
 }
 
-const classOptions = [
-  { id: 1, label: "Me + 1 (2yr)" },
-  { id: 2, label: "Me + 1 (3-4yr)" },
-  { id: 3, label: "Preschool" },
-  { id: 4, label: "Beginner / Level 1" },
-  { id: 5, label: "Adv. Beginner / Level 1.5" },
-  { id: 6, label: "Intermediate / Level 2" },
-  { id: 7, label: "Advanced / Level 3" },
-  { id: 8, label: "Elite / Level 4" },
-];
+type ClassOption = {
+  classId: string;
+  className: string;
+}
 
-export default function RegistrationForm({ classId }: { classId?: number }) {
+export default function RegistrationForm({
+  classId,
+  classes,
+}: {
+  classId?: string;
+  classes: ClassOption[];
+}) {
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [athletes, setAthletes] = useState<Array<{ athlete_id: string; first_name: string; last_name: string }>>([]);
   const [parent, setParent] = useState<Parent | null>(null);
   const [scheduleOptions, setScheduleOptions] = useState<ScheduleOption[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState<number>(
-    classId ?? classOptions[0].id
+  const [selectedClassId, setSelectedClassId] = useState<string>(
+    classId ?? classes[0]?.classId ?? ""
   );
   const [selectedScheduleId, setSelectedScheduleId] = useState("");
 
@@ -85,12 +85,13 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
         );
       }
 
-      const initialClassId = classId ?? classOptions[0].id;
+      const initialClassId = classId ?? classes[0]?.classId ?? "";
       const initialOption = options.find(
-        (option) => option.classId === String(initialClassId)
+        (option) => option.classId === initialClassId
       );
 
       setScheduleOptions(options);
+      setSelectedClassId(initialClassId);
       setSelectedScheduleId(initialOption?.scheduleId ?? "");
     }
 
@@ -102,7 +103,7 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
           : "Class times could not be loaded."
       );
     });
-  }, [classId]);
+  }, [classId, classes]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -115,8 +116,8 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
     try {
       // Get athlete_id from selected athlete name
       const selectedAthleteName = String(registerData.get("childName") || "");
-      const selectedClass = classOptions.find(
-        (option) => option.id === selectedClassId
+      const selectedClass = classes.find(
+        (option) => option.classId === selectedClassId
       );
       const selectedSchedule = scheduleOptions.find(
         (option) => option.scheduleId === selectedScheduleId
@@ -131,7 +132,7 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
 
       const enrollmentResult = await requestEnrollment({
         athleteId: String(selectedAthlete.athlete_id),
-        classId: selectedClass?.id,
+        classId: selectedClass.classId,
         scheduleId: selectedSchedule.scheduleId,
       });
 
@@ -146,7 +147,7 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
         message: [
           `Parent Name: ${parent?.first_name} ${parent?.last_name}`,
           `Athlete Name: ${selectedAthleteName}`,
-          `Requested Class: ${selectedClass.label}`,
+          `Requested Class: ${selectedClass.className}`,
           `Selected Time: ${selectedSchedule.scheduleLabel}`,
           ``,
           `Address: ${parent?.address}, ${parent?.city}, ${parent?.state} ${parent?.zip_code}`,
@@ -213,9 +214,9 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
                     className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
                     name="requestedClass"
                     onChange={(e) => {
-                        const nextClassId = Number(e.target.value);
+                        const nextClassId = e.target.value;
                         const nextSchedule = scheduleOptions.find(
-                            (option) => option.classId === String(nextClassId)
+                            (option) => option.classId === nextClassId
                         );
 
                         setSelectedClassId(nextClassId);
@@ -224,11 +225,15 @@ export default function RegistrationForm({ classId }: { classId?: number }) {
                     value={selectedClassId}
                     required
                 >
-                    {classOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                            {option.label}
+                    {classes.length ? (
+                      classes.map((option) => (
+                        <option key={option.classId} value={option.classId}>
+                            {option.className}
                         </option>
-                    ))}
+                      ))
+                    ) : (
+                      <option value="">No classes available</option>
+                    )}
                 </select>
             </div>
 

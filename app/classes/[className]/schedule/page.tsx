@@ -1,92 +1,127 @@
-import { getClassSchedule } from "@/components/classes/class_schedules"
-import { notFound } from "next/navigation";
-import { Card, CardDescription } from "@/components/ui/card";
+import { notFound } from "next/navigation"
+
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"  
+} from "@/components/ui/table"
+import {
+  getPublicClassBySlug,
+  type PublicClassSchedule,
+} from "@/lib/classes/data"
 
+const days = [
+  { value: "sunday", label: "Sunday" },
+  { value: "monday", label: "Monday" },
+  { value: "tuesday", label: "Tuesday" },
+  { value: "wednesday", label: "Wednesday" },
+  { value: "thursday", label: "Thursday" },
+  { value: "friday", label: "Friday" },
+  { value: "saturday", label: "Saturday" },
+]
+
+function buildWeeklyRows(schedules: PublicClassSchedule[]) {
+  const timesByDay = new Map(days.map((day) => [day.value, [] as string[]]))
+
+  schedules.forEach((schedule) => {
+    const times = timesByDay.get(schedule.dayOfWeek)
+
+    if (!times) {
+      return
+    }
+
+    times.push(schedule.timeLabel)
+  })
+
+  const rowCount = Math.max(
+    1,
+    ...Array.from(timesByDay.values()).map((times) => times.length)
+  )
+
+  return Array.from({ length: rowCount }, (_, index) =>
+    days.map((day) => timesByDay.get(day.value)?.[index] ?? "—")
+  )
+}
 
 export default async function ClassSchedule({
   params,
 }: {
-  params: Promise<{className : string }>;
+  params: Promise<{ className: string }>
 }) {
-  const { className } = await params;
-  console.log("className:", className);
-  const classSchedule = getClassSchedule(className);
-  if (!classSchedule) return notFound();
+  const { className } = await params
+  const classData = await getPublicClassBySlug(className)
+
+  if (!classData) {
+    return notFound()
+  }
+
+  const weeklyRows = buildWeeklyRows(classData.schedules)
 
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-100 dark:bg-zinc-900 font-sans">
-      <main className="flex min-h-[50vh] flex-1 w-full flex-col items-center py-16 px-8 md:px-16 justify-center bg-zinc-100 dark:bg-zinc-900">
-        <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 text-center mx-auto">
-          {classSchedule.name}<br />Weekly Schedule
+    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-100 font-sans dark:bg-zinc-900">
+      <main className="flex min-h-[50vh] w-full flex-1 flex-col items-center justify-center bg-zinc-100 px-8 py-16 dark:bg-zinc-900 md:px-16">
+        <h1 className="mx-auto text-center text-4xl font-bold text-zinc-800 dark:text-zinc-200">
+          {classData.classRecord.className}
+          <br />
+          Weekly Schedule
         </h1>
-        <p className=" max-w-2xl text-center text-zinc-600 dark:text-zinc-400 mt-4 mb-12">
-          Find the best time to join us!
+        <p className="mt-4 mb-12 max-w-2xl text-center text-zinc-600 dark:text-zinc-400">
+          Find the best time to join us.
         </p>
-        <Card className="mb-8 px-4 max-w-4xl w-full">
-          <CardDescription className="text-center text-zinc-600 dark:text-zinc-400 px-2 py-2">
-            <div className="flex flex-row gap-2 jusify-center items-center">
-              Status:
-              <div className="inline-flex gap-1 items-center rounded-full bg-green-100 px-2 pt-0.5 text-green-800 text-sm font-semibold">
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Status: Current">
+        <Card className="mb-8 w-full max-w-4xl px-4">
+          <CardContent className="px-2 py-4">
+            <div className="mb-4 flex items-center justify-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+              <span>Schedule Status:</span>
+              <span className="inline-flex items-center justify-center gap-1 rounded-full bg-green-100 px-2 pt-0.5 font-semibold text-green-800">
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-label="Status: Current"
+                >
                   <title>Current</title>
                   <circle cx="6" cy="6" r="5" fill="#22C55E" />
                 </svg>
-                Current — Updated 2026.05.23
-              </div>  
+                Current
+              </span>
             </div>
-          </CardDescription>
-          <Table className="w-full mx-auto max-w-4xl px-4">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-center">Sunday</TableHead>
-                <TableHead className="text-center">Monday</TableHead>
-                <TableHead className="text-center">Tuesday</TableHead>
-                <TableHead className="text-center">Wednesday</TableHead>
-                <TableHead className="text-center">Thursday</TableHead>
-                <TableHead className="text-center">Friday</TableHead>
-                <TableHead className="text-center">Saturday</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow className="text-center">
-                <TableCell>{classSchedule.schedule[0]?.sunday[0] || "—"}</TableCell>
-                <TableCell>{classSchedule.schedule[0]?.monday[0] || "—"}</TableCell>
-                <TableCell>{classSchedule.schedule[0]?.tuesday[0] || "—"}</TableCell>
-                <TableCell>{classSchedule.schedule[0]?.wednesday[0] || "—"}</TableCell>
-                <TableCell>{classSchedule.schedule[0]?.thursday[0] || "—"}</TableCell>
-                <TableCell>{classSchedule.schedule[0]?.friday[0] || "—"}</TableCell>
-                <TableCell>{classSchedule.schedule[0]?.saturday[0] || "—"}</TableCell>
-              </TableRow>
-              {classSchedule.schedule[0]?.sunday[1]
-              || classSchedule.schedule[0]?.monday[1]
-              || classSchedule.schedule[0]?.tuesday[1]
-              || classSchedule.schedule[0]?.wednesday[1]
-              || classSchedule.schedule[0]?.thursday[1]
-              || classSchedule.schedule[0]?.friday[1]
-              || classSchedule.schedule[0]?.saturday[1] ? (
-                <TableRow className="text-center">
-                  <TableCell>{classSchedule.schedule[0]?.sunday[1] || "—"}</TableCell>
-                  <TableCell>{classSchedule.schedule[0]?.monday[1] || "—"}</TableCell>
-                  <TableCell>{classSchedule.schedule[0]?.tuesday[1] || "—"}</TableCell>
-                  <TableCell>{classSchedule.schedule[0]?.wednesday[1] || "—"}</TableCell>
-                  <TableCell>{classSchedule.schedule[0]?.thursday[1] || "—"}</TableCell>
-                  <TableCell>{classSchedule.schedule[0]?.friday[1] || "—"}</TableCell>
-                  <TableCell>{classSchedule.schedule[0]?.saturday[1] || "—"}</TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
+            {classData.schedules.length ? (
+              <Table className="mx-auto w-full max-w-4xl px-4">
+                <TableHeader>
+                  <TableRow>
+                    {days.map((day) => (
+                      <TableHead key={day.value} className="text-center">
+                        {day.label}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {weeklyRows.map((row, rowIndex) => (
+                    <TableRow key={rowIndex} className="text-center">
+                      {row.map((time, columnIndex) => (
+                        <TableCell key={`${rowIndex}-${columnIndex}`}>
+                          {time}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="rounded-lg border border-dashed p-6 text-center text-sm text-zinc-600 dark:text-zinc-400">
+                No active times are available for this class right now.
+              </div>
+            )}
+          </CardContent>
         </Card>
       </main>
     </div>
-  );
+  )
 }

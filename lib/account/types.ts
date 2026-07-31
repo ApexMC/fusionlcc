@@ -24,6 +24,16 @@ export type ClassRecord = {
   created_at?: string | null
 }
 
+export type CheerTeamRecord = {
+  team_id: string | number
+  team_name?: string | null
+  type?: string | null
+  program_type?: string | null
+  stripe_price_id?: string | null
+  billing_day?: string | null
+  created_at?: string | null
+}
+
 export type ClassScheduleRecord = {
   schedule_id: string | number
   class_id?: string | number | null
@@ -128,8 +138,11 @@ export type AdminDashboardData = {
   allEnrollments: EnrollmentDisplayRecord[]
   enrollmentAthletes: AdminEnrollmentAthleteOption[]
   classBilling: ClassBillingRecord[]
+  cheerBilling: CheerBillingRecord[]
   classSchedules: ClassScheduleDisplayRecord[]
+  cheerSchedules: CheerScheduleDisplayRecord[]
   classSessions: ClassSessionDisplayRecord[]
+  cheerSessions: CheerSessionDisplayRecord[]
   timeClockReview: AdminTimeClockReviewData
   statusBreakdown: ChartDatum[]
   monthlyTrend: TrendDatum[]
@@ -169,7 +182,16 @@ export type ClassBillingRecord = {
   billingDay: number | null
   stripePriceId: string | null
   createdAt: string | null
-  source: "database" | "schedule"
+}
+
+export type CheerBillingRecord = {
+  teamId: string
+  teamName: string
+  teamType: string | null
+  programType: string | null
+  billingDay: string | null
+  stripePriceId: string | null
+  createdAt: string | null
 }
 
 export type ClassOption = {
@@ -186,6 +208,19 @@ export type ClassScheduleDisplayRecord = {
   scheduleId: string
   classId: string | null
   className: string
+  dayOfWeek: string
+  startTime: string | null
+  endTime: string | null
+  isActive: boolean
+  enrollmentCount: number
+  createdAt: string | null
+  scheduleLabel: string
+}
+
+export type CheerScheduleDisplayRecord = {
+  scheduleId: string
+  teamId: string | null
+  teamName: string
   dayOfWeek: string
   startTime: string | null
   endTime: string | null
@@ -221,6 +256,19 @@ export type ClassSessionDisplayRecord = {
   status: string
   type: string | null
   expectedAthletes: ClassSessionExpectedAthlete[]
+}
+
+export type CheerSessionDisplayRecord = {
+  sessionId: string
+  teamId: string | null
+  teamName: string
+  scheduleId: string | null
+  scheduleLabel: string | null
+  sessionDate: string | null
+  startsAt: string | null
+  endsAt: string | null
+  status: string
+  type: string | null
 }
 
 export type ClassSessionAttendanceStatus =

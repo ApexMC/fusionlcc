@@ -250,6 +250,9 @@ function getAdminDashboardLinks(
     const activeSchedules = dashboardData.classSchedules.filter(
         (schedule) => schedule.isActive
     ).length;
+    const activeCheerSchedules = dashboardData.cheerSchedules.filter(
+        (schedule) => schedule.isActive
+    ).length;
     const pendingTimeEntries = dashboardData.timeClockReview.coaches.reduce(
         (total, coach) => total + coach.pendingCount,
         0
@@ -277,21 +280,32 @@ function getAdminDashboardLinks(
                 ...section,
                 badge: actionBadge(billingSetup, "setup gap"),
                 tone: billingSetup?.tone,
-                detail: countLabel(dashboardData.classBilling.length, "class", "classes"),
+                detail: `${countLabel(
+                    dashboardData.classBilling.length,
+                    "class",
+                    "classes"
+                )}, ${countLabel(dashboardData.cheerBilling.length, "cheer team")}`,
             };
         }
 
         if (section.href.endsWith("/schedules")) {
             return {
                 ...section,
-                detail: `${activeSchedules.toLocaleString()} active of ${dashboardData.classSchedules.length.toLocaleString()}`,
+                detail: `${(
+                    activeSchedules + activeCheerSchedules
+                ).toLocaleString()} active of ${(
+                    dashboardData.classSchedules.length +
+                    dashboardData.cheerSchedules.length
+                ).toLocaleString()}`,
             };
         }
 
         if (section.href.endsWith("/sessions")) {
             return {
                 ...section,
-                detail: attendanceReviewLabel(unfilledAttendanceSessions),
+                detail: `${attendanceReviewLabel(
+                    unfilledAttendanceSessions
+                )}, ${countLabel(dashboardData.cheerSessions.length, "cheer session")}`,
             };
         }
 
@@ -639,7 +653,7 @@ export default async function AccountPage() {
         const parent = await getParentForUser(session.userId);
         const { data: athletes, error: athletesError } = await supabase
         .from("Athletes")
-        .select("athlete_id, first_name, last_name, dob, phone, shirt_size")
+        .select("athlete_id, first_name, last_name, dob, phone, shirt_size, gender")
         .eq("user_id", session.userId);
 
         if (athletesError) {
@@ -798,6 +812,7 @@ export default async function AccountPage() {
                         </div>
                         <ManageAthleteCard
                             userId={session.userId}
+                            parentId={parent?.parent_id}
                             icon={
                                 <>
                                     <Plus className="size-4" />

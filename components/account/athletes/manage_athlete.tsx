@@ -8,13 +8,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuPortal,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button";
@@ -34,26 +27,31 @@ import {
 export default function ManageAthleteCard({
     icon
     ,userId
+    ,parentId
     ,athleteId
     ,first_name
     ,last_name
     ,phone
     ,dob
     ,shirt_size
+    ,gender
     }: 
     {icon: React.ReactNode
     ,userId: string
+    ,parentId?: string | number
     ,athleteId?: number
     ,first_name?: string
     ,last_name?: string
     ,phone?: string
     ,dob?: string
-    ,shirt_size?: string}
+    ,shirt_size?: string
+    ,gender?: string}
     ) {
     const supabase = createClient()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [shirtSize, setShirtSize] = useState<string | undefined>(shirt_size)
+    const [genderSelection, setGender] = useState<string | undefined>(gender)
     const [error, setError] = useState<string | null>(null)
     
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -68,6 +66,8 @@ export default function ManageAthleteCard({
     const dob = form.get("dob")?.toString() ?? ""
     const shirt_size = shirtSize ?? ""
     const user_id = userId
+    const parent_id = parentId
+    const gender = ''
 
     const { data, error } = athleteId ? await supabase
       .from("Athletes")
@@ -78,7 +78,9 @@ export default function ManageAthleteCard({
         ,phone
         ,dob
         ,shirt_size
-        ,user_id 
+        ,user_id
+        ,parent_id
+        ,gender
       }])
       :
         await supabase
@@ -90,6 +92,8 @@ export default function ManageAthleteCard({
           ,dob
           ,shirt_size
           ,user_id 
+          ,parent_id
+          ,gender
         }])
 
     setLoading(false)
@@ -118,38 +122,56 @@ export default function ManageAthleteCard({
                     {athleteId ? null : "Add a new athlete to your account. You are only billed for athletes currently enrolled in classes or cheer."}
                     </DialogDescription>
                 </DialogHeader>
-                <FieldGroup className="mb-6 no-scrollbar max-h-[50vh] overflow-y-auto mt-6">
+                <FieldGroup className="mb-6 no-scrollbar max-h-[70vh] overflow-y-auto mt-6">
                     <Field>
-                    <Label htmlFor="first-name-1">First Name</Label>
-                    <Input id="first-name-1" name="first_name" defaultValue={first_name ?? ""} placeholder="Jane"/>
+                        <Label htmlFor="first-name-1">First Name</Label>
+                        <Input id="first-name-1" name="first_name" defaultValue={first_name ?? ""} placeholder="Jane"/>
                     </Field>
                     <Field>
-                    <Label htmlFor="last-name-1">Last Name</Label>
-                    <Input id="last-name-1" name="last_name" defaultValue={last_name ?? ""} placeholder="Doe"/>
+                        <Label htmlFor="last-name-1">Last Name</Label>
+                        <Input id="last-name-1" name="last_name" defaultValue={last_name ?? ""} placeholder="Doe"/>
                     </Field>
                     <Field>
-                    <Label htmlFor="phone-1">Phone</Label>
-                    <Input id="phone-1" name="phone" defaultValue={phone ?? ""} placeholder="(123) 456-7890"/>
+                        <Label htmlFor="gender-1">
+                            Gender
+                        </Label>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">{genderSelection ?? "Select Gender"}</Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuGroup>
+                                    <DropdownMenuItem onClick={() => setGender("Female")}>Female</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setGender("Male")}>Male</DropdownMenuItem>
+                                </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </Field>
                     <Field>
-                    <Label htmlFor="dob-1">Date of Birth</Label>
-                    <Input id="dob-1" name="dob" type="date" defaultValue={dob ?? ""} placeholder="MM/DD/YYYY"/>
+                        <Label htmlFor="phone-1">Phone</Label>
+                        <Input id="phone-1" name="phone" defaultValue={phone ?? ""} placeholder="(123) 456-7890"/>
                     </Field>
                     <Field>
-                    <Label htmlFor="shirt-1">Shirt Size</Label>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline">{shirtSize ?? "Select Size"}</Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                            <DropdownMenuGroup>
-                                <DropdownMenuItem onClick={() => setShirtSize("S")}>S</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setShirtSize("M")}>M</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setShirtSize("L")}>L</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setShirtSize("XL")}>XL</DropdownMenuItem>
-                            </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                        <Label htmlFor="dob-1">Date of Birth</Label>
+                        <Input id="dob-1" name="dob" type="date" defaultValue={dob ?? ""} placeholder="MM/DD/YYYY"/>
+                    </Field>
+                    <Field>
+                        <Label htmlFor="shirt-1">
+                            Shirt Size
+                        </Label>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">{shirtSize ?? "Select Size"}</Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuGroup>
+                                    <DropdownMenuItem onClick={() => setShirtSize("S")}>S</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShirtSize("M")}>M</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShirtSize("L")}>L</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShirtSize("XL")}>XL</DropdownMenuItem>
+                                </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </Field>
                 </FieldGroup>
                 {error && <div className="text-sm text-red-600 mb-2">{error}</div>}

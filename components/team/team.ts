@@ -56,14 +56,6 @@ export const team: TeamMember[] = [
     slug: "madison",
     bio: "Hi I'm coach Madison! I bring 14 years of cheer experience and a true passion for the sport. Throughout my cheer journey I have participated in competitive cheer at multiple levels, as well as high school competitive and sideline cheerleading. As a new addition to the program last year, I am excited to begin my first full season with the team! I love encouraging and supporting my athletes both on and off the mat. I am dedicated to helping each cheerleader build confidence, develop their skills, and reach their full potential. As a coach, I strive to be a positive role model and create an environment where every athlete feels motivated, valued, and empowered to succeed.",
   },
-  {
-    name: "Lanie Mullis",
-    team: "Coaching Staff",
-    title: "Coach",
-    img: "/images/headshots/lanie_headshot.png",
-    slug: "lanie",
-    bio: "My name is Lanie Mullis, and I have been coaching for about four years. This year I retired from cheering as an athlete and moved fully into coaching. Cheerleading has shaped my passion, discipline, and love for for teamwork. As a coach, I focus on building confidence, skills, and a strong team environment. I'm grateful for my time as an athlete and am excited for this new chapter in coaching.",
-  },
 ];
 
 export function getTeamMember(slug: string) {

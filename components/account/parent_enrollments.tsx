@@ -222,7 +222,7 @@ export function ParentEnrollments({
                                   : "Manage"}
                               </Button>
                             ) : null}
-                            */}
+                             */}
                             {enrollment.status === "pending" ? (
                               <Button
                                 type="button"

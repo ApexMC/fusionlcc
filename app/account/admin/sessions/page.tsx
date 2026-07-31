@@ -4,6 +4,7 @@ import {
   AccountDashboardFrame,
   AccountSectionHeader,
 } from "@/components/account/dashboard_navigation"
+import { CheerSessionReview } from "@/components/account/admin/cheer_session_review"
 import { ClassSessionReview } from "@/components/account/admin/class_session_review"
 import { getAdminDashboardData } from "@/lib/account/data"
 import { requireAdminOwnerAccountSession } from "@/app/account/_lib/route-guards"
@@ -17,7 +18,7 @@ export default async function AdminSessionsPage() {
     <AccountDashboardFrame className="max-w-[90rem]">
       <AccountSectionHeader
         title="Sessions"
-        description="Review class sessions, attendance, and expected athletes."
+        description="Review class sessions and cheer practice sessions."
         icon={ClipboardCheck}
         backLabel="Dashboard"
       />
@@ -25,6 +26,7 @@ export default async function AdminSessionsPage() {
         sessions={dashboardData.classSessions}
         canCancelSessions
       />
+      <CheerSessionReview sessions={dashboardData.cheerSessions} />
     </AccountDashboardFrame>
   )
 }

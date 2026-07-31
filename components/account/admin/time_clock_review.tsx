@@ -5,6 +5,10 @@ import { Check, ChevronDown, Clock, History, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { updateCoachTimeClockEntryStatus } from "@/app/actions/time-clock"
+import {
+  isPendingTimeClockStatus,
+  TimeClockEntryEditDialog,
+} from "@/components/account/time_clock_entry_edit_dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -128,13 +132,14 @@ function PunchDecisionControls({
   onUpdate: (entryId: string, status: "approved" | "denied") => void
 }) {
   const busy = busyId === entry.entryId
+  const canReview = isPendingTimeClockStatus(status) && Boolean(entry.clockOutAt)
 
   return (
-    <div className="flex justify-end gap-2">
+    <div className="flex gap-2">
       <Button
         type="button"
         size="sm"
-        disabled={Boolean(busyId) || status === "approved"}
+        disabled={Boolean(busyId) || !canReview}
         onClick={() => onUpdate(entry.entryId, "approved")}
       >
         <Check />
@@ -144,7 +149,7 @@ function PunchDecisionControls({
         type="button"
         size="sm"
         variant="destructive"
-        disabled={Boolean(busyId) || status === "denied"}
+        disabled={Boolean(busyId) || !canReview}
         onClick={() => onUpdate(entry.entryId, "denied")}
       >
         <X />
@@ -166,6 +171,7 @@ function PunchMobileCard({
   onUpdate: (entryId: string, status: "approved" | "denied") => void
 }) {
   const note = getEntryNote(entry)
+  const isPending = isPendingTimeClockStatus(status)
 
   return (
     <div className="rounded-md border p-3">
@@ -190,14 +196,23 @@ function PunchMobileCard({
       {note ? (
         <p className="mt-2 text-sm text-muted-foreground">{note}</p>
       ) : null}
-      <div className="mt-3">
-        <PunchDecisionControls
-          entry={entry}
-          status={status}
-          busyId={busyId}
-          onUpdate={onUpdate}
-        />
-      </div>
+      {isPending ? (
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
+          <TimeClockEntryEditDialog
+            entry={entry}
+            status={status}
+            disabled={Boolean(busyId)}
+          />
+          {entry.clockOutAt ? (
+            <PunchDecisionControls
+              entry={entry}
+              status={status}
+              busyId={busyId}
+              onUpdate={onUpdate}
+            />
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -230,6 +245,9 @@ function CoachPunchGroup({
   const entryLabel = entries.length === 1 ? "punch" : "punches"
   const currentEntryLabel =
     coach.currentPeriodEntries.length === 1 ? "punch" : "punches"
+  const hasPendingEntries = entries.some((entry) =>
+    isPendingTimeClockStatus(localStatuses[entry.entryId] ?? entry.status)
+  )
 
   return (
     <div className="rounded-lg border bg-background p-4">
@@ -322,7 +340,9 @@ function CoachPunchGroup({
                       <TableHead>Hours</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Notes</TableHead>
-                      <TableHead className="text-right">Decision</TableHead>
+                      {hasPendingEntries ? (
+                        <TableHead className="text-right">Actions</TableHead>
+                      ) : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -352,14 +372,28 @@ function CoachPunchGroup({
                           <TableCell className="max-w-72 whitespace-normal text-muted-foreground">
                             {note || "None"}
                           </TableCell>
-                          <TableCell>
-                            <PunchDecisionControls
-                              entry={entry}
-                              status={status}
-                              busyId={busyId}
-                              onUpdate={onUpdate}
-                            />
-                          </TableCell>
+                          {hasPendingEntries ? (
+                            <TableCell>
+                              {isPendingTimeClockStatus(status) ? (
+                                <div className="flex justify-end gap-2">
+                                  <TimeClockEntryEditDialog
+                                    entry={entry}
+                                    status={status}
+                                    disabled={Boolean(busyId)}
+                                    iconOnly
+                                  />
+                                  {entry.clockOutAt ? (
+                                    <PunchDecisionControls
+                                      entry={entry}
+                                      status={status}
+                                      busyId={busyId}
+                                      onUpdate={onUpdate}
+                                    />
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </TableCell>
+                          ) : null}
                         </TableRow>
                       )
                     })}

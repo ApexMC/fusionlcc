@@ -10,6 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
+  isPendingTimeClockStatus,
+  TimeClockEntryEditDialog,
+} from "@/components/account/time_clock_entry_edit_dialog"
+import {
   Table,
   TableBody,
   TableCell,
@@ -108,6 +112,7 @@ function TimeClockEntryMobileRow({
   now: Date
 }) {
   const note = getEntryNote(entry)
+  const isPending = isPendingTimeClockStatus(entry.status)
 
   return (
     <div className="border-t py-3 first:border-t-0">
@@ -135,6 +140,11 @@ function TimeClockEntryMobileRow({
       {note ? (
         <p className="mt-2 text-sm text-muted-foreground">{note}</p>
       ) : null}
+      {isPending ? (
+        <div className="mt-3 flex justify-end">
+          <TimeClockEntryEditDialog entry={entry} status={entry.status} />
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -150,6 +160,9 @@ export function CoachTimeClock({
   const router = useRouter()
   const { toast } = useToast()
   const activeEntry = timeClock.activeEntry
+  const hasEditableRecentEntries = timeClock.recentEntries.some((entry) =>
+    isPendingTimeClockStatus(entry.status)
+  )
 
   React.useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 30000)
@@ -287,6 +300,9 @@ export function CoachTimeClock({
                       <TableHead>Hours</TableHead>
                       <TableHead>Notes</TableHead>
                       <TableHead>Status</TableHead>
+                      {hasEditableRecentEntries ? (
+                        <TableHead className="text-right">Actions</TableHead>
+                      ) : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -315,6 +331,19 @@ export function CoachTimeClock({
                               {entry.status}
                             </Badge>
                           </TableCell>
+                          {hasEditableRecentEntries ? (
+                            <TableCell>
+                              {isPendingTimeClockStatus(entry.status) ? (
+                                <div className="flex justify-end">
+                                  <TimeClockEntryEditDialog
+                                    entry={entry}
+                                    status={entry.status}
+                                    iconOnly
+                                  />
+                                </div>
+                              ) : null}
+                            </TableCell>
+                          ) : null}
                         </TableRow>
                       )
                     })}

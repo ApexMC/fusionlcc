@@ -6,9 +6,10 @@ interface ClassCardProps {
   imageAlt: string;
   className: string;
   slug: string;
-  price: number;
-  duration: number;
-  description: string;
+  price?: number | null;
+  duration?: number | null;
+  description?: string | null;
+  scheduleSummary?: string | null;
   imagePosition?: "left" | "right";
 }
 
@@ -19,6 +20,7 @@ const ClassCard = ({
   price,
   duration,
   description,
+  scheduleSummary,
   slug,
   imagePosition = "left",
 }: ClassCardProps) => {
@@ -43,15 +45,16 @@ const ClassCard = ({
           {className}
         </h3>
 
-        <span className="text-md font-semibold text-zinc-900 dark:text-zinc-400 mb-2">
-          {duration} mins • 4 classes / month
+        <span className="text-md mb-2 text-center font-semibold text-zinc-900 dark:text-zinc-400">
+          {duration ? `${duration} mins` : "Schedule varies"}
+          {scheduleSummary ? " • Active weekly schedule" : null}
         </span>
 
         <div className="inline-block bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white text-md font-semibold px-2 py-1 rounded mb-4">
-          ${price} / mo
+          {price ? `$${price} / mo` : "Contact for pricing"}
         </div>
 
-        <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed mb-6">
+        <p className="text-zinc-700 dark:text-zinc-300 text-center leading-relaxed mb-6">
           {description}
         </p>
 
