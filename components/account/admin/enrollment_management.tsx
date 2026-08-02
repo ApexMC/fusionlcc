@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import {
+  ArrowLeftRight,
   Check,
   ChevronDown,
   Search,
@@ -13,6 +14,7 @@ import { useRouter } from "next/navigation"
 
 import {
   createAdminEnrollment,
+  reassignEnrollment,
   updateEnrollmentAdminStatus,
 } from "@/app/actions/enrollments"
 import { EnrollmentStatusBadge } from "@/components/account/enrollment_status_badge"
@@ -54,6 +56,17 @@ type CreateEnrollmentDraft = {
   status: string
 }
 
+type ReassignmentDraft = {
+  classId: string
+  scheduleId: string
+  confirmed: boolean
+}
+
+type ReassignmentClassOption = {
+  classId: string
+  className: string
+}
+
 function formatDate(value: string | null) {
   if (!value) {
     return "Unknown"
@@ -64,6 +77,71 @@ function formatDate(value: string | null) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value))
+}
+
+function getEnrollmentSchedules(schedules: ClassScheduleDisplayRecord[]) {
+  return schedules.filter(
+    (schedule) =>
+      schedule.isActive && schedule.seasonIsActive && schedule.classId
+  )
+}
+
+function getReassignmentClassOptions(
+  schedules: ClassScheduleDisplayRecord[]
+): ReassignmentClassOption[] {
+  const classNameById = new Map<string, string>()
+
+  schedules.forEach((schedule) => {
+    if (!schedule.classId || classNameById.has(schedule.classId)) {
+      return
+    }
+
+    classNameById.set(schedule.classId, schedule.className)
+  })
+
+  return Array.from(classNameById.entries())
+    .map(([classId, className]) => ({
+      classId,
+      className,
+    }))
+    .sort((first, second) => first.className.localeCompare(second.className))
+}
+
+function getFirstScheduleForClass(
+  schedules: ClassScheduleDisplayRecord[],
+  classId: string,
+  currentScheduleId?: string | null
+) {
+  return (
+    schedules.find(
+      (schedule) =>
+        schedule.classId === classId &&
+        schedule.scheduleId !== currentScheduleId
+    ) ?? schedules.find((schedule) => schedule.classId === classId)
+  )
+}
+
+function getInitialReassignmentDraft(
+  enrollment: EnrollmentDisplayRecord,
+  schedules: ClassScheduleDisplayRecord[]
+): ReassignmentDraft {
+  const currentClassId = enrollment.classId ?? ""
+  const selectedClassId =
+    schedules.find((schedule) => schedule.classId === currentClassId)
+      ?.classId ??
+    schedules[0]?.classId ??
+    ""
+  const selectedSchedule = getFirstScheduleForClass(
+    schedules,
+    selectedClassId,
+    enrollment.scheduleId
+  )
+
+  return {
+    classId: selectedClassId,
+    scheduleId: selectedSchedule?.scheduleId ?? "",
+    confirmed: false,
+  }
 }
 
 function getCreateDraft(
@@ -117,10 +195,7 @@ function CreateEnrollmentDialog({
   schedules: ClassScheduleDisplayRecord[]
 }) {
   const enrollmentSchedules = React.useMemo(
-    () =>
-      schedules.filter(
-        (schedule) => schedule.isActive && schedule.seasonIsActive
-      ),
+    () => getEnrollmentSchedules(schedules),
     [schedules]
   )
   const [open, setOpen] = React.useState(false)
@@ -288,6 +363,251 @@ function CreateEnrollmentDialog({
             >
               <UserPlus />
               {loading ? "Creating" : "Create Enrollment"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ReassignEnrollmentDialog({
+  enrollment,
+  schedules,
+  disabled,
+  onReassigned,
+}: {
+  enrollment: EnrollmentDisplayRecord
+  schedules: ClassScheduleDisplayRecord[]
+  disabled?: boolean
+  onReassigned: () => void
+}) {
+  const enrollmentSchedules = React.useMemo(
+    () => getEnrollmentSchedules(schedules),
+    [schedules]
+  )
+  const classOptions = React.useMemo(
+    () => getReassignmentClassOptions(enrollmentSchedules),
+    [enrollmentSchedules]
+  )
+  const [open, setOpen] = React.useState(false)
+  const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [draft, setDraft] = React.useState<ReassignmentDraft>(() =>
+    getInitialReassignmentDraft(enrollment, enrollmentSchedules)
+  )
+  const { toast } = useToast()
+  const selectedClassSchedules = enrollmentSchedules.filter(
+    (schedule) => schedule.classId === draft.classId
+  )
+  const selectedSchedule = enrollmentSchedules.find(
+    (schedule) => schedule.scheduleId === draft.scheduleId
+  )
+  const changed = selectedSchedule?.scheduleId !== enrollment.scheduleId
+  const canSubmit = Boolean(
+    selectedSchedule && changed && draft.confirmed && !loading
+  )
+
+  function resetDraft() {
+    setDraft(getInitialReassignmentDraft(enrollment, enrollmentSchedules))
+    setError(null)
+  }
+
+  function setClassId(classId: string) {
+    const nextSchedule = getFirstScheduleForClass(
+      enrollmentSchedules,
+      classId,
+      enrollment.scheduleId
+    )
+
+    setDraft({
+      classId,
+      scheduleId: nextSchedule?.scheduleId ?? "",
+      confirmed: false,
+    })
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    try {
+      const result = await reassignEnrollment({
+        enrollmentId: enrollment.enrollmentId,
+        classId: draft.classId,
+        scheduleId: draft.scheduleId,
+        confirmed: draft.confirmed,
+      })
+
+      if (!result.ok) {
+        setError(result.message)
+        toast({
+          title: "Reassignment failed",
+          description: result.message,
+          variant: "error",
+        })
+        return
+      }
+
+      toast({
+        title: "Enrollment reassigned",
+        description: result.message,
+        variant: "success",
+      })
+      setOpen(false)
+      resetDraft()
+      onReassigned()
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error ? caughtError.message : "Please try again."
+      setError(message)
+      toast({
+        title: "Reassignment failed",
+        description: message,
+        variant: "error",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+
+        if (nextOpen) {
+          resetDraft()
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+        >
+          <ArrowLeftRight />
+          Re-Assign
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Re-Assign Enrollment</DialogTitle>
+            <DialogDescription>
+              Move {enrollment.athleteName} to a new class schedule.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-6 grid gap-4">
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              <div className="text-xs font-medium text-muted-foreground">
+                Current assignment
+              </div>
+              <div className="mt-1 font-medium">{enrollment.className}</div>
+              {enrollment.scheduleLabel ? (
+                <div className="text-muted-foreground">
+                  {enrollment.scheduleLabel}
+                </div>
+              ) : null}
+            </div>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium">New Class</span>
+              <select
+                value={draft.classId}
+                onChange={(event) => setClassId(event.target.value)}
+                className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+              >
+                {classOptions.map((option) => (
+                  <option key={option.classId} value={option.classId}>
+                    {option.className}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium">New Class Schedule</span>
+              <select
+                value={draft.scheduleId}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    scheduleId: event.target.value,
+                    confirmed: false,
+                  }))
+                }
+                className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+                disabled={!selectedClassSchedules.length}
+              >
+                {selectedClassSchedules.length ? (
+                  selectedClassSchedules.map((schedule) => (
+                    <option
+                      key={schedule.scheduleId}
+                      value={schedule.scheduleId}
+                    >
+                      {schedule.scheduleLabel}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No active schedules</option>
+                )}
+              </select>
+            </label>
+            {selectedSchedule ? (
+              <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                <div className="text-xs font-medium text-muted-foreground">
+                  New assignment
+                </div>
+                <div className="mt-1 font-medium">
+                  {selectedSchedule.className}
+                </div>
+                <div className="text-muted-foreground">
+                  {selectedSchedule.scheduleLabel}
+                </div>
+              </div>
+            ) : null}
+            {!classOptions.length ? (
+              <p className="text-sm text-muted-foreground">
+                Add an active class schedule in the active season before
+                reassigning enrollments.
+              </p>
+            ) : null}
+            {selectedSchedule && !changed ? (
+              <p className="text-sm text-muted-foreground">
+                Choose a different class schedule before reassigning.
+              </p>
+            ) : null}
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={draft.confirmed}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    confirmed: event.target.checked,
+                  }))
+                }
+                className="mt-0.5 size-4"
+              />
+              <span>
+                I understand this will update the parent&apos;s Stripe subscription
+                when this enrollment has one.
+              </span>
+            </label>
+            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={!canSubmit}>
+              <ArrowLeftRight />
+              {loading ? "Reassigning" : "Confirm Re-Assign"}
             </Button>
           </DialogFooter>
         </form>
@@ -559,6 +879,14 @@ export function EnrollmentManagement({
                               Deny
                             </Button>
                           </div>
+                          <div className="mt-3">
+                            <ReassignEnrollmentDialog
+                              enrollment={enrollment}
+                              schedules={schedules}
+                              disabled={Boolean(busyId)}
+                              onReassigned={() => router.refresh()}
+                            />
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -608,6 +936,12 @@ export function EnrollmentManagement({
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-2">
+                            <ReassignEnrollmentDialog
+                              enrollment={enrollment}
+                              schedules={schedules}
+                              disabled={Boolean(busyId)}
+                              onReassigned={() => router.refresh()}
+                            />
                             <Button
                               type="button"
                               size="sm"
@@ -777,6 +1111,14 @@ export function EnrollmentManagement({
                             ) : null}
                           </div>
                         </label>
+                        <div className="mt-3">
+                          <ReassignEnrollmentDialog
+                            enrollment={enrollment}
+                            schedules={schedules}
+                            disabled={Boolean(busyId)}
+                            onReassigned={() => router.refresh()}
+                          />
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -852,6 +1194,12 @@ export function EnrollmentManagement({
                       <TableCell>{formatDate(enrollment.createdAt)}</TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
+                          <ReassignEnrollmentDialog
+                            enrollment={enrollment}
+                            schedules={schedules}
+                            disabled={Boolean(busyId)}
+                            onReassigned={() => router.refresh()}
+                          />
                           <select
                             value={enrollment.status}
                             disabled={busyId === enrollment.enrollmentId}

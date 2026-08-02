@@ -1,9 +1,11 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import type Stripe from "stripe"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getStripe, getSubscriptionPeriod } from "@/lib/stripe/server"
 
 type ActionResult = {
   ok: boolean
@@ -13,15 +15,45 @@ type ActionResult = {
 const adminStatuses = ["pending", "approved", "active", "denied", "canceled"] as const
 type AdminEnrollmentStatus = (typeof adminStatuses)[number]
 
+type AvailableClassSchedule = {
+  scheduleId: string
+  classId: string | null
+}
+
+type ReassignmentClassRecord = {
+  class_id: string | number
+  class_name?: string | null
+  stripe_price_id?: string | null
+}
+
+type ReassignmentEnrollmentRecord = {
+  enrollment_id: string | number
+  athlete_id?: string | number | null
+  class_id?: string | number | null
+  schedule_id?: string | number | null
+  status?: string | null
+  stripe_customer_id?: string | null
+  stripe_subscription_id?: string | null
+  subscription_status?: string | null
+}
+
 function isAdminEnrollmentStatus(value: string): value is AdminEnrollmentStatus {
   return adminStatuses.includes(value as AdminEnrollmentStatus)
 }
 
-async function getAvailableClassSchedule(scheduleId: string) {
+async function getAvailableClassSchedule(scheduleId: string): Promise<
+  | (ActionResult & {
+      ok: false
+    })
+  | ({
+      ok: true
+      message: string
+    } & AvailableClassSchedule)
+> {
   const supabase = createAdminClient()
   const { data: scheduleRecord, error: scheduleError } = await supabase
     .from("ClassSchedules")
-    .select("schedule_id,is_active,season_id")
+    .select("schedule_id,class_id,is_active,season_id")
     .eq("schedule_id", scheduleId)
     .maybeSingle()
 
@@ -39,7 +71,10 @@ async function getAvailableClassSchedule(scheduleId: string) {
     }
   }
 
-  if (scheduleRecord.season_id === null || scheduleRecord.season_id === undefined) {
+  if (
+    scheduleRecord.season_id === null ||
+    scheduleRecord.season_id === undefined
+  ) {
     return {
       ok: false as const,
       message: "Choose a schedule in the active season.",
@@ -69,7 +104,87 @@ async function getAvailableClassSchedule(scheduleId: string) {
   return {
     ok: true as const,
     message: "",
+    scheduleId: String(scheduleRecord.schedule_id),
+    classId:
+      scheduleRecord.class_id === null || scheduleRecord.class_id === undefined
+        ? null
+        : String(scheduleRecord.class_id),
   }
+}
+
+function getStripeCustomerId(
+  value: string | { id: string } | null | undefined
+) {
+  if (!value) {
+    return null
+  }
+
+  return typeof value === "string" ? value : value.id
+}
+
+async function updateStripeSubscriptionForReassignment({
+  enrollment,
+  classRecord,
+  scheduleId,
+}: {
+  enrollment: ReassignmentEnrollmentRecord
+  classRecord: ReassignmentClassRecord
+  scheduleId: string
+}) {
+  if (!enrollment.stripe_subscription_id) {
+    return null
+  }
+
+  const stripePriceId = classRecord.stripe_price_id?.trim()
+
+  if (!stripePriceId) {
+    throw new Error(
+      "The new class needs a Stripe price ID before a subscribed enrollment can be reassigned."
+    )
+  }
+
+  const stripe = getStripe()
+  const subscription = await stripe.subscriptions.retrieve(
+    enrollment.stripe_subscription_id
+  )
+  const subscriptionItems = subscription.items.data
+
+  if (subscriptionItems.length !== 1) {
+    throw new Error(
+      "This Stripe subscription has more than one item. Reassign it in Stripe manually, then update the enrollment."
+    )
+  }
+
+  const subscriptionItem = subscriptionItems[0]
+  const metadata: Record<string, string> = {
+    ...subscription.metadata,
+    enrollment_id: String(enrollment.enrollment_id),
+    class_id: String(classRecord.class_id),
+    schedule_id: scheduleId,
+  }
+
+  if (enrollment.athlete_id !== null && enrollment.athlete_id !== undefined) {
+    metadata.athlete_id = String(enrollment.athlete_id)
+  }
+
+  if (subscriptionItem.price.id === stripePriceId) {
+    return stripe.subscriptions.update(subscription.id, {
+      metadata,
+    })
+  }
+
+  return stripe.subscriptions.update(subscription.id, {
+    items: [
+      {
+        id: subscriptionItem.id,
+        price: stripePriceId,
+        quantity: subscriptionItem.quantity ?? 1,
+      },
+    ],
+    metadata,
+    payment_behavior: "allow_incomplete",
+    proration_behavior: "create_prorations",
+  })
 }
 
 async function updateEnrollmentStatus(
@@ -182,6 +297,13 @@ export async function createAdminEnrollment({
     }
   }
 
+  if (scheduleRecord.classId !== normalizedClassId) {
+    return {
+      ok: false,
+      message: "Choose a schedule that belongs to the selected class.",
+    }
+  }
+
   const resolvedParentId =
     normalizedParentId ??
     (athlete.parent_id === null || athlete.parent_id === undefined
@@ -247,6 +369,185 @@ export async function createAdminEnrollment({
   }
 }
 
+export async function reassignEnrollment({
+  enrollmentId,
+  classId,
+  scheduleId,
+  confirmed,
+}: {
+  enrollmentId: string
+  classId: string
+  scheduleId: string
+  confirmed: boolean
+}): Promise<ActionResult> {
+  requireAdminSession(await getAccountSession())
+
+  const normalizedEnrollmentId = enrollmentId.trim()
+  const normalizedClassId = classId.trim()
+  const normalizedScheduleId = scheduleId.trim()
+
+  if (!confirmed) {
+    return {
+      ok: false,
+      message: "Confirm the Stripe subscription impact before reassigning.",
+    }
+  }
+
+  if (!normalizedEnrollmentId || !normalizedClassId || !normalizedScheduleId) {
+    return {
+      ok: false,
+      message: "Choose an enrollment, class, and class schedule.",
+    }
+  }
+
+  const supabase = createAdminClient()
+  const { data: enrollmentData, error: enrollmentError } = await supabase
+    .from("Enrollments")
+    .select(
+      "enrollment_id,athlete_id,class_id,schedule_id,status,stripe_customer_id,stripe_subscription_id,subscription_status"
+    )
+    .eq("enrollment_id", normalizedEnrollmentId)
+    .maybeSingle()
+
+  if (enrollmentError || !enrollmentData) {
+    return {
+      ok: false,
+      message: enrollmentError?.message ?? "Enrollment was not found.",
+    }
+  }
+
+  const enrollment = enrollmentData as ReassignmentEnrollmentRecord
+  const scheduleRecord = await getAvailableClassSchedule(normalizedScheduleId)
+
+  if (!scheduleRecord.ok) {
+    return {
+      ok: false,
+      message: scheduleRecord.message,
+    }
+  }
+
+  if (scheduleRecord.classId !== normalizedClassId) {
+    return {
+      ok: false,
+      message: "Choose a schedule that belongs to the selected class.",
+    }
+  }
+
+  if (String(enrollment.schedule_id ?? "") === normalizedScheduleId) {
+    return {
+      ok: false,
+      message: "Choose a different schedule before reassigning.",
+    }
+  }
+
+  const { data: classData, error: classError } = await supabase
+    .from("Classes")
+    .select("class_id,class_name,stripe_price_id")
+    .eq("class_id", normalizedClassId)
+    .maybeSingle()
+
+  if (classError || !classData) {
+    return {
+      ok: false,
+      message: classError?.message ?? "Class was not found.",
+    }
+  }
+
+  const classRecord = classData as ReassignmentClassRecord
+
+  if (enrollment.athlete_id !== null && enrollment.athlete_id !== undefined) {
+    const { data: existingEnrollment, error: existingError } = await supabase
+      .from("Enrollments")
+      .select("enrollment_id,status")
+      .eq("athlete_id", String(enrollment.athlete_id))
+      .eq("schedule_id", normalizedScheduleId)
+      .neq("enrollment_id", normalizedEnrollmentId)
+      .in("status", ["pending", "approved", "active"])
+      .maybeSingle()
+
+    if (existingError) {
+      return {
+        ok: false,
+        message: existingError.message,
+      }
+    }
+
+    if (existingEnrollment) {
+      return {
+        ok: false,
+        message: `This athlete already has a ${existingEnrollment.status} enrollment for that class schedule.`,
+      }
+    }
+  }
+
+  let stripeUpdated = false
+  let updatedSubscription: Stripe.Subscription | null = null
+
+  try {
+    updatedSubscription = await updateStripeSubscriptionForReassignment({
+      enrollment,
+      classRecord,
+      scheduleId: normalizedScheduleId,
+    })
+    stripeUpdated = Boolean(updatedSubscription)
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Stripe subscription could not be updated.",
+    }
+  }
+
+  const updatePayload: {
+    class_id: string
+    schedule_id: string
+    stripe_customer_id?: string | null
+    stripe_subscription_id?: string
+    subscription_status?: string
+    current_period_start?: string | null
+    current_period_end?: string | null
+  } = {
+    class_id: normalizedClassId,
+    schedule_id: normalizedScheduleId,
+  }
+
+  if (updatedSubscription) {
+    const period = getSubscriptionPeriod(updatedSubscription)
+    updatePayload.stripe_customer_id = getStripeCustomerId(
+      updatedSubscription.customer
+    )
+    updatePayload.stripe_subscription_id = updatedSubscription.id
+    updatePayload.subscription_status = updatedSubscription.status
+    updatePayload.current_period_start = period.currentPeriodStart
+    updatePayload.current_period_end = period.currentPeriodEnd
+  }
+
+  const { error: updateError } = await supabase
+    .from("Enrollments")
+    .update(updatePayload)
+    .eq("enrollment_id", normalizedEnrollmentId)
+
+  if (updateError) {
+    return {
+      ok: false,
+      message: stripeUpdated
+        ? `Stripe was updated, but the enrollment could not be saved locally: ${updateError.message}`
+        : updateError.message,
+    }
+  }
+
+  revalidatePath("/account")
+
+  return {
+    ok: true,
+    message: stripeUpdated
+      ? "Enrollment reassigned and Stripe subscription updated."
+      : "Enrollment reassigned.",
+  }
+}
+
 export async function requestEnrollment({
   athleteId,
   classId,
@@ -302,6 +603,13 @@ export async function requestEnrollment({
     return {
       ok: false,
       message: scheduleRecord.message,
+    }
+  }
+
+  if (scheduleRecord.classId !== normalizedClassId) {
+    return {
+      ok: false,
+      message: "Choose a schedule that belongs to the selected class.",
     }
   }
 
