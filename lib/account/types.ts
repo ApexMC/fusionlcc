@@ -37,6 +37,7 @@ export type CheerTeamRecord = {
 export type ClassScheduleRecord = {
   schedule_id: string | number
   class_id?: string | number | null
+  season_id?: string | number | null
   day_of_week?: string | number | null
   start_time?: string | null
   end_time?: string | null
@@ -139,6 +140,7 @@ export type AdminDashboardData = {
   enrollmentAthletes: AdminEnrollmentAthleteOption[]
   classBilling: ClassBillingRecord[]
   cheerBilling: CheerBillingRecord[]
+  scheduleSeasons: ScheduleSeasonRecord[]
   classSchedules: ClassScheduleDisplayRecord[]
   cheerSchedules: CheerScheduleDisplayRecord[]
   classSessions: ClassSessionDisplayRecord[]
@@ -204,10 +206,19 @@ export type ClassOption = {
   stripePriceId: string | null
 }
 
+export type ScheduleSeasonRecord = {
+  seasonId: string
+  season: string
+  isActive: boolean
+}
+
 export type ClassScheduleDisplayRecord = {
   scheduleId: string
   classId: string | null
   className: string
+  seasonId: string | null
+  season: string | null
+  seasonIsActive: boolean
   dayOfWeek: string
   startTime: string | null
   endTime: string | null

@@ -42,6 +42,7 @@ type PublicClassRow = {
 type PublicClassScheduleRow = {
   schedule_id: string | number
   class_id?: string | number | null
+  season_id?: string | number | null
   day_of_week?: string | number | null
   start_time?: string | null
   end_time?: string | null
@@ -49,6 +50,10 @@ type PublicClassScheduleRow = {
   created_at?: string | null
   archived_at?: string | null
   [key: string]: unknown
+}
+
+type PublicScheduleSeasonRow = {
+  season_id: string | number
 }
 
 const dayOrder = [
@@ -251,11 +256,18 @@ async function fetchPublicClassRows() {
 }
 
 async function fetchPublicClassScheduleRows() {
+  const activeSeasonIds = await fetchActivePublicScheduleSeasonIds()
+
+  if (!activeSeasonIds.length) {
+    return []
+  }
+
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("ClassSchedules")
     .select("*")
     .eq("is_active", true)
+    .in("season_id", activeSeasonIds)
     .is("archived_at", null)
     .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true })
@@ -268,6 +280,7 @@ async function fetchPublicClassScheduleRows() {
     .from("ClassSchedules")
     .select("*")
     .eq("is_active", true)
+    .in("season_id", activeSeasonIds)
     .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true })
 
@@ -276,6 +289,22 @@ async function fetchPublicClassScheduleRows() {
   }
 
   return (fallbackData ?? []) as PublicClassScheduleRow[]
+}
+
+async function fetchActivePublicScheduleSeasonIds() {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("ScheduleSeasons")
+    .select("season_id")
+    .eq("is_active", true)
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return ((data ?? []) as PublicScheduleSeasonRow[]).map((row) =>
+    String(row.season_id)
+  )
 }
 
 function isPublicClass(row: PublicClassRow) {

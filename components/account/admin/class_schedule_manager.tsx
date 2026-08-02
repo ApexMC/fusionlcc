@@ -1,10 +1,20 @@
 "use client"
 
 import * as React from "react"
-import { ChevronDown, MoreHorizontal, Plus, Save } from "lucide-react"
+import {
+  ChevronDown,
+  Leaf,
+  MoreHorizontal,
+  Plus,
+  Save,
+  Snowflake,
+  Sprout,
+  Sun,
+} from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import {
+  activateScheduleSeason,
   deleteClassSchedule,
   saveClassSchedule,
 } from "@/app/actions/class-schedules"
@@ -37,9 +47,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useToast } from "@/components/ui/toast"
+import { cn } from "@/lib/utils"
 import type {
   ClassBillingRecord,
   ClassScheduleDisplayRecord,
+  ScheduleSeasonRecord,
 } from "@/lib/account/types"
 
 const days = [
@@ -54,10 +66,55 @@ const days = [
 
 type ScheduleDraft = {
   classId: string
+  seasonId: string
   dayOfWeek: string
   startTime: string
   endTime: string
   isActive: boolean
+}
+
+const seasonStyles = {
+  spring: {
+    icon: Sprout,
+    tab: "border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100 dark:hover:bg-emerald-950/50",
+    selected:
+      "border-emerald-500 bg-emerald-100 text-emerald-950 ring-2 ring-emerald-500/25 dark:border-emerald-400 dark:bg-emerald-900/50 dark:text-emerald-50",
+    iconShell: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200",
+  },
+  summer: {
+    icon: Sun,
+    tab: "border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100 dark:hover:bg-amber-950/50",
+    selected:
+      "border-amber-500 bg-amber-100 text-amber-950 ring-2 ring-amber-500/25 dark:border-amber-400 dark:bg-amber-900/50 dark:text-amber-50",
+    iconShell: "bg-amber-500/15 text-amber-700 dark:text-amber-200",
+  },
+  fall: {
+    icon: Leaf,
+    tab: "border-orange-200 bg-orange-50 text-orange-950 hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-100 dark:hover:bg-orange-950/50",
+    selected:
+      "border-orange-500 bg-orange-100 text-orange-950 ring-2 ring-orange-500/25 dark:border-orange-400 dark:bg-orange-900/50 dark:text-orange-50",
+    iconShell: "bg-orange-500/15 text-orange-700 dark:text-orange-200",
+  },
+  winter: {
+    icon: Snowflake,
+    tab: "border-sky-200 bg-sky-50 text-sky-950 hover:bg-sky-100 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100 dark:hover:bg-sky-950/50",
+    selected:
+      "border-sky-500 bg-sky-100 text-sky-950 ring-2 ring-sky-500/25 dark:border-sky-400 dark:bg-sky-900/50 dark:text-sky-50",
+    iconShell: "bg-sky-500/15 text-sky-700 dark:text-sky-200",
+  },
+}
+
+function normalizeSeasonName(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase()
+}
+
+function getSeasonStyle(season: string) {
+  const normalizedSeason = normalizeSeasonName(season)
+
+  return (
+    seasonStyles[normalizedSeason as keyof typeof seasonStyles] ??
+    seasonStyles.spring
+  )
 }
 
 function toTimeInputValue(value: string | null) {
@@ -73,6 +130,7 @@ function getDefaultDraft(
 ): ScheduleDraft {
   return {
     classId: schedule.classId ?? "",
+    seasonId: schedule.seasonId ?? "",
     dayOfWeek: schedule.dayOfWeek || "monday",
     startTime: toTimeInputValue(schedule.startTime),
     endTime: toTimeInputValue(schedule.endTime),
@@ -80,23 +138,47 @@ function getDefaultDraft(
   }
 }
 
-function getBlankDraft(): ScheduleDraft {
+function getBlankDraft(
+  classes: ClassBillingRecord[],
+  seasonId: string
+): ScheduleDraft {
   return {
-    classId: "",
-    dayOfWeek: "",
+    classId: classes[0]?.classId ?? "",
+    seasonId,
+    dayOfWeek: "monday",
     startTime: "",
     endTime: "",
-    isActive: false,
+    isActive: true,
   }
+}
+
+function getInitialSeasonId(
+  seasons: ScheduleSeasonRecord[],
+  schedules: ClassScheduleDisplayRecord[]
+) {
+  return (
+    seasons.find((season) => season.isActive)?.seasonId ??
+    seasons[0]?.seasonId ??
+    schedules.find((schedule) => schedule.seasonId)?.seasonId ??
+    ""
+  )
 }
 
 export function ClassScheduleManager({
   schedules,
+  seasons,
   classes,
 }: {
   schedules: ClassScheduleDisplayRecord[]
+  seasons: ScheduleSeasonRecord[]
   classes: ClassBillingRecord[]
 }) {
+  const [selectedSeasonId, setSelectedSeasonId] = React.useState(() =>
+    getInitialSeasonId(seasons, schedules)
+  )
+  const [activeSeasonId, setActiveSeasonId] = React.useState(
+    () => seasons.find((season) => season.isActive)?.seasonId ?? ""
+  )
   const [drafts, setDrafts] = React.useState<Record<string, ScheduleDraft>>(
     () =>
       Object.fromEntries(
@@ -107,7 +189,9 @@ export function ClassScheduleManager({
       )
   )
   const [newScheduleDraft, setNewScheduleDraft] =
-    React.useState<ScheduleDraft>(() => getBlankDraft())
+    React.useState<ScheduleDraft>(() =>
+      getBlankDraft(classes, selectedSeasonId)
+    )
   const [busyId, setBusyId] = React.useState<string | null>(null)
   const [expandedScheduleCardId, setExpandedScheduleCardId] =
     React.useState<string | null>(null)
@@ -115,21 +199,86 @@ export function ClassScheduleManager({
     React.useState<ClassScheduleDisplayRecord | null>(null)
   const router = useRouter()
   const { toast } = useToast()
+  const seasonOptions = React.useMemo(
+    () =>
+      seasons.map((season) => ({
+        ...season,
+        isActive: activeSeasonId
+          ? season.seasonId === activeSeasonId
+          : season.isActive,
+      })),
+    [activeSeasonId, seasons]
+  )
+  const selectedSeason =
+    seasonOptions.find((season) => season.seasonId === selectedSeasonId) ??
+    seasonOptions.find((season) => season.isActive) ??
+    seasonOptions[0] ??
+    null
+  const filteredSchedules = selectedSeason
+    ? schedules.filter(
+        (schedule) => schedule.seasonId === selectedSeason.seasonId
+      )
+    : schedules
+
+  function selectSeason(seasonId: string) {
+    setSelectedSeasonId(seasonId)
+    setNewScheduleDraft((current) => ({
+      ...current,
+      seasonId,
+    }))
+  }
 
   function setDraft(scheduleId: string, draft: Partial<ScheduleDraft>) {
     setDrafts((current) => ({
       ...current,
       [scheduleId]: {
         ...(current[scheduleId] ?? {
-          classId: "",
-          dayOfWeek: "",
+          classId: classes[0]?.classId ?? "",
+          seasonId: selectedSeason?.seasonId ?? "",
+          dayOfWeek: "monday",
           startTime: "",
           endTime: "",
-          isActive: false,
+          isActive: true,
         }),
         ...draft,
       },
     }))
+  }
+
+  async function activateSeason(season: ScheduleSeasonRecord) {
+    const busyKey = `season:${season.seasonId}`
+    setBusyId(busyKey)
+
+    try {
+      const result = await activateScheduleSeason(season.seasonId)
+
+      if (!result.ok) {
+        toast({
+          title: "Season activation failed",
+          description: result.message,
+          variant: "error",
+        })
+        return
+      }
+
+      setActiveSeasonId(season.seasonId)
+      selectSeason(season.seasonId)
+      toast({
+        title: "Class season activated",
+        description: result.message,
+        variant: "success",
+      })
+      router.refresh()
+    } catch (error) {
+      toast({
+        title: "Season activation failed",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "error",
+      })
+    } finally {
+      setBusyId(null)
+    }
   }
 
   async function saveSchedule(schedule: ClassScheduleDisplayRecord | null) {
@@ -144,6 +293,7 @@ export function ClassScheduleManager({
       const result = await saveClassSchedule({
         scheduleId: schedule?.scheduleId,
         classId: draft.classId,
+        seasonId: selectedSeason?.seasonId || draft.seasonId || "",
         dayOfWeek: draft.dayOfWeek,
         startTime: draft.startTime,
         endTime: draft.endTime,
@@ -165,7 +315,9 @@ export function ClassScheduleManager({
         variant: "success",
       })
       if (!schedule) {
-        setNewScheduleDraft(getBlankDraft())
+        setNewScheduleDraft(
+          getBlankDraft(classes, selectedSeason?.seasonId ?? selectedSeasonId)
+        )
         setExpandedScheduleCardId(null)
       }
       router.refresh()
@@ -263,6 +415,101 @@ export function ClassScheduleManager({
     )
   }
 
+  function renderSeasonSelector() {
+    if (!seasonOptions.length) {
+      return (
+        <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+          No schedule seasons are configured.
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-3">
+        <div
+          role="tablist"
+          aria-label="Class schedule seasons"
+          className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4"
+        >
+          {seasonOptions.map((season) => {
+            const style = getSeasonStyle(season.season)
+            const Icon = style.icon
+            const isSelected = selectedSeason?.seasonId === season.seasonId
+            const scheduleCount = schedules.filter(
+              (schedule) => schedule.seasonId === season.seasonId
+            ).length
+
+            return (
+              <button
+                key={season.seasonId}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                className={cn(
+                  "flex h-16 min-w-0 items-center gap-3 rounded-lg border px-3 text-left text-sm transition focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                  isSelected ? style.selected : style.tab
+                )}
+                onClick={() => selectSeason(season.seasonId)}
+              >
+                <span
+                  className={cn(
+                    "inline-flex size-9 shrink-0 items-center justify-center rounded-lg",
+                    style.iconShell
+                  )}
+                >
+                  <Icon className="size-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">
+                    {season.season}
+                  </span>
+                  <span className="block truncate text-xs opacity-75">
+                    {scheduleCount} {scheduleCount === 1 ? "schedule" : "schedules"}
+                  </span>
+                </span>
+                {season.isActive ? (
+                  <Badge variant="success" className="shrink-0">
+                    active
+                  </Badge>
+                ) : null}
+              </button>
+            )
+          })}
+        </div>
+        {selectedSeason ? (
+          <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium">
+                {selectedSeason.season} schedule
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {selectedSeason.isActive
+                  ? "Public enrollment uses this season."
+                  : "Not public until activated."}
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant={selectedSeason.isActive ? "secondary" : "default"}
+              disabled={
+                selectedSeason.isActive ||
+                busyId === `season:${selectedSeason.seasonId}`
+              }
+              onClick={() => activateSeason(selectedSeason)}
+            >
+              {busyId === `season:${selectedSeason.seasonId}`
+                ? "Activating"
+                : selectedSeason.isActive
+                ? "Active"
+                : "Make active"}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   const isNewScheduleExpanded = expandedScheduleCardId === "new-schedule"
 
   return (
@@ -271,6 +518,7 @@ export function ClassScheduleManager({
         <div className="flex items-center justify-between gap-3">
           <CardTitle>Class Schedule</CardTitle>
         </div>
+        {renderSeasonSelector()}
       </CardHeader>
       <CardContent className="max-h-[min(42rem,55svh)] min-h-0 overflow-y-auto overscroll-contain pr-3 [scrollbar-gutter:stable]">
         <div className="space-y-3 md:hidden">
@@ -279,7 +527,7 @@ export function ClassScheduleManager({
               <div>
                 <div className="font-medium">Add Schedule</div>
                 <div className="text-xs text-muted-foreground">
-                  Create a class time for enrollment.
+                  Create a class time for {selectedSeason?.season ?? "this season"}.
                 </div>
               </div>
               <Badge variant="outline">new</Badge>
@@ -384,7 +632,11 @@ export function ClassScheduleManager({
                 <Button
                   type="button"
                   size="lg"
-                  disabled={busyId === "new-schedule" || !classes.length}
+                  disabled={
+                    busyId === "new-schedule" ||
+                    !classes.length ||
+                    !selectedSeason
+                  }
                   onClick={() => saveSchedule(null)}
                 >
                   <Plus />
@@ -393,157 +645,165 @@ export function ClassScheduleManager({
               </div>
             ) : null}
           </div>
-          {schedules.map((schedule) => {
-            const draft =
-              drafts[schedule.scheduleId] ?? getDefaultDraft(schedule)
-            const isExpanded =
-              expandedScheduleCardId === schedule.scheduleId
+          {filteredSchedules.length ? (
+            filteredSchedules.map((schedule) => {
+              const draft =
+                drafts[schedule.scheduleId] ?? getDefaultDraft(schedule)
+              const isExpanded =
+                expandedScheduleCardId === schedule.scheduleId
 
-            return (
-              <div key={schedule.scheduleId} className="rounded-lg border p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-medium">{schedule.className}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {schedule.scheduleLabel ?? `Schedule #${schedule.scheduleId}`}
+              return (
+                <div key={schedule.scheduleId} className="rounded-lg border p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-medium">{schedule.className}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {schedule.scheduleLabel ??
+                          `Schedule #${schedule.scheduleId}`}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <Badge variant={draft.isActive ? "success" : "outline"}>
-                      {draft.isActive ? "active" : "inactive"}
-                    </Badge>
-                    <Badge variant="outline">
-                      {schedule.enrollmentCount} enrolled
-                    </Badge>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  size="lg"
-                  variant={isExpanded ? "secondary" : "outline"}
-                  className="mt-3 h-10 w-full justify-between"
-                  aria-expanded={isExpanded}
-                  onClick={() =>
-                    setExpandedScheduleCardId((current) =>
-                      current === schedule.scheduleId
-                        ? null
-                        : schedule.scheduleId
-                    )
-                  }
-                >
-                  {isExpanded ? "Hide Details" : "View Details"}
-                  <ChevronDown
-                    className={
-                      isExpanded
-                        ? "rotate-180 transition-transform"
-                        : "transition-transform"
-                    }
-                  />
-                </Button>
-                {isExpanded ? (
-                  <div className="mt-3 grid gap-3">
-                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                      Class
-                      {renderClassSelect({
-                        value: draft.classId,
-                        onChange: (classId) =>
-                          setDraft(schedule.scheduleId, { classId }),
-                        className:
-                          "h-10 w-full rounded-lg border border-input bg-background px-2 text-base",
-                      })}
-                    </label>
-                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                      Day
-                      {renderDaySelect({
-                        value: draft.dayOfWeek,
-                        onChange: (dayOfWeek) =>
-                          setDraft(schedule.scheduleId, { dayOfWeek }),
-                        className:
-                          "h-10 w-full rounded-lg border border-input bg-background px-2 text-base",
-                      })}
-                    </label>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                        Start
-                        <Input
-                          type="time"
-                          value={draft.startTime}
-                          onChange={(event) =>
-                            setDraft(schedule.scheduleId, {
-                              startTime: event.target.value,
-                            })
-                          }
-                          className="h-10"
-                        />
-                      </label>
-                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                        End
-                        <Input
-                          type="time"
-                          value={draft.endTime}
-                          onChange={(event) =>
-                            setDraft(schedule.scheduleId, {
-                              endTime: event.target.value,
-                            })
-                          }
-                          className="h-10"
-                        />
-                      </label>
-                    </div>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={draft.isActive}
-                        onChange={(event) =>
-                          setDraft(schedule.scheduleId, {
-                            isActive: event.target.checked,
-                          })
-                        }
-                        className="size-4"
-                      />
+                    <div className="flex flex-col items-end gap-2">
                       <Badge variant={draft.isActive ? "success" : "outline"}>
                         {draft.isActive ? "active" : "inactive"}
                       </Badge>
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        size="lg"
-                        className="min-w-0 flex-1"
-                        disabled={busyId === schedule.scheduleId}
-                        onClick={() => saveSchedule(schedule)}
-                      >
-                        <Save />
-                        {busyId === schedule.scheduleId ? "Saving" : "Save"}
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-lg"
-                            aria-label="Open schedule actions"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onSelect={() => setScheduleToDelete(schedule)}
-                          >
-                            Delete schedule
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Badge variant="outline">
+                        {schedule.enrollmentCount} enrolled
+                      </Badge>
                     </div>
                   </div>
-                ) : null}
-              </div>
-            )
-          })}
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant={isExpanded ? "secondary" : "outline"}
+                    className="mt-3 h-10 w-full justify-between"
+                    aria-expanded={isExpanded}
+                    onClick={() =>
+                      setExpandedScheduleCardId((current) =>
+                        current === schedule.scheduleId
+                          ? null
+                          : schedule.scheduleId
+                      )
+                    }
+                  >
+                    {isExpanded ? "Hide Details" : "View Details"}
+                    <ChevronDown
+                      className={
+                        isExpanded
+                          ? "rotate-180 transition-transform"
+                          : "transition-transform"
+                      }
+                    />
+                  </Button>
+                  {isExpanded ? (
+                    <div className="mt-3 grid gap-3">
+                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                        Class
+                        {renderClassSelect({
+                          value: draft.classId,
+                          onChange: (classId) =>
+                            setDraft(schedule.scheduleId, { classId }),
+                          className:
+                            "h-10 w-full rounded-lg border border-input bg-background px-2 text-base",
+                        })}
+                      </label>
+                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                        Day
+                        {renderDaySelect({
+                          value: draft.dayOfWeek,
+                          onChange: (dayOfWeek) =>
+                            setDraft(schedule.scheduleId, { dayOfWeek }),
+                          className:
+                            "h-10 w-full rounded-lg border border-input bg-background px-2 text-base",
+                        })}
+                      </label>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                          Start
+                          <Input
+                            type="time"
+                            value={draft.startTime}
+                            onChange={(event) =>
+                              setDraft(schedule.scheduleId, {
+                                startTime: event.target.value,
+                              })
+                            }
+                            className="h-10"
+                          />
+                        </label>
+                        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                          End
+                          <Input
+                            type="time"
+                            value={draft.endTime}
+                            onChange={(event) =>
+                              setDraft(schedule.scheduleId, {
+                                endTime: event.target.value,
+                              })
+                            }
+                            className="h-10"
+                          />
+                        </label>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={draft.isActive}
+                          onChange={(event) =>
+                            setDraft(schedule.scheduleId, {
+                              isActive: event.target.checked,
+                            })
+                          }
+                          className="size-4"
+                        />
+                        <Badge variant={draft.isActive ? "success" : "outline"}>
+                          {draft.isActive ? "active" : "inactive"}
+                        </Badge>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="min-w-0 flex-1"
+                          disabled={busyId === schedule.scheduleId}
+                          onClick={() => saveSchedule(schedule)}
+                        >
+                          <Save />
+                          {busyId === schedule.scheduleId ? "Saving" : "Save"}
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-lg"
+                              aria-label="Open schedule actions"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onSelect={() => setScheduleToDelete(schedule)}
+                            >
+                              Delete schedule
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })
+          ) : (
+            <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+              No schedules are set for{" "}
+              {selectedSeason?.season ?? "this season"}.
+            </div>
+          )}
         </div>
         <div className="hidden rounded-md border md:block">
         <Table>
@@ -632,7 +892,11 @@ export function ClassScheduleManager({
                   <Button
                     type="button"
                     size="sm"
-                    disabled={busyId === "new-schedule" || !classes.length}
+                    disabled={
+                      busyId === "new-schedule" ||
+                      !classes.length ||
+                      !selectedSeason
+                    }
                     onClick={() => saveSchedule(null)}
                   >
                     <Plus />
@@ -641,106 +905,120 @@ export function ClassScheduleManager({
                 </div>
               </TableCell>
             </TableRow>
-            {schedules.map((schedule) => {
-              const draft =
-                drafts[schedule.scheduleId] ?? getDefaultDraft(schedule)
+            {filteredSchedules.length ? (
+              filteredSchedules.map((schedule) => {
+                const draft =
+                  drafts[schedule.scheduleId] ?? getDefaultDraft(schedule)
 
-              return (
-                <TableRow key={schedule.scheduleId}>
-                  <TableCell>
-                    {renderClassSelect({
-                      value: draft.classId,
-                      onChange: (classId) =>
-                        setDraft(schedule.scheduleId, { classId }),
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    {renderDaySelect({
-                      value: draft.dayOfWeek,
-                      onChange: (dayOfWeek) =>
-                        setDraft(schedule.scheduleId, { dayOfWeek }),
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="time"
-                      value={draft.startTime}
-                      onChange={(event) =>
-                        setDraft(schedule.scheduleId, {
-                          startTime: event.target.value,
-                        })
-                      }
-                      className="min-w-32"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="time"
-                      value={draft.endTime}
-                      onChange={(event) =>
-                        setDraft(schedule.scheduleId, {
-                          endTime: event.target.value,
-                        })
-                      }
-                      className="min-w-32"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={draft.isActive}
+                return (
+                  <TableRow key={schedule.scheduleId}>
+                    <TableCell>
+                      {renderClassSelect({
+                        value: draft.classId,
+                        onChange: (classId) =>
+                          setDraft(schedule.scheduleId, { classId }),
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      {renderDaySelect({
+                        value: draft.dayOfWeek,
+                        onChange: (dayOfWeek) =>
+                          setDraft(schedule.scheduleId, { dayOfWeek }),
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="time"
+                        value={draft.startTime}
                         onChange={(event) =>
                           setDraft(schedule.scheduleId, {
-                            isActive: event.target.checked,
+                            startTime: event.target.value,
                           })
                         }
-                        className="size-4"
+                        className="min-w-32"
                       />
-                      <Badge variant={draft.isActive ? "success" : "outline"}>
-                        {draft.isActive ? "active" : "inactive"}
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="time"
+                        value={draft.endTime}
+                        onChange={(event) =>
+                          setDraft(schedule.scheduleId, {
+                            endTime: event.target.value,
+                          })
+                        }
+                        className="min-w-32"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={draft.isActive}
+                          onChange={(event) =>
+                            setDraft(schedule.scheduleId, {
+                              isActive: event.target.checked,
+                            })
+                          }
+                          className="size-4"
+                        />
+                        <Badge variant={draft.isActive ? "success" : "outline"}>
+                          {draft.isActive ? "active" : "inactive"}
+                        </Badge>
+                      </label>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline">
+                        {schedule.enrollmentCount}
                       </Badge>
-                    </label>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="outline"> {schedule.enrollmentCount} </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={busyId === schedule.scheduleId}
-                        onClick={() => saveSchedule(schedule)}
-                      >
-                        <Save />
-                        {busyId === schedule.scheduleId ? "Saving" : "Save"}
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">
-                              Open schedule actions
-                            </span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onSelect={() => setScheduleToDelete(schedule)}
-                          >
-                            Delete schedule
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={busyId === schedule.scheduleId}
+                          onClick={() => saveSchedule(schedule)}
+                        >
+                          <Save />
+                          {busyId === schedule.scheduleId ? "Saving" : "Save"}
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">
+                                Open schedule actions
+                              </span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onSelect={() => setScheduleToDelete(schedule)}
+                            >
+                              Delete schedule
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="h-20 text-center text-sm text-muted-foreground"
+                >
+                  No schedules are set for{" "}
+                  {selectedSeason?.season ?? "this season"}.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
         </div>

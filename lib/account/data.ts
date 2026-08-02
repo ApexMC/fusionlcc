@@ -28,6 +28,7 @@ import type {
   OperationsActionItem,
   ParentAthleteEnrollment,
   ParentRecord,
+  ScheduleSeasonRecord,
   TrendDatum,
 } from "@/lib/account/types"
 
@@ -88,6 +89,7 @@ const enrollmentSelectBase = `
 type ClassScheduleRow = {
   schedule_id: string | number
   class_id?: string | number | null
+  season_id?: string | number | null
   day_of_week?: string | number | null
   start_time?: string | null
   end_time?: string | null
@@ -104,6 +106,12 @@ type CheerScheduleRow = {
   is_active?: boolean | null
   created_at?: string | null
   archived_at?: string | null
+}
+
+type ScheduleSeasonRow = {
+  season_id: string | number
+  season?: string | null
+  is_active?: boolean | null
 }
 
 type ClassSessionRow = {
@@ -166,6 +174,7 @@ const dayOrder = [
   "saturday",
   "sunday",
 ]
+const seasonOrder = ["spring", "summer", "fall", "winter"]
 const rosterEnrollmentStatuses = new Set(["approved", "active"])
 const timeClockSelectColumns =
   "time_clock_id,coach_user_id,work_date,clock_in_at,clock_out_at,clock_in_note,clock_out_note,status,created_at,updated_at"
@@ -202,6 +211,20 @@ function formatDay(value: string | number | null | undefined) {
 
   if (!normalized) {
     return "Unscheduled"
+  }
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
+function normalizeSeason(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase()
+}
+
+function formatSeason(value: string | null | undefined) {
+  const normalized = normalizeSeason(value)
+
+  if (!normalized) {
+    return "Unassigned"
   }
 
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
@@ -540,7 +563,9 @@ async function fetchClassScheduleRows() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("ClassSchedules")
-    .select("schedule_id,class_id,day_of_week,start_time,end_time,is_active,created_at")
+    .select(
+      "schedule_id,class_id,season_id,day_of_week,start_time,end_time,is_active,created_at"
+    )
     .is("archived_at", null)
     .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true })
@@ -550,6 +575,19 @@ async function fetchClassScheduleRows() {
   }
 
   return (data ?? []) as ClassScheduleRow[]
+}
+
+async function fetchScheduleSeasons() {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("ScheduleSeasons")
+    .select("season_id,season,is_active")
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return (data ?? []) as ScheduleSeasonRow[]
 }
 
 async function fetchCheerScheduleRows() {
@@ -949,6 +987,51 @@ function buildClassNameById(classBilling: ClassBillingRecord[]) {
   ]))
 }
 
+function buildScheduleSeasonRows(
+  seasonRows: ScheduleSeasonRow[]
+): ScheduleSeasonRecord[] {
+  return seasonRows
+    .map<ScheduleSeasonRecord>((row) => ({
+      seasonId: String(row.season_id),
+      season: formatSeason(row.season),
+      isActive: row.is_active ?? false,
+    }))
+    .sort((first, second) => {
+      const firstOrder = seasonOrder.indexOf(normalizeSeason(first.season))
+      const secondOrder = seasonOrder.indexOf(normalizeSeason(second.season))
+      const seasonComparison =
+        (firstOrder === -1 ? seasonOrder.length : firstOrder) -
+        (secondOrder === -1 ? seasonOrder.length : secondOrder)
+
+      if (seasonComparison !== 0) {
+        return seasonComparison
+      }
+
+      return first.season.localeCompare(second.season)
+    })
+}
+
+function filterActiveSeasonScheduleRows(
+  scheduleRows: ClassScheduleRow[],
+  scheduleSeasons: ScheduleSeasonRecord[]
+) {
+  const activeSeasonIds = new Set(
+    scheduleSeasons
+      .filter((scheduleSeason) => scheduleSeason.isActive)
+      .map((scheduleSeason) => scheduleSeason.seasonId)
+  )
+
+  if (!activeSeasonIds.size) {
+    return []
+  }
+
+  return scheduleRows.filter((row) => {
+    const seasonId = toId(row.season_id)
+
+    return Boolean(seasonId && activeSeasonIds.has(seasonId))
+  })
+}
+
 function buildCheerTeamNameById(cheerBilling: CheerBillingRecord[]) {
   return new Map(
     cheerBilling.map((teamRecord) => [
@@ -989,11 +1072,14 @@ function buildEnrollmentCountBySchedule(
 function buildClassScheduleRows(
   scheduleRows: ClassScheduleRow[],
   classNameById: Map<string, string>,
+  scheduleSeasonById: Map<string, ScheduleSeasonRecord>,
   enrollmentCountBySchedule: Map<string, number>
 ): ClassScheduleDisplayRecord[] {
   return scheduleRows
     .map((row) => {
       const classId = toId(row.class_id)
+      const seasonId = toId(row.season_id)
+      const scheduleSeason = seasonId ? scheduleSeasonById.get(seasonId) : null
       const dayOfWeek = normalizeDay(row.day_of_week)
       const scheduleId = String(row.schedule_id)
 
@@ -1003,6 +1089,9 @@ function buildClassScheduleRows(
         className:
           (classId ? classNameById.get(classId) : null) ??
           getClassFallbackName(classId),
+        seasonId,
+        season: scheduleSeason?.season ?? null,
+        seasonIsActive: scheduleSeason?.isActive ?? false,
         dayOfWeek,
         startTime: row.start_time ?? null,
         endTime: row.end_time ?? null,
@@ -1388,6 +1477,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     classes,
     cheerTeams,
     classScheduleRows,
+    scheduleSeasonRows,
     cheerScheduleRows,
     classSessionRows,
     cheerSessionRows,
@@ -1400,6 +1490,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     fetchClasses(),
     fetchCheerTeams(),
     fetchClassScheduleRows(),
+    fetchScheduleSeasons(),
     fetchCheerScheduleRows(),
     fetchClassSessionRows(),
     fetchCheerSessionRows(),
@@ -1411,10 +1502,18 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const cheerBilling = buildCheerBillingRows(cheerTeams)
   const classNameById = buildClassNameById(classBilling)
   const cheerTeamNameById = buildCheerTeamNameById(cheerBilling)
+  const scheduleSeasons = buildScheduleSeasonRows(scheduleSeasonRows)
+  const scheduleSeasonById = new Map(
+    scheduleSeasons.map((scheduleSeason) => [
+      scheduleSeason.seasonId,
+      scheduleSeason,
+    ])
+  )
   const enrollmentCountBySchedule = buildEnrollmentCountBySchedule(enrollments)
   const classSchedules = buildClassScheduleRows(
     classScheduleRows,
     classNameById,
+    scheduleSeasonById,
     enrollmentCountBySchedule
   )
   const cheerSchedules = buildCheerScheduleRows(
@@ -1444,6 +1543,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     enrollmentAthletes: buildAdminEnrollmentAthleteOptions(athletes),
     classBilling,
     cheerBilling,
+    scheduleSeasons,
     classSchedules,
     cheerSchedules,
     classSessions,
@@ -1461,6 +1561,7 @@ export async function getCoachDashboardData(
     enrollmentRows,
     classes,
     classScheduleRows,
+    scheduleSeasonRows,
     classSessionRows,
     classSessionAttendanceRows,
     timeClock,
@@ -1468,6 +1569,7 @@ export async function getCoachDashboardData(
     fetchEnrollments(),
     fetchClasses(),
     fetchClassScheduleRows(),
+    fetchScheduleSeasons(),
     fetchClassSessionRows(),
     fetchClassSessionAttendanceRows(),
     getCoachTimeClockData(userId),
@@ -1475,10 +1577,18 @@ export async function getCoachDashboardData(
   const enrollments = enrollmentRows.map(toDisplayEnrollment)
   const classBilling = buildClassBillingRows(classes)
   const classNameById = buildClassNameById(classBilling)
+  const scheduleSeasons = buildScheduleSeasonRows(scheduleSeasonRows)
+  const scheduleSeasonById = new Map(
+    scheduleSeasons.map((scheduleSeason) => [
+      scheduleSeason.seasonId,
+      scheduleSeason,
+    ])
+  )
   const enrollmentCountBySchedule = buildEnrollmentCountBySchedule(enrollments)
   const classSchedules = buildClassScheduleRows(
     classScheduleRows,
     classNameById,
+    scheduleSeasonById,
     enrollmentCountBySchedule
   )
 
@@ -1500,14 +1610,21 @@ export async function getParentAthleteEnrollments(
   athletes: ParentAthleteEnrollment[]
   classOptions: ClassOption[]
 }> {
-  const [athletes, classes, classScheduleRows] = await Promise.all([
-    fetchParentAthletes(userId),
-    fetchClasses(),
-    fetchClassScheduleRows(),
-  ])
+  const [athletes, classes, classScheduleRows, scheduleSeasonRows] =
+    await Promise.all([
+      fetchParentAthletes(userId),
+      fetchClasses(),
+      fetchClassScheduleRows(),
+      fetchScheduleSeasons(),
+    ])
   const athleteIds = athletes.map((athlete) => String(athlete.athlete_id))
   const enrollments = (await fetchParentEnrollments(athleteIds)).map(
     toDisplayEnrollment
+  )
+  const scheduleSeasons = buildScheduleSeasonRows(scheduleSeasonRows)
+  const activeSeasonScheduleRows = filterActiveSeasonScheduleRows(
+    classScheduleRows,
+    scheduleSeasons
   )
 
   return {
@@ -1525,6 +1642,6 @@ export async function getParentAthleteEnrollments(
         ),
       }
     }),
-    classOptions: buildClassOptions(classes, classScheduleRows),
+    classOptions: buildClassOptions(classes, activeSeasonScheduleRows),
   }
 }

@@ -117,7 +117,10 @@ function CreateEnrollmentDialog({
   schedules: ClassScheduleDisplayRecord[]
 }) {
   const enrollmentSchedules = React.useMemo(
-    () => schedules.filter((schedule) => schedule.isActive),
+    () =>
+      schedules.filter(
+        (schedule) => schedule.isActive && schedule.seasonIsActive
+      ),
     [schedules]
   )
   const [open, setOpen] = React.useState(false)

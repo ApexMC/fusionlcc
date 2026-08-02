@@ -247,7 +247,10 @@ function getAdminDashboardLinks(
     const unfilledAttendanceSessions = getUnfilledAttendanceSessionCount(
         dashboardData.classSessions
     );
-    const activeSchedules = dashboardData.classSchedules.filter(
+    const currentClassSchedules = dashboardData.classSchedules.filter(
+        (schedule) => schedule.seasonIsActive
+    );
+    const activeSchedules = currentClassSchedules.filter(
         (schedule) => schedule.isActive
     ).length;
     const activeCheerSchedules = dashboardData.cheerSchedules.filter(
@@ -294,7 +297,7 @@ function getAdminDashboardLinks(
                 detail: `${(
                     activeSchedules + activeCheerSchedules
                 ).toLocaleString()} active of ${(
-                    dashboardData.classSchedules.length +
+                    currentClassSchedules.length +
                     dashboardData.cheerSchedules.length
                 ).toLocaleString()}`,
             };

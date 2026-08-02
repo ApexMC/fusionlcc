@@ -67,9 +67,118 @@ function normalizeTime(value: string) {
   return `${match[1].padStart(2, "0")}:${match[2]}`
 }
 
+function formatSeason(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toLowerCase()
+
+  if (!normalized) {
+    return "Selected"
+  }
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
+function revalidateClassSchedulePaths() {
+  revalidatePath("/account")
+  revalidatePath("/classes")
+  revalidatePath("/classes/[className]/schedule", "page")
+  revalidatePath("/classes/[className]/register", "page")
+  revalidatePath("/api/class-schedules")
+}
+
+async function getScheduleSeason(seasonId: string) {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("ScheduleSeasons")
+    .select("season_id,season")
+    .eq("season_id", seasonId)
+    .maybeSingle()
+
+  if (error) {
+    return {
+      ok: false as const,
+      message: error.message,
+      season: null,
+    }
+  }
+
+  if (!data) {
+    return {
+      ok: false as const,
+      message: "Choose a valid schedule season.",
+      season: null,
+    }
+  }
+
+  return {
+    ok: true as const,
+    message: "",
+    season: {
+      seasonId: String(data.season_id),
+      season: typeof data.season === "string" ? data.season : null,
+    },
+  }
+}
+
+export async function activateScheduleSeason(
+  seasonId: string
+): Promise<ActionResult> {
+  requireAdminSession(await getAccountSession())
+
+  const normalizedSeasonId = seasonId.trim()
+
+  if (!normalizedSeasonId) {
+    return {
+      ok: false,
+      message: "Choose a schedule season before activating it.",
+    }
+  }
+
+  const scheduleSeason = await getScheduleSeason(normalizedSeasonId)
+
+  if (!scheduleSeason.ok) {
+    return {
+      ok: false,
+      message: scheduleSeason.message,
+    }
+  }
+
+  const supabase = createAdminClient()
+  const { error: deactivateError } = await supabase
+    .from("ScheduleSeasons")
+    .update({ is_active: false })
+    .neq("season_id", normalizedSeasonId)
+
+  if (deactivateError) {
+    return {
+      ok: false,
+      message: deactivateError.message,
+    }
+  }
+
+  const { error } = await supabase
+    .from("ScheduleSeasons")
+    .update({ is_active: true })
+    .eq("season_id", normalizedSeasonId)
+
+  if (error) {
+    return {
+      ok: false,
+      message: error.message,
+    }
+  }
+
+  revalidateClassSchedulePaths()
+
+  return {
+    ok: true,
+    message: `${formatSeason(scheduleSeason.season.season)} schedule activated.`,
+  }
+}
+
 export async function saveClassSchedule({
   scheduleId,
   classId,
+  seasonId,
   dayOfWeek,
   startTime,
   endTime,
@@ -77,6 +186,7 @@ export async function saveClassSchedule({
 }: {
   scheduleId?: string | null
   classId: string
+  seasonId: string
   dayOfWeek: string
   startTime: string
   endTime: string
@@ -87,11 +197,28 @@ export async function saveClassSchedule({
   const normalizedDay = dayOfWeek.trim().toLowerCase()
   const normalizedStartTime = normalizeTime(startTime)
   const normalizedEndTime = normalizeTime(endTime)
+  const normalizedSeasonId = seasonId.trim()
 
   if (!classId) {
     return {
       ok: false,
       message: "Choose a class before saving the schedule.",
+    }
+  }
+
+  if (!normalizedSeasonId) {
+    return {
+      ok: false,
+      message: "Choose a schedule season before saving the schedule.",
+    }
+  }
+
+  const scheduleSeason = await getScheduleSeason(normalizedSeasonId)
+
+  if (!scheduleSeason.ok) {
+    return {
+      ok: false,
+      message: scheduleSeason.message,
     }
   }
 
@@ -116,6 +243,7 @@ export async function saveClassSchedule({
       : normalizedDay
   const payload = {
     class_id: classId,
+    season_id: normalizedSeasonId,
     day_of_week: dayOfWeekValue,
     start_time: normalizedStartTime,
     end_time: normalizedEndTime,
@@ -137,7 +265,7 @@ export async function saveClassSchedule({
     }
   }
 
-  revalidatePath("/account")
+  revalidateClassSchedulePaths()
 
   return {
     ok: true,
@@ -173,7 +301,7 @@ export async function deleteClassSchedule(
     }
   }
 
-  revalidatePath("/account")
+  revalidateClassSchedulePaths()
 
   return {
     ok: true,

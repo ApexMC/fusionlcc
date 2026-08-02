@@ -24,6 +24,7 @@ export default async function AdminSchedulesPage() {
       />
       <ClassScheduleManager
         schedules={dashboardData.classSchedules}
+        seasons={dashboardData.scheduleSeasons}
         classes={dashboardData.classBilling}
       />
       <CheerScheduleManager

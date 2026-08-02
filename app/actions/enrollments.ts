@@ -17,6 +17,61 @@ function isAdminEnrollmentStatus(value: string): value is AdminEnrollmentStatus 
   return adminStatuses.includes(value as AdminEnrollmentStatus)
 }
 
+async function getAvailableClassSchedule(scheduleId: string) {
+  const supabase = createAdminClient()
+  const { data: scheduleRecord, error: scheduleError } = await supabase
+    .from("ClassSchedules")
+    .select("schedule_id,is_active,season_id")
+    .eq("schedule_id", scheduleId)
+    .maybeSingle()
+
+  if (scheduleError || !scheduleRecord) {
+    return {
+      ok: false as const,
+      message: scheduleError?.message ?? "Class schedule was not found.",
+    }
+  }
+
+  if (scheduleRecord.is_active === false) {
+    return {
+      ok: false as const,
+      message: "Choose an active class schedule.",
+    }
+  }
+
+  if (scheduleRecord.season_id === null || scheduleRecord.season_id === undefined) {
+    return {
+      ok: false as const,
+      message: "Choose a schedule in the active season.",
+    }
+  }
+
+  const { data: seasonRecord, error: seasonError } = await supabase
+    .from("ScheduleSeasons")
+    .select("is_active")
+    .eq("season_id", String(scheduleRecord.season_id))
+    .maybeSingle()
+
+  if (seasonError || !seasonRecord) {
+    return {
+      ok: false as const,
+      message: seasonError?.message ?? "Schedule season was not found.",
+    }
+  }
+
+  if (seasonRecord.is_active !== true) {
+    return {
+      ok: false as const,
+      message: "Choose a schedule in the active season.",
+    }
+  }
+
+  return {
+    ok: true as const,
+    message: "",
+  }
+}
+
 async function updateEnrollmentStatus(
   enrollmentId: string,
   status: AdminEnrollmentStatus
@@ -118,16 +173,12 @@ export async function createAdminEnrollment({
     }
   }
 
-  const { data: scheduleRecord, error: scheduleError } = await supabase
-    .from("ClassSchedules")
-    .select("schedule_id")
-    .eq("schedule_id", normalizedScheduleId)
-    .maybeSingle()
+  const scheduleRecord = await getAvailableClassSchedule(normalizedScheduleId)
 
-  if (scheduleError || !scheduleRecord) {
+  if (!scheduleRecord.ok) {
     return {
       ok: false,
-      message: scheduleError?.message ?? "Class schedule was not found.",
+      message: scheduleRecord.message,
     }
   }
 
@@ -245,16 +296,12 @@ export async function requestEnrollment({
     }
   }
 
-  const { data: scheduleRecord, error: scheduleError } = await supabase
-    .from("ClassSchedules")
-    .select("schedule_id")
-    .eq("schedule_id", normalizedScheduleId)
-    .maybeSingle()
+  const scheduleRecord = await getAvailableClassSchedule(normalizedScheduleId)
 
-  if (scheduleError || !scheduleRecord) {
+  if (!scheduleRecord.ok) {
     return {
       ok: false,
-      message: scheduleError?.message ?? "Class schedule was not found.",
+      message: scheduleRecord.message,
     }
   }
 
