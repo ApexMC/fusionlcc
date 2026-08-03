@@ -189,7 +189,6 @@ export function ParentEnrollments({
                               <Eye />
                               View
                             </Button>
-                            {/*
                             {canStartSubscription ? (
                               <Button
                                 type="button"
@@ -222,7 +221,6 @@ export function ParentEnrollments({
                                   : "Manage"}
                               </Button>
                             ) : null}
-                             */}
                             {enrollment.status === "pending" ? (
                               <Button
                                 type="button"
