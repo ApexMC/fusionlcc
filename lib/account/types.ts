@@ -255,9 +255,12 @@ export type ClassSessionExpectedAthlete = {
   athleteName: string
   enrollmentId: string
   enrollmentStatus: string
+  scheduleId: string | null
+  scheduleLabel: string | null
   parentName: string
   parentPhone: string | null
   parentEmail: string | null
+  isMakeup: boolean
   attendanceStatus: ClassSessionAttendanceStatus | null
   attendanceNotes: string | null
   attendanceReviewedAt: string | null
@@ -276,6 +279,7 @@ export type ClassSessionDisplayRecord = {
   status: string
   type: string | null
   expectedAthletes: ClassSessionExpectedAthlete[]
+  makeupAthleteOptions: ClassSessionExpectedAthlete[]
 }
 
 export type CheerSessionDisplayRecord = {

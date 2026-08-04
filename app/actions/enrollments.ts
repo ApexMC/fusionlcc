@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache"
 import type Stripe from "stripe"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
+import { sendContactEmail } from "@/lib/contact/email"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getStripe, getSubscriptionPeriod } from "@/lib/stripe/server"
 
 type ActionResult = {
   ok: boolean
   message: string
+  warning?: string
 }
 
 const adminStatuses = ["pending", "approved", "active", "denied", "canceled"] as const
@@ -63,12 +65,155 @@ type ParentScheduleSelectionEnrollmentRecord = {
   Athletes?: EnrollmentOwnerAthlete | EnrollmentOwnerAthlete[] | null
 }
 
+type EnrollmentDecisionStatus = "approved" | "denied"
+
+type EnrollmentDecisionParent = {
+  first_name?: string | null
+  last_name?: string | null
+  email?: string | null
+}
+
+type EnrollmentDecisionAthlete = {
+  first_name?: string | null
+  last_name?: string | null
+  Parents?: EnrollmentDecisionParent | EnrollmentDecisionParent[] | null
+}
+
+type EnrollmentDecisionClass = {
+  class_id?: string | number | null
+  class_name?: string | null
+}
+
+type EnrollmentDecisionSchedule = {
+  schedule_id?: string | number | null
+  class_id?: string | number | null
+  day_of_week?: string | number | null
+  start_time?: string | null
+  end_time?: string | null
+  Classes?: EnrollmentDecisionClass | EnrollmentDecisionClass[] | null
+}
+
+type EnrollmentDecisionRecord = {
+  enrollment_id: string | number
+  class_id?: string | number | null
+  schedule_id?: string | number | null
+  status?: string | null
+  Athletes?: EnrollmentDecisionAthlete | EnrollmentDecisionAthlete[] | null
+  ClassSchedules?:
+    | EnrollmentDecisionSchedule
+    | EnrollmentDecisionSchedule[]
+    | null
+}
+
+type EnrollmentDecisionContext = {
+  enrollmentId: string
+  previousStatus: string
+  athleteName: string
+  parentName: string
+  parentEmail: string | null
+  className: string
+  scheduleLabel: string | null
+}
+
+const enrollmentDecisionStatuses = new Set<EnrollmentDecisionStatus>([
+  "approved",
+  "denied",
+])
+
 function isAdminEnrollmentStatus(value: string): value is AdminEnrollmentStatus {
   return adminStatuses.includes(value as AdminEnrollmentStatus)
 }
 
 function firstRelation<T>(value: T | T[] | null | undefined) {
   return Array.isArray(value) ? value[0] : value
+}
+
+function toId(value: string | number | null | undefined) {
+  return value === null || value === undefined ? null : String(value)
+}
+
+function getDisplayName(
+  firstName?: string | null,
+  lastName?: string | null,
+  fallback = "Unknown"
+) {
+  return [firstName, lastName].filter(Boolean).join(" ").trim() || fallback
+}
+
+function formatEnrollmentDay(value: string | number | null | undefined) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (value === 0 || value === 7) {
+      return "Sunday"
+    }
+
+    const days = [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ]
+
+    return days[value - 1] ?? String(value)
+  }
+
+  const normalized = String(value ?? "").trim().toLowerCase()
+  const numericDay = Number(normalized)
+
+  if (normalized && Number.isInteger(numericDay)) {
+    return formatEnrollmentDay(numericDay)
+  }
+
+  return normalized
+    ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+    : "Unscheduled"
+}
+
+function formatEnrollmentTime(value: string | null | undefined) {
+  if (!value) {
+    return "Time TBD"
+  }
+
+  const timeMatch = value.match(/(\d{1,2}):(\d{2})(?::\d{2})?/)
+  const hour = Number(timeMatch?.[1])
+  const minute = Number(timeMatch?.[2] ?? "00")
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) {
+    return value
+  }
+
+  const period = hour >= 12 ? "PM" : "AM"
+  const displayHour = hour % 12 || 12
+
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`
+}
+
+function formatEnrollmentScheduleLabel(
+  schedule: EnrollmentDecisionSchedule | null
+) {
+  if (!schedule) {
+    return null
+  }
+
+  return `${formatEnrollmentDay(schedule.day_of_week)} ${formatEnrollmentTime(
+    schedule.start_time
+  )} - ${formatEnrollmentTime(schedule.end_time)}`
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown email error."
+}
+
+function shouldSendEnrollmentDecisionEmail(
+  previousStatus: string,
+  nextStatus: AdminEnrollmentStatus
+): nextStatus is EnrollmentDecisionStatus {
+  return (
+    previousStatus.trim().toLowerCase() === "pending" &&
+    enrollmentDecisionStatuses.has(nextStatus as EnrollmentDecisionStatus)
+  )
 }
 
 async function getAvailableClassSchedule(scheduleId: string): Promise<
@@ -217,17 +362,38 @@ async function updateStripeSubscriptionForReassignment({
   })
 }
 
-async function updateEnrollmentStatus(
-  enrollmentId: string,
-  status: AdminEnrollmentStatus
-): Promise<ActionResult> {
-  const session = requireAdminSession(await getAccountSession())
+async function getEnrollmentDecisionContext(
+  enrollmentId: string
+): Promise<
+  | { ok: true; context: EnrollmentDecisionContext }
+  | { ok: false; message: string }
+> {
   const supabase = createAdminClient()
-
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("Enrollments")
-    .update({ status })
+    .select(
+      `
+        enrollment_id,
+        class_id,
+        schedule_id,
+        status,
+        Athletes(
+          first_name,
+          last_name,
+          Parents(first_name, last_name, email)
+        ),
+        ClassSchedules(
+          schedule_id,
+          class_id,
+          day_of_week,
+          start_time,
+          end_time,
+          Classes(class_id, class_name)
+        )
+      `
+    )
     .eq("enrollment_id", enrollmentId)
+    .maybeSingle()
 
   if (error) {
     return {
@@ -236,11 +402,190 @@ async function updateEnrollmentStatus(
     }
   }
 
+  if (!data) {
+    return {
+      ok: false,
+      message: "Enrollment was not found.",
+    }
+  }
+
+  const enrollment = data as EnrollmentDecisionRecord
+  const athlete = firstRelation(enrollment.Athletes)
+  const parent = firstRelation(athlete?.Parents)
+  const classSchedule = firstRelation(enrollment.ClassSchedules)
+  const classRecord = firstRelation(classSchedule?.Classes)
+  const classId = toId(
+    enrollment.class_id ?? classSchedule?.class_id ?? classRecord?.class_id
+  )
+
+  return {
+    ok: true,
+    context: {
+      enrollmentId: String(enrollment.enrollment_id),
+      previousStatus: enrollment.status?.trim().toLowerCase() || "unknown",
+      athleteName: getDisplayName(
+        athlete?.first_name,
+        athlete?.last_name,
+        "Unknown athlete"
+      ),
+      parentName: getDisplayName(
+        parent?.first_name,
+        parent?.last_name,
+        "there"
+      ),
+      parentEmail: parent?.email?.trim() || null,
+      className:
+        classRecord?.class_name?.trim() ||
+        (classId ? `Class #${classId}` : "Selected class"),
+      scheduleLabel: formatEnrollmentScheduleLabel(classSchedule ?? null),
+    },
+  }
+}
+
+function buildEnrollmentDecisionMessage({
+  context,
+  status,
+}: {
+  context: EnrollmentDecisionContext
+  status: EnrollmentDecisionStatus
+}) {
+  const decisionLine =
+    status === "approved"
+      ? `Your enrollment request for ${context.athleteName} has been approved.`
+      : `Your enrollment request for ${context.athleteName} was not approved at this time.`
+  const lines = [
+    `Hello ${context.parentName},`,
+    "",
+    decisionLine,
+    "",
+    `Class: ${context.className}`,
+  ]
+
+  if (context.scheduleLabel) {
+    lines.push(`Schedule: ${context.scheduleLabel}`)
+  }
+
+  lines.push("")
+
+  if (status === "approved") {
+    lines.push(
+      "Please sign in to your account to review the enrollment and complete any payment setup if requested."
+    )
+  } else {
+    lines.push(
+      "Please contact us if you have questions or would like help finding another class option."
+    )
+  }
+
+  lines.push("", "Thank you,", "Limitless Cheer and Gymnastics")
+
+  return lines.join("\n")
+}
+
+async function sendEnrollmentDecisionEmail({
+  context,
+  status,
+}: {
+  context: EnrollmentDecisionContext
+  status: EnrollmentDecisionStatus
+}) {
+  if (!context.parentEmail) {
+    return {
+      ok: false,
+      message: "No parent email address was found, so no email was sent.",
+    }
+  }
+
+  const subject =
+    status === "approved"
+      ? `LCC Enrollment Approved: ${context.athleteName}`
+      : `LCC Enrollment Denied: ${context.athleteName}`
+
+  try {
+    await sendContactEmail({
+      email: process.env.CONTACT_FROM_EMAIL,
+      to: context.parentEmail,
+      subject,
+      message: buildEnrollmentDecisionMessage({ context, status }),
+    })
+  } catch (error) {
+    return {
+      ok: false,
+      message: `Parent email failed to send: ${getErrorMessage(error)}`,
+    }
+  }
+
+  return {
+    ok: true,
+    message: `Parent email sent to ${context.parentEmail}.`,
+  }
+}
+
+async function updateEnrollmentStatus(
+  enrollmentId: string,
+  status: AdminEnrollmentStatus
+): Promise<ActionResult> {
+  const session = requireAdminSession(await getAccountSession())
+  const normalizedEnrollmentId = enrollmentId.trim()
+
+  if (!normalizedEnrollmentId) {
+    return {
+      ok: false,
+      message: "Choose an enrollment before updating its status.",
+    }
+  }
+
+  const contextResult = await getEnrollmentDecisionContext(normalizedEnrollmentId)
+
+  if (!contextResult.ok) {
+    return {
+      ok: false,
+      message: contextResult.message,
+    }
+  }
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from("Enrollments")
+    .update({ status })
+    .eq("enrollment_id", normalizedEnrollmentId)
+
+  if (error) {
+    return {
+      ok: false,
+      message: error.message,
+    }
+  }
+
+  const actor = session.roles.includes("owner") ? "owner" : "admin"
+  const baseMessage = `Enrollment ${status} by ${actor}.`
+  let emailMessage: string | null = null
+  let warning: string | undefined
+
+  if (
+    shouldSendEnrollmentDecisionEmail(
+      contextResult.context.previousStatus,
+      status
+    )
+  ) {
+    const emailResult = await sendEnrollmentDecisionEmail({
+      context: contextResult.context,
+      status,
+    })
+
+    if (emailResult.ok) {
+      emailMessage = emailResult.message
+    } else {
+      warning = emailResult.message
+    }
+  }
+
   revalidatePath("/account")
 
   return {
     ok: true,
-    message: `Enrollment ${status} by ${session.roles.includes("owner") ? "owner" : "admin"}.`,
+    message: emailMessage ? `${baseMessage} ${emailMessage}` : baseMessage,
+    warning,
   }
 }
 

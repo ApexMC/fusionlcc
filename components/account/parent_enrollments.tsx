@@ -314,7 +314,14 @@ export function ParentEnrollments({
                                   </p>
                                   <EnrollmentStatusBadge status={enrollment.subscriptionStatus}/>
                                 </div>
-                              ) : null}
+                              ) : enrollment.status === "approved" ? (
+                                  <div className="flex flex-row gap-2">
+                                    <p className="text-zinc-900 dark:text-zinc-50 text-sm">
+                                      Subscription:
+                                    </p>
+                                    <EnrollmentStatusBadge status="ready_to_pay"/>
+                                  </div>
+                                  ) : null}
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2 sm:justify-end">

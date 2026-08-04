@@ -145,6 +145,7 @@ type ClassSessionAttendanceRow = {
   session_id?: string | number | null
   enrollment_id?: string | number | null
   athlete_id?: string | number | null
+  is_makeup?: boolean | null
   attendance_status?: ClassSessionAttendanceStatus | null
   notes?: string | null
   reviewed_at?: string | null
@@ -662,8 +663,9 @@ async function fetchCheerSessionRows() {
 function isMissingAttendanceTableError(error: { code?: string; message?: string }) {
   return (
     error.code === "42P01" ||
+    error.code === "42703" ||
     error.code === "PGRST205" ||
-    /ClassSessionAttendance|schema cache|does not exist/i.test(
+    /ClassSessionAttendance|is_makeup|schema cache|does not exist/i.test(
       error.message ?? ""
     )
   )
@@ -674,7 +676,7 @@ async function fetchClassSessionAttendanceRows() {
   const { data, error } = await supabase
     .from("ClassSessionAttendance")
     .select(
-      "attendance_id,session_id,enrollment_id,athlete_id,attendance_status,notes,reviewed_at,reviewed_by"
+      "attendance_id,session_id,enrollment_id,athlete_id,is_makeup,attendance_status,notes,reviewed_at,reviewed_by"
     )
     .order("reviewed_at", { ascending: false })
 
@@ -1186,40 +1188,78 @@ function buildCheerScheduleRows(
     })
 }
 
-function buildExpectedAthletesBySchedule(
-  enrollments: EnrollmentDisplayRecord[]
-) {
+function sortSessionAthletes(athletes: ClassSessionExpectedAthlete[]) {
+  return athletes.sort((first, second) => {
+    const nameComparison = first.athleteName.localeCompare(second.athleteName)
+
+    if (nameComparison !== 0) {
+      return nameComparison
+    }
+
+    const scheduleComparison = (first.scheduleLabel ?? "").localeCompare(
+      second.scheduleLabel ?? ""
+    )
+
+    if (scheduleComparison !== 0) {
+      return scheduleComparison
+    }
+
+    return first.enrollmentId.localeCompare(second.enrollmentId)
+  })
+}
+
+function buildClassSessionRosterIndexes(enrollments: EnrollmentDisplayRecord[]) {
   const expectedByScheduleId = new Map<string, ClassSessionExpectedAthlete[]>()
+  const rosterByClassId = new Map<string, ClassSessionExpectedAthlete[]>()
 
   enrollments.forEach((enrollment) => {
     const scheduleId = enrollment.scheduleId
+    const classId = enrollment.classId
 
     if (
-      !scheduleId ||
+      !classId ||
       !rosterEnrollmentStatuses.has(enrollment.status.toLowerCase())
     ) {
       return
     }
 
-    expectedByScheduleId.set(scheduleId, [
-      ...(expectedByScheduleId.get(scheduleId) ?? []),
-      {
-        athleteId: enrollment.athleteId ?? "unknown",
-        athleteName: enrollment.athleteName,
-        enrollmentId: enrollment.enrollmentId,
-        enrollmentStatus: enrollment.status,
-        parentName: enrollment.parentName,
-        parentPhone: null,
-        parentEmail: enrollment.parentEmail,
-        attendanceStatus: null,
-        attendanceNotes: null,
-        attendanceReviewedAt: null,
-        attendanceReviewedBy: null,
-      },
+    const athlete: ClassSessionExpectedAthlete = {
+      athleteId: enrollment.athleteId ?? "unknown",
+      athleteName: enrollment.athleteName,
+      enrollmentId: enrollment.enrollmentId,
+      enrollmentStatus: enrollment.status,
+      scheduleId,
+      scheduleLabel: enrollment.scheduleLabel,
+      parentName: enrollment.parentName,
+      parentPhone: null,
+      parentEmail: enrollment.parentEmail,
+      isMakeup: false,
+      attendanceStatus: null,
+      attendanceNotes: null,
+      attendanceReviewedAt: null,
+      attendanceReviewedBy: null,
+    }
+
+    rosterByClassId.set(classId, [
+      ...(rosterByClassId.get(classId) ?? []),
+      athlete,
     ])
+
+    if (scheduleId) {
+      expectedByScheduleId.set(scheduleId, [
+        ...(expectedByScheduleId.get(scheduleId) ?? []),
+        athlete,
+      ])
+    }
   })
 
-  return expectedByScheduleId
+  expectedByScheduleId.forEach((athletes) => sortSessionAthletes(athletes))
+  rosterByClassId.forEach((athletes) => sortSessionAthletes(athletes))
+
+  return {
+    expectedByScheduleId,
+    rosterByClassId,
+  }
 }
 
 function getAttendanceKey(sessionId: string, enrollmentId: string) {
@@ -1245,6 +1285,21 @@ function buildAttendanceBySessionEnrollment(
   return attendanceByKey
 }
 
+function applyAttendanceToSessionAthlete(
+  athlete: ClassSessionExpectedAthlete,
+  attendance: ClassSessionAttendanceRow | undefined,
+  isMakeup = false
+): ClassSessionExpectedAthlete {
+  return {
+    ...athlete,
+    isMakeup: isMakeup || attendance?.is_makeup === true,
+    attendanceStatus: attendance?.attendance_status ?? null,
+    attendanceNotes: attendance?.notes ?? null,
+    attendanceReviewedAt: attendance?.reviewed_at ?? null,
+    attendanceReviewedBy: attendance?.reviewed_by ?? null,
+  }
+}
+
 function buildClassSessionRows({
   sessionRows,
   schedules,
@@ -1264,7 +1319,8 @@ function buildClassSessionRows({
       classSchedule,
     ])
   )
-  const expectedByScheduleId = buildExpectedAthletesBySchedule(enrollments)
+  const { expectedByScheduleId, rosterByClassId } =
+    buildClassSessionRosterIndexes(enrollments)
   const attendanceByKey = buildAttendanceBySessionEnrollment(attendanceRows)
 
   return sessionRows.map((row) => {
@@ -1272,21 +1328,45 @@ function buildClassSessionRows({
     const classSchedule = scheduleId ? scheduleById.get(scheduleId) : null
     const classId = toId(row.class_id) ?? classSchedule?.classId ?? null
     const sessionId = String(row.session_id)
-    const expectedAthletes = scheduleId
-      ? (expectedByScheduleId.get(scheduleId) ?? []).map((athlete) => {
-          const attendance = attendanceByKey.get(
-            getAttendanceKey(sessionId, athlete.enrollmentId)
-          )
-
-          return {
-            ...athlete,
-            attendanceStatus: attendance?.attendance_status ?? null,
-            attendanceNotes: attendance?.notes ?? null,
-            attendanceReviewedAt: attendance?.reviewed_at ?? null,
-            attendanceReviewedBy: attendance?.reviewed_by ?? null,
-          }
-        })
+    const scheduledAthletes = scheduleId
+      ? expectedByScheduleId.get(scheduleId) ?? []
       : []
+    const scheduledEnrollmentIds = new Set(
+      scheduledAthletes.map((athlete) => athlete.enrollmentId)
+    )
+    const expectedAthletes = scheduledAthletes.map((athlete) =>
+      applyAttendanceToSessionAthlete(
+        athlete,
+        attendanceByKey.get(getAttendanceKey(sessionId, athlete.enrollmentId))
+      )
+    )
+    const displayedEnrollmentIds = new Set(
+      expectedAthletes.map((athlete) => athlete.enrollmentId)
+    )
+    const classRoster = classId ? rosterByClassId.get(classId) ?? [] : []
+    const makeupAthletes = classRoster.flatMap((athlete) => {
+      if (scheduledEnrollmentIds.has(athlete.enrollmentId)) {
+        return []
+      }
+
+      const attendance = attendanceByKey.get(
+        getAttendanceKey(sessionId, athlete.enrollmentId)
+      )
+
+      if (!attendance) {
+        return []
+      }
+
+      displayedEnrollmentIds.add(athlete.enrollmentId)
+
+      return [applyAttendanceToSessionAthlete(athlete, attendance, true)]
+    })
+    const makeupAthleteOptions = classRoster
+      .filter((athlete) => !displayedEnrollmentIds.has(athlete.enrollmentId))
+      .map((athlete) => ({
+        ...athlete,
+        isMakeup: true,
+      }))
 
     return {
       sessionId,
@@ -1302,7 +1382,8 @@ function buildClassSessionRows({
       endsAt: row.ends_at ?? null,
       status: row.status ?? "scheduled",
       type: row.type ?? null,
-      expectedAthletes,
+      expectedAthletes: [...expectedAthletes, ...makeupAthletes],
+      makeupAthleteOptions,
     }
   })
 }

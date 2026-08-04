@@ -25,6 +25,7 @@ import {
   ClipboardCheck,
   Save,
   Search,
+  UserPlus,
   X} from "lucide-react"
 import {
   Table,
@@ -702,9 +703,43 @@ function AttendanceReviewTable({
   const [drafts, setDrafts] = React.useState(() =>
     buildDrafts(session.expectedAthletes)
   )
+  const [selectedMakeupEnrollmentIds, setSelectedMakeupEnrollmentIds] =
+    React.useState<string[]>([])
+  const [makeupEnrollmentId, setMakeupEnrollmentId] = React.useState("")
   const [saving, setSaving] = React.useState(false)
   const router = useRouter()
   const { toast } = useToast()
+  const makeupAthleteByEnrollmentId = React.useMemo(
+    () =>
+      new Map(
+        session.makeupAthleteOptions.map((athlete) => [
+          athlete.enrollmentId,
+          athlete,
+        ])
+      ),
+    [session.makeupAthleteOptions]
+  )
+  const selectedMakeupAthletes = React.useMemo(
+    () =>
+      selectedMakeupEnrollmentIds.flatMap((enrollmentId) => {
+        const athlete = makeupAthleteByEnrollmentId.get(enrollmentId)
+
+        return athlete ? [athlete] : []
+      }),
+    [makeupAthleteByEnrollmentId, selectedMakeupEnrollmentIds]
+  )
+  const attendanceAthletes = React.useMemo(
+    () => [...session.expectedAthletes, ...selectedMakeupAthletes],
+    [selectedMakeupAthletes, session.expectedAthletes]
+  )
+  const availableMakeupAthletes = React.useMemo(
+    () =>
+      session.makeupAthleteOptions.filter(
+        (athlete) =>
+          !selectedMakeupEnrollmentIds.includes(athlete.enrollmentId)
+      ),
+    [selectedMakeupEnrollmentIds, session.makeupAthleteOptions]
+  )
 
   function getDraft(athlete: ClassSessionExpectedAthlete) {
     return (
@@ -731,15 +766,58 @@ function AttendanceReviewTable({
     }))
   }
 
+  function addMakeupAthlete() {
+    const athlete = makeupAthleteByEnrollmentId.get(makeupEnrollmentId)
+
+    if (!athlete) {
+      return
+    }
+
+    setSelectedMakeupEnrollmentIds((current) =>
+      current.includes(athlete.enrollmentId)
+        ? current
+        : [...current, athlete.enrollmentId]
+    )
+    setDrafts((current) => ({
+      ...current,
+      [athlete.enrollmentId]: {
+        attendanceStatus:
+          current[athlete.enrollmentId]?.attendanceStatus || "present",
+        notes:
+          current[athlete.enrollmentId]?.notes ??
+          athlete.attendanceNotes ??
+          "",
+        reviewedAt:
+          current[athlete.enrollmentId]?.reviewedAt ??
+          athlete.attendanceReviewedAt,
+      },
+    }))
+    setMakeupEnrollmentId("")
+  }
+
+  function removeSelectedMakeupAthlete(enrollmentId: string) {
+    setSelectedMakeupEnrollmentIds((current) =>
+      current.filter(
+        (currentEnrollmentId) => currentEnrollmentId !== enrollmentId
+      )
+    )
+    setDrafts((current) => {
+      const nextDrafts = { ...current }
+      delete nextDrafts[enrollmentId]
+
+      return nextDrafts
+    })
+  }
+
   const attendanceSummary = {
-    reviewed: session.expectedAthletes.filter(
+    reviewed: attendanceAthletes.filter(
       (athlete) => Boolean(getDraft(athlete).attendanceStatus)
     ).length,
-    total: session.expectedAthletes.length,
+    total: attendanceAthletes.length,
   }
 
   async function saveSessionAttendance() {
-    const missingAttendance = session.expectedAthletes.find(
+    const missingAttendance = attendanceAthletes.find(
       (athlete) => !getDraft(athlete).attendanceStatus
     )
 
@@ -757,12 +835,13 @@ function AttendanceReviewTable({
     try {
       const result = await updateClassSessionAttendanceBatch({
         sessionId: session.sessionId,
-        attendance: session.expectedAthletes.map((athlete) => {
+        attendance: attendanceAthletes.map((athlete) => {
           const draft = getDraft(athlete)
 
           return {
             enrollmentId: athlete.enrollmentId,
             athleteId: athlete.athleteId,
+            isMakeup: athlete.isMakeup,
             attendanceStatus: draft.attendanceStatus,
             notes: draft.notes,
           }
@@ -780,7 +859,7 @@ function AttendanceReviewTable({
 
       const reviewedAt = result.reviewedAt ?? new Date().toISOString()
       setDrafts((current) =>
-        session.expectedAthletes.reduce<Record<string, AttendanceDraft>>(
+        attendanceAthletes.reduce<Record<string, AttendanceDraft>>(
           (nextDrafts, athlete) => ({
             ...nextDrafts,
             [athlete.enrollmentId]: {
@@ -829,7 +908,7 @@ function AttendanceReviewTable({
           <Button
             type="button"
             size="sm"
-            disabled={saving || !session.expectedAthletes.length}
+            disabled={saving || !attendanceAthletes.length}
             onClick={saveSessionAttendance}
           >
             <Save />
@@ -837,10 +916,47 @@ function AttendanceReviewTable({
           </Button>
         </div>
       </div>
+      {availableMakeupAthletes.length ? (
+        <div className="mt-4 flex flex-col gap-2 rounded-md border border-dashed p-3 sm:flex-row sm:items-end">
+          <label className="grid min-w-0 flex-1 gap-1 text-xs font-medium text-muted-foreground">
+            Makeup athlete
+            <select
+              value={makeupEnrollmentId}
+              onChange={(event) => setMakeupEnrollmentId(event.target.value)}
+              className="h-10 rounded-lg border border-input bg-background px-2 text-base sm:text-sm"
+            >
+              <option value="">Select athlete</option>
+              {availableMakeupAthletes.map((athlete) => (
+                <option
+                  key={athlete.enrollmentId}
+                  value={athlete.enrollmentId}
+                >
+                  {athlete.athleteName}
+                  {athlete.scheduleLabel
+                    ? ` - ${athlete.scheduleLabel}`
+                    : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!makeupEnrollmentId}
+            onClick={addMakeupAthlete}
+          >
+            <UserPlus />
+            Add
+          </Button>
+        </div>
+      ) : null}
       <div className="mt-4 space-y-3 md:hidden">
-        {session.expectedAthletes.length ? (
-          session.expectedAthletes.map((athlete) => {
+        {attendanceAthletes.length ? (
+          attendanceAthletes.map((athlete) => {
             const draft = getDraft(athlete)
+            const canRemoveMakeup =
+              athlete.isMakeup &&
+              selectedMakeupEnrollmentIds.includes(athlete.enrollmentId)
 
             return (
               <div
@@ -853,14 +969,39 @@ function AttendanceReviewTable({
                     <div className="text-xs text-muted-foreground">
                       Enrollment #{athlete.enrollmentId}
                     </div>
+                    {athlete.isMakeup ? (
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <Badge variant="warning">Makeup</Badge>
+                        {athlete.scheduleLabel ? (
+                          <span className="text-xs text-muted-foreground">
+                            {athlete.scheduleLabel}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
-                  {draft.attendanceStatus ? (
-                    <Badge
-                      variant={getAttendanceVariant(draft.attendanceStatus)}
-                    >
-                      {draft.attendanceStatus}
-                    </Badge>
-                  ) : null}
+                  <div className="flex flex-col items-end gap-2">
+                    {draft.attendanceStatus ? (
+                      <Badge
+                        variant={getAttendanceVariant(draft.attendanceStatus)}
+                      >
+                        {draft.attendanceStatus}
+                      </Badge>
+                    ) : null}
+                    {canRemoveMakeup ? (
+                      <Button
+                        type="button"
+                        size="icon-xs"
+                        variant="ghost"
+                        onClick={() =>
+                          removeSelectedMakeupAthlete(athlete.enrollmentId)
+                        }
+                        aria-label={`Remove ${athlete.athleteName}`}
+                      >
+                        <X />
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="mt-3 text-sm">
                   <div>{athlete.parentName}</div>
@@ -912,7 +1053,7 @@ function AttendanceReviewTable({
           })
         ) : (
           <div className="rounded-md border border-dashed p-5 text-center text-sm text-muted-foreground">
-            No approved or active enrollments are expected for this session.
+            No approved or active enrollments are available for this session.
           </div>
         )}
       </div>
@@ -928,19 +1069,47 @@ function AttendanceReviewTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {session.expectedAthletes.length ? (
-              session.expectedAthletes.map((athlete) => {
+            {attendanceAthletes.length ? (
+              attendanceAthletes.map((athlete) => {
                 const draft = getDraft(athlete)
+                const canRemoveMakeup =
+                  athlete.isMakeup &&
+                  selectedMakeupEnrollmentIds.includes(athlete.enrollmentId)
 
                 return (
                   <TableRow
                     key={`${athlete.athleteId}-${athlete.enrollmentId}`}
                   >
                     <TableCell className="font-medium">
-                      <div>{athlete.athleteName}</div>
+                      <div className="flex items-center gap-2">
+                        <span>{athlete.athleteName}</span>
+                        {athlete.isMakeup ? (
+                          <Badge variant="warning">Makeup</Badge>
+                        ) : null}
+                        {canRemoveMakeup ? (
+                          <Button
+                            type="button"
+                            size="icon-xs"
+                            variant="ghost"
+                            onClick={() =>
+                              removeSelectedMakeupAthlete(
+                                athlete.enrollmentId
+                              )
+                            }
+                            aria-label={`Remove ${athlete.athleteName}`}
+                          >
+                            <X />
+                          </Button>
+                        ) : null}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         Enrollment #{athlete.enrollmentId}
                       </div>
+                      {athlete.isMakeup && athlete.scheduleLabel ? (
+                        <div className="text-xs text-muted-foreground">
+                          {athlete.scheduleLabel}
+                        </div>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <div>{athlete.parentName}</div>
@@ -1002,7 +1171,7 @@ function AttendanceReviewTable({
             ) : (
               <TableRow>
                 <TableCell colSpan={5} className="h-20 text-center">
-                  No approved or active enrollments are expected for this
+                  No approved or active enrollments are available for this
                   session.
                 </TableCell>
               </TableRow>

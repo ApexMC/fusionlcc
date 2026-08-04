@@ -14,6 +14,7 @@ type ActionResult = {
 type AttendanceUpdate = {
   enrollmentId: string
   athleteId?: string | null
+  isMakeup?: boolean
   attendanceStatus: string
   notes?: string
 }
@@ -31,8 +32,9 @@ function isAttendanceStatus(
 function isMissingAttendanceTableError(error: { code?: string; message?: string }) {
   return (
     error.code === "42P01" ||
+    error.code === "42703" ||
     error.code === "PGRST205" ||
-    /ClassSessionAttendance|schema cache|does not exist/i.test(
+    /ClassSessionAttendance|is_makeup|schema cache|does not exist/i.test(
       error.message ?? ""
     )
   )
@@ -42,12 +44,14 @@ export async function updateClassSessionAttendance({
   sessionId,
   enrollmentId,
   athleteId,
+  isMakeup,
   attendanceStatus,
   notes,
 }: {
   sessionId: string
   enrollmentId: string
   athleteId?: string | null
+  isMakeup?: boolean
   attendanceStatus: string
   notes?: string
 }): Promise<ActionResult & { reviewedAt?: string }> {
@@ -75,6 +79,7 @@ export async function updateClassSessionAttendance({
       session_id: sessionId,
       enrollment_id: enrollmentId,
       athlete_id: athleteId && athleteId !== "unknown" ? athleteId : null,
+      is_makeup: isMakeup === true,
       attendance_status: normalizedAttendanceStatus,
       notes: notes?.trim() || null,
       reviewed_by: session.userId,
@@ -119,6 +124,7 @@ export async function updateClassSessionAttendanceBatch({
 
   const normalizedAttendance = attendance.map((entry) => ({
     ...entry,
+    isMakeup: entry.isMakeup === true,
     attendanceStatus: entry.attendanceStatus.trim().toLowerCase(),
   }))
   const invalidEntry = normalizedAttendance.find(
@@ -142,6 +148,7 @@ export async function updateClassSessionAttendanceBatch({
         entry.athleteId && entry.athleteId !== "unknown"
           ? entry.athleteId
           : null,
+      is_makeup: entry.isMakeup,
       attendance_status: entry.attendanceStatus,
       notes: entry.notes?.trim() || null,
       reviewed_by: session.userId,

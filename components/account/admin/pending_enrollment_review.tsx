@@ -64,9 +64,13 @@ export function PendingEnrollmentReview({
       )
       toast({
         title:
-          action === "approve" ? "Enrollment approved" : "Enrollment denied",
-        description: result.message,
-        variant: "success",
+          result.warning
+            ? "Enrollment updated; email notice issue"
+            : action === "approve"
+              ? "Enrollment approved"
+              : "Enrollment denied",
+        description: result.warning ?? result.message,
+        variant: result.warning ? "error" : "success",
       })
       router.refresh()
     } catch (error) {

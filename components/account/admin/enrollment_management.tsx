@@ -685,9 +685,11 @@ export function EnrollmentManagement({
       }
 
       toast({
-        title: "Enrollment updated",
-        description: result.message,
-        variant: "success",
+        title: result.warning
+          ? "Enrollment updated; email notice issue"
+          : "Enrollment updated",
+        description: result.warning ?? result.message,
+        variant: result.warning ? "error" : "success",
       })
       setLocalStatuses((current) => ({
         ...current,
