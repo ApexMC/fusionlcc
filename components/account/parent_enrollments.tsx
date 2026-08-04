@@ -1,11 +1,22 @@
 "use client"
 
 import * as React from "react"
-import { CreditCard, Eye, Settings, X } from "lucide-react"
+import {
+  AlertTriangle,
+  CalendarClock,
+  CreditCard,
+  Eye,
+  Settings,
+  X,
+} from "lucide-react"
 import { useRouter } from "next/navigation"
 
-import { cancelEnrollmentRequest } from "@/app/actions/enrollments"
+import {
+  cancelEnrollmentRequest,
+  selectEnrollmentScheduleSlot,
+} from "@/app/actions/enrollments"
 import { EnrollmentStatusBadge } from "@/components/account/enrollment_status_badge"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -17,6 +28,8 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/toast"
 import type {
+  ClassOption,
+  ClassScheduleOption,
   EnrollmentDisplayRecord,
   ParentAthleteEnrollment,
 } from "@/lib/account/types"
@@ -44,16 +57,62 @@ function formatDate(value: string | null) {
   }).format(new Date(value))
 }
 
+function getScheduleOptions(
+  enrollment: EnrollmentDisplayRecord,
+  classOptions: ClassOption[]
+) {
+  if (!enrollment.classId) {
+    return [] as ClassScheduleOption[]
+  }
+
+  return (
+    classOptions.find((option) => option.classId === enrollment.classId)
+      ?.schedules ?? []
+  )
+}
+
+function getDefaultScheduleSelection(
+  enrollment: EnrollmentDisplayRecord,
+  scheduleOptions: ClassScheduleOption[]
+) {
+  if (
+    enrollment.scheduleId &&
+    scheduleOptions.some((option) => option.scheduleId === enrollment.scheduleId)
+  ) {
+    return enrollment.scheduleId
+  }
+
+  return scheduleOptions[0]?.scheduleId ?? ""
+}
+
 export function ParentEnrollments({
   athletes,
+  classOptions,
 }: {
   athletes: ParentAthleteEnrollment[]
+  classOptions: ClassOption[]
 }) {
   const [busyKey, setBusyKey] = React.useState<string | null>(null)
   const [selectedEnrollment, setSelectedEnrollment] =
     React.useState<EnrollmentDisplayRecord | null>(null)
+  const [scheduleSelections, setScheduleSelections] = React.useState<
+    Record<string, string>
+  >({})
+  const [resolvedSelectionIds, setResolvedSelectionIds] = React.useState<
+    Record<string, boolean>
+  >({})
   const router = useRouter()
   const { toast } = useToast()
+  const requiredSelectionCount = athletes.reduce(
+    (count, athlete) =>
+      count +
+      athlete.enrollments.filter(
+        (enrollment) =>
+          enrollment.selectionRequired &&
+          !resolvedSelectionIds[enrollment.enrollmentId]
+      ).length,
+    0
+  )
 
   async function openStripeSession(
     enrollment: EnrollmentDisplayRecord,
@@ -123,6 +182,50 @@ export function ParentEnrollments({
     }
   }
 
+  async function updateScheduleSelection(
+    enrollment: EnrollmentDisplayRecord,
+    selectedScheduleId: string
+  ) {
+    setBusyKey(`schedule-${enrollment.enrollmentId}`)
+
+    try {
+      const result = await selectEnrollmentScheduleSlot({
+        enrollmentId: enrollment.enrollmentId,
+        scheduleId: selectedScheduleId,
+      })
+
+      if (!result.ok) {
+        toast({
+          title: "Schedule update failed",
+          description: result.message,
+          variant: "error",
+        })
+        return
+      }
+
+      setResolvedSelectionIds((current) => ({
+        ...current,
+        [enrollment.enrollmentId]: true,
+      }))
+      toast({
+        title: "Schedule updated",
+        description: result.message,
+        variant: "success",
+      })
+      window.dispatchEvent(new Event("account-enrollment-selection-updated"))
+      router.refresh()
+    } catch (error) {
+      toast({
+        title: "Schedule update failed",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "error",
+      })
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
   return (
     <section className="w-full max-w-6xl">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -130,6 +233,23 @@ export function ParentEnrollments({
           Enrollments
         </h2>
       </div>
+      {requiredSelectionCount ? (
+        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <div>
+              <div className="font-medium">Schedule selection needed</div>
+              <p className="mt-1">
+                Choose a new class time for{" "}
+                {requiredSelectionCount === 1
+                  ? "the enrollment marked below"
+                  : `${requiredSelectionCount} enrollments marked below`}
+                .
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {athletes.map((athlete) => (
           <Card key={athlete.athleteId} className="bg-white dark:bg-black">
@@ -146,6 +266,16 @@ export function ParentEnrollments({
                     const canManageSubscription =
                       Boolean(enrollment.stripeSubscriptionId) &&
                       isActiveSubscription(enrollment)
+                    const needsScheduleSelection =
+                      enrollment.selectionRequired &&
+                      !resolvedSelectionIds[enrollment.enrollmentId]
+                    const scheduleOptions = getScheduleOptions(
+                      enrollment,
+                      classOptions
+                    )
+                    const selectedScheduleId =
+                      scheduleSelections[enrollment.enrollmentId] ??
+                      getDefaultScheduleSelection(enrollment, scheduleOptions)
 
                     return (
                       <div
@@ -160,6 +290,14 @@ export function ParentEnrollments({
                                 <span className="ml-2 text-sm font-normal text-zinc-600 dark:text-zinc-400">
                                   {enrollment.scheduleLabel}
                                 </span>
+                              ) : null}
+                              {needsScheduleSelection ? (
+                                <Badge
+                                  variant="warning"
+                                  className="ml-2 align-middle"
+                                >
+                                  schedule needed
+                                </Badge>
                               ) : null}
                             </div>
                             <div className="mt-1 flex flex-col gap-2">
@@ -189,6 +327,7 @@ export function ParentEnrollments({
                               <Eye />
                               View
                             </Button>
+                            {/*
                             {canStartSubscription ? (
                               <Button
                                 type="button"
@@ -221,6 +360,7 @@ export function ParentEnrollments({
                                   : "Manage"}
                               </Button>
                             ) : null}
+                            */}
                             {enrollment.status === "pending" ? (
                               <Button
                                 type="button"
@@ -238,6 +378,82 @@ export function ParentEnrollments({
                             ) : null}
                           </div>
                         </div>
+                        {needsScheduleSelection ? (
+                          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                            <div className="flex items-start gap-2 text-sm text-amber-900 dark:text-amber-200">
+                              <CalendarClock className="mt-0.5 size-4 shrink-0" />
+                              <div>
+                                <div className="font-medium">
+                                  Choose a new schedule slot
+                                </div>
+                                <p className="mt-1">
+                                  Select an available time for{" "}
+                                  {enrollment.className}.
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                              <select
+                                value={selectedScheduleId}
+                                disabled={
+                                  !scheduleOptions.length ||
+                                  busyKey ===
+                                    `schedule-${enrollment.enrollmentId}`
+                                }
+                                onChange={(event) =>
+                                  setScheduleSelections((current) => ({
+                                    ...current,
+                                    [enrollment.enrollmentId]:
+                                      event.target.value,
+                                  }))
+                                }
+                                className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm text-foreground disabled:opacity-60"
+                                aria-label={`New schedule slot for ${enrollment.className}`}
+                              >
+                                {scheduleOptions.length ? (
+                                  scheduleOptions.map((option) => (
+                                    <option
+                                      key={option.scheduleId}
+                                      value={option.scheduleId}
+                                    >
+                                      {option.scheduleLabel}
+                                    </option>
+                                  ))
+                                ) : (
+                                  <option value="">
+                                    No active times available
+                                  </option>
+                                )}
+                              </select>
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={
+                                  !selectedScheduleId ||
+                                  busyKey ===
+                                    `schedule-${enrollment.enrollmentId}`
+                                }
+                                onClick={() =>
+                                  updateScheduleSelection(
+                                    enrollment,
+                                    selectedScheduleId
+                                  )
+                                }
+                              >
+                                {busyKey ===
+                                `schedule-${enrollment.enrollmentId}`
+                                  ? "Saving"
+                                  : "Save schedule"}
+                              </Button>
+                            </div>
+                            {!scheduleOptions.length ? (
+                              <p className="mt-2 text-xs text-amber-900 dark:text-amber-200">
+                                No active schedule slots are available for this
+                                class yet. Please contact us for help.
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     )
                   })}

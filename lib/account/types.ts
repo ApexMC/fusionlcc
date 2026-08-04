@@ -76,9 +76,11 @@ export type AthleteRecord = {
 
 export type EnrollmentRecord = {
   enrollment_id: string | number
+  class_id?: string | number | null
   schedule_id?: string | number | null
   athlete_id?: string | number | null
   status?: EnrollmentStatus | null
+  selection_required?: boolean | null
   created_at?: string | null
   stripe_customer_id?: string | null
   stripe_subscription_id?: string | null
@@ -101,6 +103,7 @@ export type EnrollmentDisplayRecord = {
   className: string
   classType: string | null
   scheduleLabel: string | null
+  selectionRequired: boolean
   programType: string | null
   billingDay: number | null
   status: string
@@ -196,6 +199,11 @@ export type CheerBillingRecord = {
   createdAt: string | null
 }
 
+export type ClassScheduleOption = {
+  scheduleId: string
+  scheduleLabel: string
+}
+
 export type ClassOption = {
   classId: string
   className: string
@@ -203,6 +211,7 @@ export type ClassOption = {
   programType: string | null
   billingDay: number | null
   scheduleSummary: string | null
+  schedules: ClassScheduleOption[]
   stripePriceId: string | null
 }
 

@@ -116,8 +116,24 @@ function getStatusVariant(status: string) {
   return "outline" as const
 }
 
+function getEntryStatusVariant(entry: CoachTimeClockEntry, status: string) {
+  if (!entry.clockOutAt) {
+    return "purple" as const
+  }
+
+  return getStatusVariant(status)
+}
+
 function formatStatus(status: string) {
   return status.replace(/_/g, " ")
+}
+
+function getEntryStatusLabel(entry: CoachTimeClockEntry, status: string) {
+  if (!entry.clockOutAt) {
+    return "on the clock"
+  }
+
+  return formatStatus(status)
 }
 
 function PunchDecisionControls({
@@ -185,7 +201,9 @@ function PunchMobileCard({
             {entry.clockOutAt ? formatTime(entry.clockOutAt) : "Active"}
           </div>
         </div>
-        <Badge variant={getStatusVariant(status)}>{formatStatus(status)}</Badge>
+        <Badge variant={getEntryStatusVariant(entry, status)}>
+          {getEntryStatusLabel(entry, status)}
+        </Badge>
       </div>
       <div className="mt-3 flex items-center justify-between gap-3 text-sm">
         <span className="text-muted-foreground">Hours</span>
@@ -365,8 +383,10 @@ function CoachPunchGroup({
                             {formatDuration(getDurationMinutes(entry))}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={getStatusVariant(status)}>
-                              {formatStatus(status)}
+                            <Badge
+                              variant={getEntryStatusVariant(entry, status)}
+                            >
+                              {getEntryStatusLabel(entry, status)}
                             </Badge>
                           </TableCell>
                           <TableCell className="max-w-72 whitespace-normal text-muted-foreground">

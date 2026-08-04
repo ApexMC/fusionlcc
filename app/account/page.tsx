@@ -864,6 +864,7 @@ export default async function AccountPage() {
                     </div>
                     <ParentEnrollments
                         athletes={parentEnrollmentData.athletes}
+                        classOptions={parentEnrollmentData.classOptions}
                     />
                 </section>
             </AccountDashboardFrame>

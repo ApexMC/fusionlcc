@@ -2,8 +2,10 @@
 
 import * as React from "react"
 import {
+  AlertTriangle,
   ChevronDown,
   Leaf,
+  Mail,
   MoreHorizontal,
   Plus,
   Save,
@@ -197,6 +199,8 @@ export function ClassScheduleManager({
     React.useState<string | null>(null)
   const [scheduleToDelete, setScheduleToDelete] =
     React.useState<ClassScheduleDisplayRecord | null>(null)
+  const [seasonToActivate, setSeasonToActivate] =
+    React.useState<ScheduleSeasonRecord | null>(null)
   const router = useRouter()
   const { toast } = useToast()
   const seasonOptions = React.useMemo(
@@ -245,7 +249,7 @@ export function ClassScheduleManager({
     }))
   }
 
-  async function activateSeason(season: ScheduleSeasonRecord) {
+  async function confirmActivateSeason(season: ScheduleSeasonRecord) {
     const busyKey = `season:${season.seasonId}`
     setBusyId(busyKey)
 
@@ -266,8 +270,9 @@ export function ClassScheduleManager({
       toast({
         title: "Class season activated",
         description: result.message,
-        variant: "success",
+        variant: result.warning ? "error" : "success",
       })
+      setSeasonToActivate(null)
       router.refresh()
     } catch (error) {
       toast({
@@ -496,7 +501,7 @@ export function ClassScheduleManager({
                 selectedSeason.isActive ||
                 busyId === `season:${selectedSeason.seasonId}`
               }
-              onClick={() => activateSeason(selectedSeason)}
+              onClick={() => setSeasonToActivate(selectedSeason)}
             >
               {busyId === `season:${selectedSeason.seasonId}`
                 ? "Activating"
@@ -1055,6 +1060,59 @@ export function ClassScheduleManager({
               {scheduleToDelete && busyId === scheduleToDelete.scheduleId
                 ? "Deleting"
                 : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(seasonToActivate)}
+        onOpenChange={(open) => {
+          if (!open && !busyId?.startsWith("season:")) {
+            setSeasonToActivate(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Activate Schedule Season</DialogTitle>
+            <DialogDescription>
+              Make {seasonToActivate?.season ?? "this season"} the public class
+              schedule season?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-purple-500/30 bg-purple-500/10 p-3 text-sm text-purple-900 dark:text-purple-200">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <p>
+                Parents will be notified by email and asked to update their
+                enrollment schedules for the new season.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={Boolean(busyId?.startsWith("season:"))}
+              onClick={() => setSeasonToActivate(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={
+                !seasonToActivate ||
+                busyId === `season:${seasonToActivate.seasonId}`
+              }
+              onClick={() =>
+                seasonToActivate && confirmActivateSeason(seasonToActivate)
+              }
+            >
+              <Mail />
+              {seasonToActivate &&
+              busyId === `season:${seasonToActivate.seasonId}`
+                ? "Activating"
+                : "Notify parents & activate"}
             </Button>
           </DialogFooter>
         </DialogContent>

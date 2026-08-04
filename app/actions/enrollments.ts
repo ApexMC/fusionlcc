@@ -37,8 +37,38 @@ type ReassignmentEnrollmentRecord = {
   subscription_status?: string | null
 }
 
+type EnrollmentOwnerAthlete = {
+  athlete_id?: string | number | null
+  user_id?: string | null
+  parent_id?: string | number | null
+  Parents?:
+    | {
+        parent_id?: string | number | null
+        user_id?: string | null
+      }
+    | {
+        parent_id?: string | number | null
+        user_id?: string | null
+      }[]
+    | null
+}
+
+type ParentScheduleSelectionEnrollmentRecord = {
+  enrollment_id: string | number
+  athlete_id?: string | number | null
+  class_id?: string | number | null
+  schedule_id?: string | number | null
+  selection_required?: boolean | null
+  status?: string | null
+  Athletes?: EnrollmentOwnerAthlete | EnrollmentOwnerAthlete[] | null
+}
+
 function isAdminEnrollmentStatus(value: string): value is AdminEnrollmentStatus {
   return adminStatuses.includes(value as AdminEnrollmentStatus)
+}
+
+function firstRelation<T>(value: T | T[] | null | undefined) {
+  return Array.isArray(value) ? value[0] : value
 }
 
 async function getAvailableClassSchedule(scheduleId: string): Promise<
@@ -503,6 +533,7 @@ export async function reassignEnrollment({
   const updatePayload: {
     class_id: string
     schedule_id: string
+    selection_required: boolean
     stripe_customer_id?: string | null
     stripe_subscription_id?: string
     subscription_status?: string
@@ -511,6 +542,7 @@ export async function reassignEnrollment({
   } = {
     class_id: normalizedClassId,
     schedule_id: normalizedScheduleId,
+    selection_required: false,
   }
 
   if (updatedSubscription) {
@@ -545,6 +577,175 @@ export async function reassignEnrollment({
     message: stripeUpdated
       ? "Enrollment reassigned and Stripe subscription updated."
       : "Enrollment reassigned.",
+  }
+}
+
+export async function selectEnrollmentScheduleSlot({
+  enrollmentId,
+  scheduleId,
+}: {
+  enrollmentId: string
+  scheduleId: string
+}): Promise<ActionResult> {
+  const session = await getAccountSession()
+
+  if (!session?.userId) {
+    return {
+      ok: false,
+      message: "You must be signed in to choose an enrollment schedule.",
+    }
+  }
+
+  const normalizedEnrollmentId = enrollmentId.trim()
+  const normalizedScheduleId = scheduleId.trim()
+
+  if (!normalizedEnrollmentId || !normalizedScheduleId) {
+    return {
+      ok: false,
+      message: "Choose an enrollment and class schedule.",
+    }
+  }
+
+  const supabase = createAdminClient()
+  const { data: enrollmentData, error: enrollmentError } = await supabase
+    .from("Enrollments")
+    .select(
+      "enrollment_id,athlete_id,class_id,schedule_id,status,selection_required,Athletes(athlete_id,user_id,parent_id,Parents(parent_id,user_id))"
+    )
+    .eq("enrollment_id", normalizedEnrollmentId)
+    .maybeSingle()
+
+  if (enrollmentError || !enrollmentData) {
+    return {
+      ok: false,
+      message: enrollmentError?.message ?? "Enrollment was not found.",
+    }
+  }
+
+  const enrollment =
+    enrollmentData as ParentScheduleSelectionEnrollmentRecord
+  const athlete = firstRelation(enrollment.Athletes)
+  const parent = firstRelation(athlete?.Parents)
+  const ownsEnrollment =
+    athlete?.user_id === session.userId || parent?.user_id === session.userId
+
+  if (!ownsEnrollment) {
+    return {
+      ok: false,
+      message: "You can only choose schedules for your own athletes.",
+    }
+  }
+
+  if (enrollment.selection_required !== true) {
+    return {
+      ok: false,
+      message: "This enrollment does not require a schedule selection.",
+    }
+  }
+
+  const scheduleRecord = await getAvailableClassSchedule(normalizedScheduleId)
+
+  if (!scheduleRecord.ok) {
+    return {
+      ok: false,
+      message: scheduleRecord.message,
+    }
+  }
+
+  if (!scheduleRecord.classId) {
+    return {
+      ok: false,
+      message: "Choose a schedule that belongs to a class.",
+    }
+  }
+
+  let enrollmentClassId =
+    enrollment.class_id === null || enrollment.class_id === undefined
+      ? null
+      : String(enrollment.class_id)
+
+  if (!enrollmentClassId && enrollment.schedule_id) {
+    const { data: currentSchedule, error: currentScheduleError } =
+      await supabase
+        .from("ClassSchedules")
+        .select("class_id")
+        .eq("schedule_id", String(enrollment.schedule_id))
+        .maybeSingle()
+
+    if (currentScheduleError) {
+      return {
+        ok: false,
+        message: currentScheduleError.message,
+      }
+    }
+
+    enrollmentClassId =
+      currentSchedule?.class_id === null ||
+      currentSchedule?.class_id === undefined
+        ? null
+        : String(currentSchedule.class_id)
+  }
+
+  if (!enrollmentClassId) {
+    return {
+      ok: false,
+      message: "This enrollment is missing class information.",
+    }
+  }
+
+  if (scheduleRecord.classId !== enrollmentClassId) {
+    return {
+      ok: false,
+      message: "Choose a schedule for the enrolled class.",
+    }
+  }
+
+  if (enrollment.athlete_id !== null && enrollment.athlete_id !== undefined) {
+    const { data: existingEnrollment, error: existingError } = await supabase
+      .from("Enrollments")
+      .select("enrollment_id,status")
+      .eq("athlete_id", String(enrollment.athlete_id))
+      .eq("schedule_id", normalizedScheduleId)
+      .neq("enrollment_id", normalizedEnrollmentId)
+      .in("status", ["pending", "approved", "active"])
+      .maybeSingle()
+
+    if (existingError) {
+      return {
+        ok: false,
+        message: existingError.message,
+      }
+    }
+
+    if (existingEnrollment) {
+      return {
+        ok: false,
+        message: `This athlete already has a ${existingEnrollment.status} enrollment for that class schedule.`,
+      }
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from("Enrollments")
+    .update({
+      class_id: scheduleRecord.classId,
+      schedule_id: normalizedScheduleId,
+      selection_required: false,
+    })
+    .eq("enrollment_id", normalizedEnrollmentId)
+
+  if (updateError) {
+    return {
+      ok: false,
+      message: updateError.message,
+    }
+  }
+
+  revalidatePath("/account")
+
+  return {
+    ok: true,
+    message: "Enrollment schedule updated.",
   }
 }
 

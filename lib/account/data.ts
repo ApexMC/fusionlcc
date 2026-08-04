@@ -34,9 +34,11 @@ import type {
 
 const enrollmentSelectWithPayments = `
   enrollment_id,
+  class_id,
   schedule_id,
   athlete_id,
   status,
+  selection_required,
   created_at,
   stripe_customer_id,
   stripe_subscription_id,
@@ -65,9 +67,11 @@ const enrollmentSelectWithPayments = `
 
 const enrollmentSelectBase = `
   enrollment_id,
+  class_id,
   schedule_id,
   athlete_id,
   status,
+  selection_required,
   Athletes(
     athlete_id,
     first_name,
@@ -345,7 +349,9 @@ export function toDisplayEnrollment(
   const parentName = [parent?.first_name, parent?.last_name]
     .filter(Boolean)
     .join(" ")
-  const classId = toId(classSchedule?.class_id ?? classRecord?.class_id)
+  const classId = toId(
+    enrollment.class_id ?? classSchedule?.class_id ?? classRecord?.class_id
+  )
   const scheduleId = toId(enrollment.schedule_id ?? classSchedule?.schedule_id)
   const className = classRecord?.class_name ?? getClassFallbackName(classId)
   const scheduleLabel = classSchedule
@@ -370,6 +376,7 @@ export function toDisplayEnrollment(
     className,
     classType: classRecord?.type ?? null,
     scheduleLabel,
+    selectionRequired: enrollment.selection_required === true,
     programType,
     billingDay: resolveBillingDay(classRecord ?? null),
     status: enrollment.status ?? "unknown",
@@ -969,15 +976,30 @@ function buildClassOptions(
   classes: ClassRecord[],
   scheduleRows: ClassScheduleRow[]
 ): ClassOption[] {
-  return buildClassBillingRows(classes).map<ClassOption>((classRecord) => ({
-    classId: classRecord.classId,
-    className: classRecord.className,
-    classType: classRecord.classType,
-    programType: classRecord.programType,
-    billingDay: classRecord.billingDay,
-    scheduleSummary: getScheduleSummary(classRecord.classId, scheduleRows),
-    stripePriceId: classRecord.stripePriceId,
-  }))
+  return buildClassBillingRows(classes).map<ClassOption>((classRecord) => {
+    const classScheduleRows = scheduleRows.filter(
+      (row) =>
+        toId(row.class_id) === classRecord.classId && (row.is_active ?? true)
+    )
+
+    return {
+      classId: classRecord.classId,
+      className: classRecord.className,
+      classType: classRecord.classType,
+      programType: classRecord.programType,
+      billingDay: classRecord.billingDay,
+      scheduleSummary: getScheduleSummary(classRecord.classId, scheduleRows),
+      schedules: classScheduleRows.map((row) => ({
+        scheduleId: String(row.schedule_id),
+        scheduleLabel: formatScheduleLabel(
+          row.day_of_week,
+          row.start_time,
+          row.end_time
+        ),
+      })),
+      stripePriceId: classRecord.stripePriceId,
+    }
+  })
 }
 
 function buildClassNameById(classBilling: ClassBillingRecord[]) {

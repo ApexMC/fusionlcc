@@ -3,11 +3,14 @@
 import { revalidatePath } from "next/cache"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
+import { sendContactEmail } from "@/lib/contact/email"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 type ActionResult = {
   ok: boolean
   message: string
+  emailedParentCount?: number
+  warning?: string
 }
 
 const dayOfWeeks = [
@@ -21,6 +24,10 @@ const dayOfWeeks = [
 ] as const
 
 type DayOfWeek = (typeof dayOfWeeks)[number]
+
+type ParentEmailRow = {
+  email?: string | null
+}
 
 function isDayOfWeek(value: string): value is DayOfWeek {
   return dayOfWeeks.includes(value as DayOfWeek)
@@ -77,6 +84,39 @@ function formatSeason(value: string | null | undefined) {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 
+function getAccountUrl() {
+  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+
+  if (configuredUrl) {
+    return `${configuredUrl.replace(/\/$/, "")}/account`
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}/account`
+  }
+
+  return "https://fusionlcc.com/account"
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown email error."
+}
+
+function buildScheduleSeasonChangeMessage(seasonName: string | null) {
+  return [
+    "Hello,",
+    "",
+    `The ${formatSeason(
+      seasonName
+    )} class schedule is now active for Limitless Cheer and Gymnastics.`,
+    "",
+    "Please sign in to your parent account and update each athlete's enrollment schedule for the new season.",
+    `Account dashboard: ${getAccountUrl()}`,
+    "",
+    "Please contact us if you have any questions.",
+  ].join("\n")
+}
+
 function revalidateClassSchedulePaths() {
   revalidatePath("/account")
   revalidatePath("/classes")
@@ -116,6 +156,84 @@ async function getScheduleSeason(seasonId: string) {
       seasonId: String(data.season_id),
       season: typeof data.season === "string" ? data.season : null,
     },
+  }
+}
+
+async function getParentNotificationEmails() {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase.from("Parents").select("email")
+
+  if (error) {
+    return {
+      ok: false as const,
+      message: error.message,
+      parentEmails: [],
+    }
+  }
+
+  const parentEmailsByAddress = new Map<string, string>()
+  const parentRows = (data ?? []) as ParentEmailRow[]
+
+  parentRows.forEach((parent) => {
+    const parentEmail = parent.email?.trim()
+
+    if (parentEmail) {
+      parentEmailsByAddress.set(parentEmail.toLowerCase(), parentEmail)
+    }
+  })
+
+  return {
+    ok: true as const,
+    message: "",
+    parentEmails: Array.from(parentEmailsByAddress.values()),
+  }
+}
+
+async function sendScheduleSeasonChangeNotice(
+  seasonName: string | null
+): Promise<ActionResult> {
+  const parentEmailResult = await getParentNotificationEmails()
+
+  if (!parentEmailResult.ok) {
+    return {
+      ok: false,
+      message: parentEmailResult.message,
+      emailedParentCount: 0,
+    }
+  }
+
+  if (!parentEmailResult.parentEmails.length) {
+    return {
+      ok: true,
+      message: "No parent email addresses were found.",
+      emailedParentCount: 0,
+      warning: "No parent email addresses were found.",
+    }
+  }
+
+  try {
+    await sendContactEmail({
+      email: process.env.CONTACT_FROM_EMAIL,
+      subject: `LCC Schedule Season Changed: ${formatSeason(
+        seasonName
+      )} now active`,
+      message: buildScheduleSeasonChangeMessage(seasonName),
+      bcc: parentEmailResult.parentEmails,
+    })
+  } catch (error) {
+    return {
+      ok: false,
+      message: getErrorMessage(error),
+      emailedParentCount: 0,
+    }
+  }
+
+  return {
+    ok: true,
+    message: `Emailed ${parentEmailResult.parentEmails.length} parent${
+      parentEmailResult.parentEmails.length === 1 ? "" : "s"
+    } to update enrollment schedules.`,
+    emailedParentCount: parentEmailResult.parentEmails.length,
   }
 }
 
@@ -167,11 +285,42 @@ export async function activateScheduleSeason(
     }
   }
 
+  const { error: rpcError } = await supabase.rpc(
+    "switch_schedule_season",
+    {
+      p_season_id: normalizedSeasonId,
+      p_days_to_generate: 30,
+    }
+  )
+
+  if (rpcError) {
+    throw new Error(`Unable to switch season: ${rpcError.message}`)
+  }
+
+  const noticeResult = await sendScheduleSeasonChangeNotice(
+    scheduleSeason.season.season
+  )
+
   revalidateClassSchedulePaths()
+
+  const activationMessage = `${formatSeason(
+    scheduleSeason.season.season
+  )} schedule activated.`
+
+  if (!noticeResult.ok) {
+    return {
+      ok: true,
+      message: `${activationMessage} Parent notification failed to send: ${noticeResult.message}`,
+      emailedParentCount: 0,
+      warning: noticeResult.message,
+    }
+  }
 
   return {
     ok: true,
-    message: `${formatSeason(scheduleSeason.season.season)} schedule activated.`,
+    message: `${activationMessage} ${noticeResult.message}`,
+    emailedParentCount: noticeResult.emailedParentCount,
+    warning: noticeResult.warning,
   }
 }
 
