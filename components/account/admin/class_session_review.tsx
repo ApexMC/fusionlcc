@@ -923,7 +923,7 @@ function AttendanceReviewTable({
             <select
               value={makeupEnrollmentId}
               onChange={(event) => setMakeupEnrollmentId(event.target.value)}
-              className="h-10 rounded-lg border border-input bg-background px-2 text-base sm:text-sm"
+              className="h-10 w-full min-w-0 rounded-lg border border-input bg-background px-2 text-base sm:text-sm"
             >
               <option value="">Select athlete</option>
               {availableMakeupAthletes.map((athlete) => (
