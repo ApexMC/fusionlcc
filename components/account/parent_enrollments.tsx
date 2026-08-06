@@ -228,11 +228,6 @@ export function ParentEnrollments({
 
   return (
     <section className="w-full max-w-6xl">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-          Enrollments
-        </h2>
-      </div>
       {requiredSelectionCount ? (
         <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
           <div className="flex items-start gap-2">

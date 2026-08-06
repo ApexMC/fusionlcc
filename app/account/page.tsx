@@ -754,7 +754,7 @@ export default async function AccountPage() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-start gap-2 rounded-lg border bg-background p-3 sm:col-span-2">
+                            <div className="flex items-center gap-2 rounded-lg border bg-background p-3 sm:col-span-2">
                                 <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                                 <div className="min-w-0">
                                     <div className="text-xs text-muted-foreground">
@@ -765,34 +765,22 @@ export default async function AccountPage() {
                                     </div>
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card
-                        className={cn(
-                            "rounded-lg bg-white dark:bg-black",
-                            typeof parent?.balance === "number" && parent.balance > 0
-                                ? "border-amber-300/60 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/20"
-                                : "border-emerald-300/60 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20"
-                        )}
-                    >
-                        <CardHeader className="flex flex-row items-start justify-between gap-3">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                                    Balance
-                                </p>
-                                <CardTitle className="mt-1 text-3xl font-bold">
-                                    {formatCurrency(parent?.balance)}
-                                </CardTitle>
+                            <div className={cn(
+                                    "flex items-center gap-2 rounded-lg border bg-background p-3 sm:col-span-2",
+                                    typeof parent?.balance === "number" && parent.balance > 0
+                                        ? "border-amber-300/60 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/20"
+                                        : "border-emerald-300/60 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/50"
+                                )}>
+                                <CircleDollarSign className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                                <div className="min-w-0">
+                                    <div className="text-xs text-muted-foreground">
+                                        Outstanding Balance
+                                    </div>
+                                    <div className="text-sm font-medium">
+                                        {typeof parent?.balance === "number" ? formatCurrency(parent.balance) : "Not provided"}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="rounded-lg border bg-background p-2 text-foreground shadow-sm">
-                                <CircleDollarSign className="size-5" />
-                            </div>
-                        </CardHeader>
-                        <CardContent className="text-sm leading-6 text-muted-foreground">
-                            {typeof parent?.balance === "number" && parent.balance > 0
-                                ? "Outstanding balance"
-                                : "No balance due"}
                         </CardContent>
                     </Card>
                 </section>
