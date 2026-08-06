@@ -295,6 +295,12 @@ export type CheerSessionDisplayRecord = {
   type: string | null
 }
 
+export type DeadPeriodRecord = {
+  periodId: string
+  startsAt: string | null
+  endsAt: string | null
+}
+
 export type ClassSessionAttendanceStatus =
   | "present"
   | "absent"

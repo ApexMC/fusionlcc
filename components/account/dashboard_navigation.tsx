@@ -97,12 +97,14 @@ export function AccountSectionHeader({
   icon: Icon,
   backHref = "/account",
   backLabel = "Account",
+  actions,
 }: {
   title: string
   description: string
   icon: LucideIcon
   backHref?: string
   backLabel?: string
+  actions?: ReactNode
 }) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -115,12 +117,19 @@ export function AccountSectionHeader({
           {description}
         </p>
       </div>
-      <Button asChild variant="outline">
-        <Link href={backHref}>
-          <ArrowLeft />
-          {backLabel}
-        </Link>
-      </Button>
+      <div className="flex flex-col items-start gap-2 sm:items-end">
+        <Button asChild variant="outline">
+          <Link href={backHref}>
+            <ArrowLeft />
+            {backLabel}
+          </Link>
+        </Button>
+        {actions ? (
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {actions}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

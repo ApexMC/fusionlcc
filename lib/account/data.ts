@@ -22,6 +22,7 @@ import type {
   ClassScheduleDisplayRecord,
   ClassSessionDisplayRecord,
   ClassSessionExpectedAthlete,
+  DeadPeriodRecord,
   EnrollmentDisplayRecord,
   EnrollmentMetric,
   EnrollmentRecord,
@@ -138,6 +139,12 @@ type CheerSessionRow = {
   ends_at?: string | null
   status?: string | null
   type?: string | null
+}
+
+type DeadPeriodRow = {
+  period_id: string | number
+  starts_at?: string | null
+  ends_at?: string | null
 }
 
 type ClassSessionAttendanceRow = {
@@ -658,6 +665,24 @@ async function fetchCheerSessionRows() {
   }
 
   return (data ?? []) as CheerSessionRow[]
+}
+
+export async function getDeadPeriods(): Promise<DeadPeriodRecord[]> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("DeadPeriods")
+    .select("period_id,starts_at,ends_at")
+    .order("starts_at", { ascending: false })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return ((data ?? []) as DeadPeriodRow[]).map((row) => ({
+    periodId: String(row.period_id),
+    startsAt: row.starts_at ?? null,
+    endsAt: row.ends_at ?? null,
+  }))
 }
 
 function isMissingAttendanceTableError(error: { code?: string; message?: string }) {
