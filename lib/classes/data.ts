@@ -1,5 +1,7 @@
 import "server-only"
 
+import { unstable_cache } from "next/cache"
+
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export type PublicClass = {
@@ -31,6 +33,7 @@ type PublicClassRow = {
   class_id: string | number
   class_name?: string | null
   class_price?: number | null
+  class_description?: string | null
   type?: string | null
   program_type?: string | null
   stripe_price_id?: string | null
@@ -390,7 +393,7 @@ function buildPublicClass(
   }
 }
 
-export async function getPublicClassData() {
+async function loadPublicClassData() {
   const [classRows, scheduleRows] = await Promise.all([
     fetchPublicClassRows(),
     fetchPublicClassScheduleRows(),
@@ -438,6 +441,16 @@ export async function getPublicClassData() {
       }),
     schedules: publicSchedules,
   }
+}
+
+const getCachedPublicClassData = unstable_cache(
+  loadPublicClassData,
+  ["public-class-data"],
+  { revalidate: 300, tags: ["public-class-data"] }
+)
+
+export async function getPublicClassData() {
+  return getCachedPublicClassData()
 }
 
 export async function getPublicClasses() {

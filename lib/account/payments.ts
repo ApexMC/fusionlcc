@@ -295,12 +295,6 @@ export async function updateEnrollmentFromSubscription({
     subscription.status,
     eventType
   )
-  console.log("[updateEnrollmentFromSubscription]", {
-    enrollmentId,
-    subscriptionStatus: subscription.status,
-    eventType,
-    enrollmentStatus,
-  })
   const period = {
     currentPeriodStart: null as string | null,
     currentPeriodEnd: null as string | null,
@@ -339,11 +333,6 @@ export async function updateEnrollmentFromSubscription({
       payment_status: paymentStatus ?? null,
     })
     .eq("enrollment_id", enrollmentId)
-
-  console.log("[updateEnrollmentFromSubscription] result", {
-    enrollmentId,
-    error,
-  })
 
   if (error) {
     throw new Error(error.message)

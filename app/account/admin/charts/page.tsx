@@ -5,13 +5,13 @@ import {
   AccountSectionHeader,
 } from "@/components/account/dashboard_navigation"
 import { AdminCharts } from "@/components/account/admin/admin_charts"
-import { getAdminDashboardData } from "@/lib/account/data"
+import { getAdminChartData } from "@/lib/account/data"
 import { requireAdminOwnerAccountSession } from "@/app/account/_lib/route-guards"
 
 export default async function AdminChartsPage() {
   await requireAdminOwnerAccountSession()
 
-  const dashboardData = await getAdminDashboardData()
+  const dashboardData = await getAdminChartData()
 
   return (
     <AccountDashboardFrame className="max-w-6xl">

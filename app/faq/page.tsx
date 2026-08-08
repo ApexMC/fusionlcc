@@ -1,5 +1,4 @@
 import FAQCard from "@/components/faq/faq_card";
-import { Link } from "lucide-react";
 
 export default function FAQ() {
   return (

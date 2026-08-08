@@ -1,30 +1,22 @@
-import { headers } from "next/headers"
 import { NextResponse } from "next/server"
 
 import { getParentEnrollmentPaymentContext } from "@/lib/account/payments"
 import { getStripe } from "@/lib/stripe/server"
 
-async function getOrigin() {
-  const headerList = await headers()
-  const originHeader = headerList.get("origin")
-
-  if (originHeader) {
-    return originHeader
-  }
-
+function getOrigin(request: Request) {
   if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")
   }
 
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`
   }
 
-  return "http://localhost:3000"
+  return new URL(request.url).origin
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ enrollmentId: string }> }
 ) {
   try {
@@ -49,7 +41,7 @@ export async function POST(
     }
 
     const stripe = getStripe()
-    const origin = await getOrigin()
+    const origin = getOrigin(request)
     const session = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
       return_url: `${origin}/account`,

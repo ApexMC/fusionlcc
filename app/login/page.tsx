@@ -2,12 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, FormEvent, useEffect } from "react";
+import { useMemo, useState, FormEvent } from "react";
 import createClient from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes"
 import US_STATES from "@/utils/us_states";
-import { useToast } from "@/components/ui/toast";
 import { TriangleAlert } from "lucide-react";
 
 function formatPhoneInput(value: string): string {
@@ -35,7 +33,7 @@ export default function SignInPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhone(formatPhoneInput(e.target.value));
@@ -47,7 +45,7 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -55,17 +53,12 @@ export default function SignInPage() {
 
       router.push("/");
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {
       setLoading(false);
     }
   };
-
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const { toast } = useToast()
 
   const handleSignUp = async (e: FormEvent) => {
     e.preventDefault();
@@ -77,7 +70,7 @@ export default function SignInPage() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -97,8 +90,8 @@ export default function SignInPage() {
       if (error) throw error;
 
       setError("Check your email to confirm your account!");
-    } catch (err: any) {
-      setError(err.message || "Failed to sign up");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to sign up");
     } finally {
       setLoading(false);
     }

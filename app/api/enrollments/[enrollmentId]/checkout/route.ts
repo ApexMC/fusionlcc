@@ -1,4 +1,3 @@
-import { headers } from "next/headers"
 import { NextResponse } from "next/server"
 
 import {
@@ -9,30 +8,22 @@ import {
   saveStripeCustomerId,
 } from "@/lib/account/payments"
 import { getStripe, getNextBillingAnchorUnix } from "@/lib/stripe/server"
+import { getStripeIdempotencyKey } from "@/lib/stripe/idempotency"
 
-function getOrigin(fallbackPath = "/account") {
-  return async function origin() {
-    const headerList = await headers()
-    const originHeader = headerList.get("origin")
-
-    if (originHeader) {
-      return originHeader
-    }
-
-    if (process.env.NEXT_PUBLIC_SITE_URL) {
-      return process.env.NEXT_PUBLIC_SITE_URL
-    }
-
-    if (process.env.VERCEL_URL) {
-      return `https://${process.env.VERCEL_URL}`
-    }
-
-    return `http://localhost:3000${fallbackPath}`.replace(fallbackPath, "")
+function getOrigin(request: Request) {
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")
   }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
+  }
+
+  return new URL(request.url).origin
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ enrollmentId: string }> }
 ) {
   try {
@@ -51,16 +42,24 @@ export async function POST(
       null
 
     if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: context.parent.email ?? undefined,
-        name: [context.parent.first_name, context.parent.last_name]
-          .filter(Boolean)
-          .join(" "),
-        metadata: {
-          user_id: context.userId,
-          parent_id: String(context.parent.parent_id),
+      const customer = await stripe.customers.create(
+        {
+          email: context.parent.email ?? undefined,
+          name: [context.parent.first_name, context.parent.last_name]
+            .filter(Boolean)
+            .join(" "),
+          metadata: {
+            user_id: context.userId,
+            parent_id: String(context.parent.parent_id),
+          },
         },
-      })
+        {
+          idempotencyKey: getStripeIdempotencyKey(
+            "customer",
+            context.parent.parent_id
+          ),
+        }
+      )
       stripeCustomerId = customer.id
     }
 
@@ -70,7 +69,7 @@ export async function POST(
       stripeCustomerId,
     })
 
-    const origin = await getOrigin()()
+    const origin = getOrigin(request)
     const metadata = {
       user_id: context.userId,
       parent_id: String(context.parent.parent_id),
@@ -80,27 +79,35 @@ export async function POST(
       enrollment_id: String(context.enrollment.enrollment_id),
       program_type: programType,
     }
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: stripeCustomerId,
-      line_items: [
-        {
-          price: stripePriceId,
-          quantity: 1,
-        },
-      ],
-      success_url: `${origin}/account?checkout=success&enrollment=${context.enrollment.enrollment_id}`,
-      cancel_url: `${origin}/account?checkout=canceled&enrollment=${context.enrollment.enrollment_id}`,
-      client_reference_id: String(context.enrollment.enrollment_id),
-      metadata,
-      subscription_data: {
-        billing_cycle_anchor: getNextBillingAnchorUnix(billingDay),
+    const checkoutSession = await stripe.checkout.sessions.create(
+      {
+        mode: "subscription",
+        customer: stripeCustomerId,
+        line_items: [
+          {
+            price: stripePriceId,
+            quantity: 1,
+          },
+        ],
+        success_url: `${origin}/account?checkout=success&enrollment=${context.enrollment.enrollment_id}`,
+        cancel_url: `${origin}/account?checkout=canceled&enrollment=${context.enrollment.enrollment_id}`,
+        client_reference_id: String(context.enrollment.enrollment_id),
         metadata,
-        proration_behavior: "none",
+        subscription_data: {
+          billing_cycle_anchor: getNextBillingAnchorUnix(billingDay),
+          metadata,
+          proration_behavior: "none",
+        },
       },
-    })
+      {
+        idempotencyKey: getStripeIdempotencyKey(
+          "checkout-session",
+          context.enrollment.enrollment_id
+        ),
+      }
+    )
 
-    return NextResponse.json({ url: session.url })
+    return NextResponse.json({ url: checkoutSession.url })
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to start checkout."

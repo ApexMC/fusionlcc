@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Limitless Cheer & Gymnastics
 
-## Getting Started
+Next.js 16 application for public class information, family accounts, enrollment management, staff operations, and Stripe subscription billing.
 
-First, run the development server:
+## Local development
+
+Requirements: Node.js 20 or later, npm, a Supabase project, Stripe test credentials, and an SMTP account.
 
 ```bash
+cp .env.example .env.local
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Populate `.env.local` from `.env.example`. The Supabase service-role key, Stripe secret, webhook secret, and SMTP password are server-only and must never use a `NEXT_PUBLIC_` prefix.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Add `http://localhost:3000/auth/callback` and the production `/auth/callback` URL to the Supabase authentication redirect allow list so password-reset links can complete the PKCE exchange.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Quality checks
 
-## Learn More
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm audit --omit=dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Run all five checks before deployment. The production build downloads Google fonts, so CI needs outbound access to `fonts.googleapis.com` and `fonts.gstatic.com`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Stripe webhooks
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Configure Stripe to send these events to `/api/stripe/webhook`:
 
-## Deploy on Vercel
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.payment_succeeded`
+- `invoice.payment_failed`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Use Stripe test mode locally and set `STRIPE_WEBHOOK_SECRET` to the signing secret for the active endpoint.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Supabase data contract
+
+The application currently expects these tables: `organization_members`, `Parents`, `Athletes`, `Classes`, `ClassSchedules`, `ScheduleSeasons`, `Enrollments`, `CheerTeams`, `CheerSchedules`, `CheerEnrollments`, `ClassSessions`, `CheerSessions`, `ClassSessionAttendance`, `CoachTimeClockEntries`, and `DeadPeriods`.
+
+The service-role client bypasses Row Level Security and is restricted to server-only modules. Browser writes should remain protected by RLS; new privileged mutations belong in authenticated Server Actions.
+
+Before changing the production schema, capture the current Supabase schema under `supabase/migrations/` with the Supabase CLI and review it with the related application change. Database uniqueness constraints should back up application checks for enrollment and active time-clock records.
+
+## Contact endpoint
+
+`/api/contact` validates and caps request bodies and applies a per-instance IP rate limit. For horizontally scaled production deployments, place a shared platform/WAF rate limit in front of this endpoint so limits apply across all instances.

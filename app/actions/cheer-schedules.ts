@@ -110,10 +110,7 @@ export async function saveCheerSchedule({
   }
 
   const dayStorageSample = await getDayStorageSample(scheduleId)
-  const dayOfWeekValue =
-    typeof dayStorageSample === "number"
-      ? toDayNumber(normalizedDay, dayStorageSample)
-      : normalizedDay
+  const dayOfWeekValue = toDayNumber(normalizedDay, dayStorageSample)
   const payload = {
     team_id: teamId,
     day_of_week: dayOfWeekValue,

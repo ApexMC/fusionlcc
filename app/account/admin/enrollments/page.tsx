@@ -5,13 +5,13 @@ import {
   AccountSectionHeader,
 } from "@/components/account/dashboard_navigation"
 import { EnrollmentManagement } from "@/components/account/admin/enrollment_management"
-import { getAdminDashboardData } from "@/lib/account/data"
+import { getAdminEnrollmentManagementData } from "@/lib/account/data"
 import { requireAdminOwnerAccountSession } from "@/app/account/_lib/route-guards"
 
 export default async function AdminEnrollmentsPage() {
   await requireAdminOwnerAccountSession()
 
-  const dashboardData = await getAdminDashboardData()
+  const dashboardData = await getAdminEnrollmentManagementData()
 
   return (
     <AccountDashboardFrame className="max-w-[90rem]">
@@ -23,8 +23,10 @@ export default async function AdminEnrollmentsPage() {
       />
       <EnrollmentManagement
         enrollments={dashboardData.allEnrollments}
+        cheerEnrollments={dashboardData.cheerEnrollments}
         athletes={dashboardData.enrollmentAthletes}
         schedules={dashboardData.classSchedules}
+        cheerSchedules={dashboardData.cheerSchedules}
       />
     </AccountDashboardFrame>
   )

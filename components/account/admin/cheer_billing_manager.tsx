@@ -24,7 +24,8 @@ type Draft = {
   teamName: string
   teamType: string
   billingDay: string
-  stripePriceId: string
+  tuitionPriceId: string
+  feePriceId: string
 }
 
 function getDefaultDraft(team: CheerBillingRecord): Draft {
@@ -32,7 +33,8 @@ function getDefaultDraft(team: CheerBillingRecord): Draft {
     teamName: team.teamName,
     teamType: team.teamType ?? "",
     billingDay: team.billingDay ?? "1/15",
-    stripePriceId: team.stripePriceId ?? "",
+    tuitionPriceId: team.tuitionPriceId ?? "",
+    feePriceId: team.feePriceId ?? "",
   }
 }
 
@@ -41,7 +43,8 @@ function getBlankDraft(): Draft {
     teamName: "",
     teamType: "",
     billingDay: "1/15",
-    stripePriceId: "",
+    tuitionPriceId: "",
+    feePriceId: "",
   }
 }
 
@@ -50,7 +53,12 @@ function getBillDayLabel() {
 }
 
 function isReady(draft: Draft) {
-  return Boolean(draft.teamName && draft.billingDay && draft.stripePriceId)
+  return Boolean(
+    draft.teamName &&
+      draft.billingDay &&
+      draft.tuitionPriceId &&
+      draft.feePriceId
+  )
 }
 
 export function CheerBillingManager({
@@ -103,7 +111,8 @@ export function CheerBillingManager({
         teamName: draft.teamName,
         teamType: draft.teamType,
         billingDay: draft.billingDay,
-        stripePriceId: draft.stripePriceId,
+        tuitionPriceId: draft.tuitionPriceId,
+        feePriceId: draft.feePriceId,
       })
 
       if (!result.ok) {
@@ -223,13 +232,27 @@ export function CheerBillingManager({
                   </select>
                 </label>
                 <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                  Stripe Price
+                  Tuition Price ID
                   <Input
-                    value={newTeamDraft.stripePriceId}
+                    value={newTeamDraft.tuitionPriceId}
                     onChange={(event) =>
                       setNewTeamDraft((current) => ({
                         ...current,
-                        stripePriceId: event.target.value,
+                        tuitionPriceId: event.target.value,
+                      }))
+                    }
+                    placeholder="price_..."
+                    className="h-10"
+                  />
+                </label>
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Fee Price ID
+                  <Input
+                    value={newTeamDraft.feePriceId}
+                    onChange={(event) =>
+                      setNewTeamDraft((current) => ({
+                        ...current,
+                        feePriceId: event.target.value,
                       }))
                     }
                     placeholder="price_..."
@@ -338,12 +361,25 @@ export function CheerBillingManager({
                       </select>
                     </label>
                     <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                      Stripe Price
+                      Tuition Price ID
                       <Input
-                        value={draft.stripePriceId}
+                        value={draft.tuitionPriceId}
                         onChange={(event) =>
                           setDraft(team.teamId, {
-                            stripePriceId: event.target.value,
+                            tuitionPriceId: event.target.value,
+                          })
+                        }
+                        placeholder="price_..."
+                        className="h-10"
+                      />
+                    </label>
+                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                      Fee Price ID
+                      <Input
+                        value={draft.feePriceId}
+                        onChange={(event) =>
+                          setDraft(team.teamId, {
+                            feePriceId: event.target.value,
                           })
                         }
                         placeholder="price_..."
@@ -372,7 +408,8 @@ export function CheerBillingManager({
                 <TableHead>Team</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Bill Day</TableHead>
-                <TableHead>Stripe Price</TableHead>
+                <TableHead>Tuition Price ID</TableHead>
+                <TableHead>Fee Price ID</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Save</TableHead>
               </TableRow>
@@ -421,11 +458,24 @@ export function CheerBillingManager({
                 </TableCell>
                 <TableCell>
                   <Input
-                    value={newTeamDraft.stripePriceId}
+                    value={newTeamDraft.tuitionPriceId}
                     onChange={(event) =>
                       setNewTeamDraft((current) => ({
                         ...current,
-                        stripePriceId: event.target.value,
+                        tuitionPriceId: event.target.value,
+                      }))
+                    }
+                    placeholder="price_..."
+                    className="min-w-48"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    value={newTeamDraft.feePriceId}
+                    onChange={(event) =>
+                      setNewTeamDraft((current) => ({
+                        ...current,
+                        feePriceId: event.target.value,
                       }))
                     }
                     placeholder="price_..."
@@ -493,10 +543,22 @@ export function CheerBillingManager({
                     </TableCell>
                     <TableCell>
                       <Input
-                        value={draft.stripePriceId}
+                        value={draft.tuitionPriceId}
                         onChange={(event) =>
                           setDraft(team.teamId, {
-                            stripePriceId: event.target.value,
+                            tuitionPriceId: event.target.value,
+                          })
+                        }
+                        placeholder="price_..."
+                        className="min-w-48"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={draft.feePriceId}
+                        onChange={(event) =>
+                          setDraft(team.teamId, {
+                            feePriceId: event.target.value,
                           })
                         }
                         placeholder="price_..."

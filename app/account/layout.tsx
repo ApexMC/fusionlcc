@@ -1,32 +1,16 @@
-// app/dashboard/layout.tsx
-
 import { redirect } from "next/navigation";
-import createClient from "@/lib/supabase/server";
+import { getAccountSession } from "@/lib/account/auth";
 
 export default async function AccountLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
+  const session = await getAccountSession();
 
-  const { data: claims, error } = await supabase.auth.getClaims();
-
-  if (error || !claims?.claims?.sub) {
+  if (!session) {
     redirect("/login");
   }
-{/*
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("role")
-    .eq("user_id", claims.claims.sub)
-    .in("role", ["owner", "admin", "parent", "coach"])
-    .maybeSingle();
-
-  if (!membership) {
-    redirect("/unauthorized");
-  }
-*/}
 
   return <>{children}</>;
 }

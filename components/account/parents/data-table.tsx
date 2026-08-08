@@ -44,6 +44,8 @@ export function DataTable<TData, TValue>({
     []
   )
   const [expandedRowId, setExpandedRowId] = React.useState<string | null>(null)
+  // TanStack Table intentionally returns callbacks that the React compiler cannot memoize.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,

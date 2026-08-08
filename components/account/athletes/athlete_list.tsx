@@ -6,12 +6,11 @@ import { DataTable } from "../parents/data-table"
 
 export default function AthleteList() {
   const [athletes, setAthletes] = useState<Athlete[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
     fetch("/api/athletes")
       .then(async (res) => {
         if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
@@ -21,9 +20,9 @@ export default function AthleteList() {
         if (!mounted) return;
         setAthletes(Array.isArray(data) ? data : []);
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         if (!mounted) return;
-        setError(err?.message ?? String(err));
+        setError(err instanceof Error ? err.message : String(err));
       })
       .finally(() => {
         if (!mounted) return;
