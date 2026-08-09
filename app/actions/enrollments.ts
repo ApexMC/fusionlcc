@@ -1285,6 +1285,7 @@ export async function updateClassBillingConfig({
   classId,
   className,
   classType,
+  classDescription,
   programType,
   billingDay,
   stripePriceId,
@@ -1292,6 +1293,7 @@ export async function updateClassBillingConfig({
   classId?: string | null
   className: string
   classType?: string | null
+  classDescription?: string | null
   programType: string
   billingDay: number
   stripePriceId: string
@@ -1325,6 +1327,7 @@ export async function updateClassBillingConfig({
   const supabase = createAdminClient()
   const payload = {
     class_name: className.trim() || "Untitled class",
+    class_description: classDescription?.trim() || null,
     type: classType?.trim() || normalizedProgramType,
     program_type: normalizedProgramType,
     billing_day: billingDay,

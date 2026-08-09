@@ -194,6 +194,7 @@ export function ClassScheduleManager({
     React.useState<ScheduleDraft>(() =>
       getBlankDraft(classes, selectedSeasonId)
     )
+  const [addDialogOpen, setAddDialogOpen] = React.useState(false)
   const [busyId, setBusyId] = React.useState<string | null>(null)
   const [expandedScheduleCardId, setExpandedScheduleCardId] =
     React.useState<string | null>(null)
@@ -323,7 +324,7 @@ export function ClassScheduleManager({
         setNewScheduleDraft(
           getBlankDraft(classes, selectedSeason?.seasonId ?? selectedSeasonId)
         )
-        setExpandedScheduleCardId(null)
+        setAddDialogOpen(false)
       }
       router.refresh()
     } catch (error) {
@@ -515,141 +516,31 @@ export function ClassScheduleManager({
     )
   }
 
-  const isNewScheduleExpanded = expandedScheduleCardId === "new-schedule"
+  function handleAddSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    void saveSchedule(null)
+  }
 
   return (
     <Card className="w-full bg-white dark:bg-black">
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <CardTitle>Class Schedule</CardTitle>
+          <Button
+            type="button"
+            size="sm"
+            className="md:hidden"
+            disabled={!classes.length || !selectedSeason}
+            onClick={() => setAddDialogOpen(true)}
+          >
+            <Plus />
+            Add Schedule
+          </Button>
         </div>
         {renderSeasonSelector()}
       </CardHeader>
       <CardContent className="max-h-[min(42rem,55svh)] min-h-0 overflow-y-auto overscroll-contain pr-3 [scrollbar-gutter:stable]">
         <div className="space-y-3 md:hidden">
-          <div className="rounded-lg border bg-muted/50 p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="font-medium">Add Schedule</div>
-                <div className="text-xs text-muted-foreground">
-                  Create a class time for {selectedSeason?.season ?? "this season"}.
-                </div>
-              </div>
-              <Badge variant="outline">new</Badge>
-            </div>
-            <Button
-              type="button"
-              size="lg"
-              variant={isNewScheduleExpanded ? "secondary" : "outline"}
-              className="mt-3 h-10 w-full justify-between"
-              aria-expanded={isNewScheduleExpanded}
-              onClick={() =>
-                setExpandedScheduleCardId((current) =>
-                  current === "new-schedule" ? null : "new-schedule"
-                )
-              }
-            >
-              {isNewScheduleExpanded ? "Hide Details" : "View Details"}
-              <ChevronDown
-                className={
-                  isNewScheduleExpanded
-                    ? "rotate-180 transition-transform"
-                    : "transition-transform"
-                }
-              />
-            </Button>
-            {isNewScheduleExpanded ? (
-              <div className="mt-3 grid gap-3">
-                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                  Class
-                  {renderClassSelect({
-                    value: newScheduleDraft.classId,
-                    onChange: (classId) =>
-                      setNewScheduleDraft((current) => ({
-                        ...current,
-                        classId,
-                      })),
-                    className:
-                      "h-10 w-full rounded-lg border border-input bg-background px-2 text-base",
-                  })}
-                </label>
-                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                  Day
-                  {renderDaySelect({
-                    value: newScheduleDraft.dayOfWeek,
-                    onChange: (dayOfWeek) =>
-                      setNewScheduleDraft((current) => ({
-                        ...current,
-                        dayOfWeek,
-                      })),
-                    className:
-                      "h-10 w-full rounded-lg border border-input bg-background px-2 text-base",
-                  })}
-                </label>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                    Start
-                    <Input
-                      type="time"
-                      value={newScheduleDraft.startTime}
-                      onChange={(event) =>
-                        setNewScheduleDraft((current) => ({
-                          ...current,
-                          startTime: event.target.value,
-                        }))
-                      }
-                      className="h-10"
-                    />
-                  </label>
-                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                    End
-                    <Input
-                      type="time"
-                      value={newScheduleDraft.endTime}
-                      onChange={(event) =>
-                        setNewScheduleDraft((current) => ({
-                          ...current,
-                          endTime: event.target.value,
-                        }))
-                      }
-                      className="h-10"
-                    />
-                  </label>
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={newScheduleDraft.isActive}
-                    onChange={(event) =>
-                      setNewScheduleDraft((current) => ({
-                        ...current,
-                        isActive: event.target.checked,
-                      }))
-                    }
-                    className="size-4"
-                  />
-                  <Badge
-                    variant={newScheduleDraft.isActive ? "success" : "outline"}
-                  >
-                    {newScheduleDraft.isActive ? "active" : "inactive"}
-                  </Badge>
-                </label>
-                <Button
-                  type="button"
-                  size="lg"
-                  disabled={
-                    busyId === "new-schedule" ||
-                    !classes.length ||
-                    !selectedSeason
-                  }
-                  onClick={() => saveSchedule(null)}
-                >
-                  <Plus />
-                  {busyId === "new-schedule" ? "Saving" : "Add Schedule"}
-                </Button>
-              </div>
-            ) : null}
-          </div>
           {filteredSchedules.length ? (
             filteredSchedules.map((schedule) => {
               const draft =
@@ -820,96 +711,20 @@ export function ClassScheduleManager({
               <TableHead>End</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-center">Enrolled</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!classes.length || !selectedSeason}
+                  onClick={() => setAddDialogOpen(true)}
+                >
+                  <Plus />
+                  Add Schedule
+                </Button>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow>
-              <TableCell>
-                {renderClassSelect({
-                  value: newScheduleDraft.classId,
-                  onChange: (classId) =>
-                    setNewScheduleDraft((current) => ({
-                      ...current,
-                      classId,
-                    })),
-                })}
-              </TableCell>
-              <TableCell>
-                {renderDaySelect({
-                  value: newScheduleDraft.dayOfWeek,
-                  onChange: (dayOfWeek) =>
-                    setNewScheduleDraft((current) => ({
-                      ...current,
-                      dayOfWeek,
-                    })),
-                })}
-              </TableCell>
-              <TableCell>
-                <Input
-                  type="time"
-                  value={newScheduleDraft.startTime}
-                  onChange={(event) =>
-                    setNewScheduleDraft((current) => ({
-                      ...current,
-                      startTime: event.target.value,
-                    }))
-                  }
-                  className="min-w-32"
-                />
-              </TableCell>
-              <TableCell>
-                <Input
-                  type="time"
-                  value={newScheduleDraft.endTime}
-                  onChange={(event) =>
-                    setNewScheduleDraft((current) => ({
-                      ...current,
-                      endTime: event.target.value,
-                    }))
-                  }
-                  className="min-w-32"
-                />
-              </TableCell>
-              <TableCell>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={newScheduleDraft.isActive}
-                    onChange={(event) =>
-                      setNewScheduleDraft((current) => ({
-                        ...current,
-                        isActive: event.target.checked,
-                      }))
-                    }
-                    className="size-4"
-                  />
-                  <Badge variant={newScheduleDraft.isActive ? "success" : "outline"}>
-                    {newScheduleDraft.isActive ? "active" : "inactive"}
-                  </Badge>
-                </label>
-              </TableCell>
-              <TableCell className="text-center text-sm text-muted-foreground">
-                —
-              </TableCell>
-              <TableCell>
-                <div className="flex justify-end gap-1">
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={
-                      busyId === "new-schedule" ||
-                      !classes.length ||
-                      !selectedSeason
-                    }
-                    onClick={() => saveSchedule(null)}
-                  >
-                    <Plus />
-                    {busyId === "new-schedule" ? "Saving" : "Add"}
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
             {filteredSchedules.length ? (
               filteredSchedules.map((schedule) => {
                 const draft =
@@ -1028,6 +843,109 @@ export function ClassScheduleManager({
         </Table>
         </div>
       </CardContent>
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={handleAddSubmit}>
+            <DialogHeader>
+              <DialogTitle>Add Class Schedule</DialogTitle>
+              <DialogDescription>
+                Create a class time for {selectedSeason?.season ?? "this season"}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="my-6 grid gap-4">
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Class</span>
+                {renderClassSelect({
+                  value: newScheduleDraft.classId,
+                  onChange: (classId) =>
+                    setNewScheduleDraft((current) => ({
+                      ...current,
+                      classId,
+                    })),
+                  className:
+                    "h-8 w-full rounded-lg border border-input bg-background px-2 text-sm",
+                })}
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Day</span>
+                {renderDaySelect({
+                  value: newScheduleDraft.dayOfWeek,
+                  onChange: (dayOfWeek) =>
+                    setNewScheduleDraft((current) => ({
+                      ...current,
+                      dayOfWeek,
+                    })),
+                  className:
+                    "h-8 w-full rounded-lg border border-input bg-background px-2 text-sm",
+                })}
+              </label>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <label className="grid gap-1 text-sm">
+                  <span className="font-medium">Start</span>
+                  <Input
+                    type="time"
+                    value={newScheduleDraft.startTime}
+                    onChange={(event) =>
+                      setNewScheduleDraft((current) => ({
+                        ...current,
+                        startTime: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="font-medium">End</span>
+                  <Input
+                    type="time"
+                    value={newScheduleDraft.endTime}
+                    onChange={(event) =>
+                      setNewScheduleDraft((current) => ({
+                        ...current,
+                        endTime: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={newScheduleDraft.isActive}
+                  onChange={(event) =>
+                    setNewScheduleDraft((current) => ({
+                      ...current,
+                      isActive: event.target.checked,
+                    }))
+                  }
+                  className="size-4"
+                />
+                <span className="font-medium">Active</span>
+              </label>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busyId === "new-schedule"}
+                onClick={() => setAddDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  busyId === "new-schedule" ||
+                  !classes.length ||
+                  !selectedSeason
+                }
+              >
+                <Plus />
+                {busyId === "new-schedule" ? "Adding" : "Add Schedule"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={Boolean(scheduleToDelete)}
         onOpenChange={(open) => !open && setScheduleToDelete(null)}

@@ -532,7 +532,7 @@ async function fetchClasses() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("Classes")
-    .select("class_id,class_name,type,program_type,billing_day,stripe_price_id,created_at")
+    .select("class_id,class_name,class_description,type,program_type,billing_day,stripe_price_id,created_at")
     .order("class_id", { ascending: true })
 
   if (!error) {
@@ -555,7 +555,7 @@ async function fetchCheerTeams() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("CheerTeams")
-    .select("team_id,team_name,type,program_type,billing_day,stripe_price_id,created_at")
+    .select("team_id,team_name,type,program_type,billing_day,tuition_price_id,fee_price_id,created_at")
     .order("team_id", { ascending: true })
 
   if (!error) {
@@ -972,6 +972,7 @@ function buildClassBillingRows(classes: ClassRecord[]) {
       classId: String(classRecord.class_id),
       className:
         classRecord.class_name ?? getClassFallbackName(classRecord.class_id),
+      classDescription: classRecord.class_description ?? null,
       classType: classRecord.type ?? null,
       programType,
       billingDay,
@@ -993,7 +994,8 @@ function buildCheerBillingRows(teams: CheerTeamRecord[]) {
       teamType: teamRecord.type ?? null,
       programType,
       billingDay: "1/15",
-      stripePriceId: teamRecord.stripe_price_id ?? null,
+      tuitionPriceId: teamRecord.tuition_price_id ?? null,
+      feePriceId: teamRecord.fee_price_id ?? null,
       createdAt: teamRecord.created_at ?? null,
     }
   })
@@ -1568,7 +1570,8 @@ function buildActionItems(
         !classRecord.programType)
   ).length + cheerBilling.filter(
     (teamRecord) =>
-      (!teamRecord.stripePriceId ||
+      (!teamRecord.tuitionPriceId ||
+        !teamRecord.feePriceId ||
         !teamRecord.billingDay ||
         !teamRecord.programType)
   ).length

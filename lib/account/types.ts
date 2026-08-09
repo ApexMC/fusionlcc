@@ -17,6 +17,7 @@ export type PaymentStatus =
 export type ClassRecord = {
   class_id: string | number
   class_name?: string | null
+  class_description?: string | null
   type?: string | null
   program_type?: string | null
   stripe_price_id?: string | null
@@ -29,7 +30,8 @@ export type CheerTeamRecord = {
   team_name?: string | null
   type?: string | null
   program_type?: string | null
-  stripe_price_id?: string | null
+  tuition_price_id?: string | null
+  fee_price_id?: string | null
   billing_day?: string | null
   created_at?: string | null
 }
@@ -182,6 +184,7 @@ export type OperationsActionItem = {
 export type ClassBillingRecord = {
   classId: string
   className: string
+  classDescription: string | null
   classType: string | null
   programType: string | null
   billingDay: number | null
@@ -195,7 +198,8 @@ export type CheerBillingRecord = {
   teamType: string | null
   programType: string | null
   billingDay: string | null
-  stripePriceId: string | null
+  tuitionPriceId: string | null
+  feePriceId: string | null
   createdAt: string | null
 }
 

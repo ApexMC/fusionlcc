@@ -15,17 +15,20 @@ export async function updateCheerTeamBillingConfig({
   teamName,
   teamType,
   billingDay,
-  stripePriceId,
+  tuitionPriceId,
+  feePriceId,
 }: {
   teamId?: string | null
   teamName: string
   teamType?: string | null
   billingDay: string
-  stripePriceId: string
+  tuitionPriceId: string
+  feePriceId: string
 }): Promise<ActionResult> {
   requireAdminSession(await getAccountSession())
 
-  const normalizedPriceId = stripePriceId.trim()
+  const normalizedTuitionPriceId = tuitionPriceId.trim()
+  const normalizedFeePriceId = feePriceId.trim()
 
   if (!teamName.trim()) {
     return {
@@ -34,7 +37,10 @@ export async function updateCheerTeamBillingConfig({
     }
   }
 
-  if (normalizedPriceId && !normalizedPriceId.startsWith("price_")) {
+  if (
+    (normalizedTuitionPriceId && !normalizedTuitionPriceId.startsWith("price_")) ||
+    (normalizedFeePriceId && !normalizedFeePriceId.startsWith("price_"))
+  ) {
     return {
       ok: false,
       message: "Stripe price IDs usually start with price_.",
@@ -54,7 +60,8 @@ export async function updateCheerTeamBillingConfig({
     type: teamType?.trim() || "competitive_cheer",
     program_type: "competitive_cheer",
     billing_day: billingDay,
-    stripe_price_id: normalizedPriceId || null,
+    tuition_price_id: normalizedTuitionPriceId || null,
+    fee_price_id: normalizedFeePriceId || null,
   }
   const mutation = teamId
     ? supabase

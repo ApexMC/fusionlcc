@@ -705,10 +705,10 @@ export default async function AccountPage() {
 
                 <section
                     id="family-profile"
-                    className="grid scroll-mt-24 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.45fr)]"
+                    className="grid scroll-mt-24 w-full grid-cols-1 gap-4 lg:grid-cols-1"
                     aria-label="Family profile"
                 >
-                    <Card className="rounded-lg bg-white dark:bg-black">
+                    <Card className="rounded-lg w-full bg-white dark:bg-black">
                         <CardHeader className="flex flex-row items-start justify-between gap-4">
                             <div>
                                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
