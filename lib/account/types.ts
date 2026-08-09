@@ -17,7 +17,6 @@ export type PaymentStatus =
 export type ClassRecord = {
   class_id: string | number
   class_name?: string | null
-  class_description?: string | null
   type?: string | null
   program_type?: string | null
   stripe_price_id?: string | null
@@ -30,8 +29,7 @@ export type CheerTeamRecord = {
   team_name?: string | null
   type?: string | null
   program_type?: string | null
-  tuition_price_id?: string | null
-  fee_price_id?: string | null
+  stripe_price_id?: string | null
   billing_day?: string | null
   created_at?: string | null
 }
@@ -72,7 +70,6 @@ export type AthleteRecord = {
   dob?: string | null
   phone?: string | null
   shirt_size?: string | null
-  gender?: string | null
   created_at?: string | null
   Parents?: ParentRecord | ParentRecord[] | null
 }
@@ -95,23 +92,6 @@ export type EnrollmentRecord = {
   ClassSchedules?: ClassScheduleRecord | ClassScheduleRecord[] | null
 }
 
-export type CheerEnrollmentRecord = {
-  enrollment_id: string | number
-  athlete_id?: string | number | null
-  team_id?: string | number | null
-  status?: EnrollmentStatus | null
-  enrolled_at?: string | null
-  parent_id?: string | number | null
-  stripe_customer_id?: string | null
-  subscription_status?: string | null
-  current_period_start?: string | null
-  current_period_end?: string | null
-  payment_status?: PaymentStatus
-  schedule_id?: string | number | null
-  tuition_subscription_id?: string | null
-  fee_subscription_id?: string | null
-}
-
 export type EnrollmentDisplayRecord = {
   enrollmentId: string
   athleteId: string | null
@@ -131,28 +111,6 @@ export type EnrollmentDisplayRecord = {
   stripePriceId: string | null
   stripeCustomerId: string | null
   stripeSubscriptionId: string | null
-  subscriptionStatus: string | null
-  paymentStatus: string | null
-  currentPeriodStart: string | null
-  currentPeriodEnd: string | null
-}
-
-export type CheerEnrollmentDisplayRecord = {
-  enrollmentId: string
-  athleteId: string | null
-  athleteName: string
-  parentId: string | null
-  parentName: string
-  parentEmail: string | null
-  teamId: string | null
-  teamName: string
-  scheduleId: string | null
-  scheduleLabel: string | null
-  status: string
-  enrolledAt: string | null
-  stripeCustomerId: string | null
-  tuitionSubscriptionId: string | null
-  feeSubscriptionId: string | null
   subscriptionStatus: string | null
   paymentStatus: string | null
   currentPeriodStart: string | null
@@ -182,7 +140,6 @@ export type AdminDashboardData = {
   actionItems: OperationsActionItem[]
   pendingEnrollments: EnrollmentDisplayRecord[]
   allEnrollments: EnrollmentDisplayRecord[]
-  cheerEnrollments: CheerEnrollmentDisplayRecord[]
   enrollmentAthletes: AdminEnrollmentAthleteOption[]
   classBilling: ClassBillingRecord[]
   cheerBilling: CheerBillingRecord[]
@@ -226,7 +183,6 @@ export type ClassBillingRecord = {
   classId: string
   className: string
   classType: string | null
-  description: string | null
   programType: string | null
   billingDay: number | null
   stripePriceId: string | null
@@ -239,8 +195,7 @@ export type CheerBillingRecord = {
   teamType: string | null
   programType: string | null
   billingDay: string | null
-  tuitionPriceId: string | null
-  feePriceId: string | null
+  stripePriceId: string | null
   createdAt: string | null
 }
 

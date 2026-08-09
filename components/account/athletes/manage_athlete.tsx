@@ -1,10 +1,18 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { Field, FieldGroup } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button";
+import createClient from "@/lib/supabase/client"
 import { useState } from "react"
-
-import { saveOwnAthlete } from "@/app/actions/athletes"
-import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogClose,
@@ -15,171 +23,168 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Field, FieldGroup } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-
-const shirtSizes = ["YS", "YM", "YL", "YXL", "S", "M", "L", "XL", "2XL"]
-const genderOptions = ["Female", "Male", "Other", "Prefer not to say"]
 
 export default function ManageAthleteCard({
-  icon,
-  athleteId,
-  first_name,
-  last_name,
-  phone,
-  dob,
-  shirt_size,
-  gender,
-}: {
-  icon: React.ReactNode
-  athleteId?: number
-  first_name?: string
-  last_name?: string
-  phone?: string
-  dob?: string
-  shirt_size?: string
-  gender?: string
-}) {
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+    icon
+    ,userId
+    ,parentId
+    ,athleteId
+    ,first_name
+    ,last_name
+    ,phone
+    ,dob
+    ,shirt_size
+    ,gender
+    }: 
+    {icon: React.ReactNode
+    ,userId: string
+    ,parentId?: string | number
+    ,athleteId?: number
+    ,first_name?: string
+    ,last_name?: string
+    ,phone?: string
+    ,dob?: string
+    ,shirt_size?: string
+    ,gender?: string}
+    ) {
+    const supabase = createClient()
+    const [open, setOpen] = useState(false)
+    const [loading, setLoading] = useState(false)
+    const [shirtSize, setShirtSize] = useState<string | undefined>(shirt_size)
+    const [genderSelection, setGender] = useState<string | undefined>(gender)
+    const [error, setError] = useState<string | null>(null)
+    
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const form = new FormData(event.currentTarget)
+    const form = new FormData(e.currentTarget)
+    const first_name = form.get("first_name")?.toString() ?? ""
+    const last_name = form.get("last_name")?.toString() ?? ""
+    const phone = form.get("phone")?.toString() ?? ""
+    const dob = form.get("dob")?.toString() ?? ""
+    const shirt_size = shirtSize ?? ""
+    const user_id = userId
+    const parent_id = parentId
+    const gender = ''
 
-    try {
-      const result = await saveOwnAthlete({
-        athleteId: athleteId ? String(athleteId) : null,
-        firstName: String(form.get("first_name") ?? ""),
-        lastName: String(form.get("last_name") ?? ""),
-        phone: String(form.get("phone") ?? ""),
-        dob: String(form.get("dob") ?? ""),
-        shirtSize: String(form.get("shirt_size") ?? ""),
-        gender: String(form.get("gender") ?? ""),
-      })
+    const { data, error } = athleteId ? await supabase
+      .from("Athletes")
+      .upsert([{
+        athlete_id: athleteId ?? undefined
+        ,first_name
+        ,last_name
+        ,phone
+        ,dob
+        ,shirt_size
+        ,user_id
+        ,parent_id
+        ,gender
+      }])
+      :
+        await supabase
+        .from("Athletes")
+        .insert([{
+          first_name
+          ,last_name
+          ,phone
+          ,dob
+          ,shirt_size
+          ,user_id 
+          ,parent_id
+          ,gender
+        }])
 
-      if (!result.ok) {
-        setError(result.message)
-        return
-      }
-
-      setOpen(false)
-      router.refresh()
-    } catch {
-      setError("Athlete could not be saved. Please try again.")
-    } finally {
-      setLoading(false)
+    setLoading(false)
+    if (error) {
+      setError(error.message)
+      return
     }
+
+    // close dialog and refresh current route so lists update
+    setOpen(false)
+    window.location.reload()
   }
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          className={athleteId ? undefined : "bg-purple-500 text-white hover:bg-purple-600"}
-          type="button"
-          variant={athleteId ? "outline" : "default"}
-          aria-label={athleteId ? "Edit athlete" : undefined}
-        >
-          {icon}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>{athleteId ? "Edit Athlete" : "Add Athlete"}</DialogTitle>
-            <DialogDescription>
-              {athleteId
-                ? "Update this athlete's information."
-                : "Add an athlete to your family account."}
-            </DialogDescription>
-          </DialogHeader>
-          <FieldGroup className="my-6 max-h-[70vh] overflow-y-auto no-scrollbar">
-            <Field>
-              <Label htmlFor={`athlete-first-${athleteId ?? "new"}`}>First Name</Label>
-              <Input
-                id={`athlete-first-${athleteId ?? "new"}`}
-                name="first_name"
-                required
-                maxLength={100}
-                defaultValue={first_name ?? ""}
-              />
-            </Field>
-            <Field>
-              <Label htmlFor={`athlete-last-${athleteId ?? "new"}`}>Last Name</Label>
-              <Input
-                id={`athlete-last-${athleteId ?? "new"}`}
-                name="last_name"
-                required
-                maxLength={100}
-                defaultValue={last_name ?? ""}
-              />
-            </Field>
-            <Field>
-              <Label htmlFor={`athlete-gender-${athleteId ?? "new"}`}>Gender</Label>
-              <select
-                id={`athlete-gender-${athleteId ?? "new"}`}
-                name="gender"
-                defaultValue={gender ?? ""}
-                className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-              >
-                <option value="">Select gender</option>
-                {genderOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-            </Field>
-            <Field>
-              <Label htmlFor={`athlete-phone-${athleteId ?? "new"}`}>Phone</Label>
-              <Input
-                id={`athlete-phone-${athleteId ?? "new"}`}
-                name="phone"
-                type="tel"
-                maxLength={30}
-                defaultValue={phone ?? ""}
-              />
-            </Field>
-            <Field>
-              <Label htmlFor={`athlete-dob-${athleteId ?? "new"}`}>Date of Birth</Label>
-              <Input
-                id={`athlete-dob-${athleteId ?? "new"}`}
-                name="dob"
-                type="date"
-                defaultValue={dob ?? ""}
-              />
-            </Field>
-            <Field>
-              <Label htmlFor={`athlete-shirt-${athleteId ?? "new"}`}>Shirt Size</Label>
-              <select
-                id={`athlete-shirt-${athleteId ?? "new"}`}
-                name="shirt_size"
-                defaultValue={shirt_size ?? ""}
-                className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-              >
-                <option value="">Select size</option>
-                {shirtSizes.map((size) => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
-            </Field>
-          </FieldGroup>
-          {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving" : athleteId ? "Update" : "Add"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button className={athleteId ? "bg-transparent hover:bg-zinc-300 text-white font-bold" : "bg-purple-500 dark:bg-purple-500 dark:hover:bg-purple-600 hover:bg-purple-600 text-white font-bold"} type="button" variant="outline">{icon}</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-sm">
+                <form onSubmit={handleSubmit}>
+                <DialogHeader>
+                    <DialogTitle>
+                        {athleteId ? "Edit Athlete" : "Add Athlete"}
+                    </DialogTitle>
+                    <DialogDescription>
+                    {athleteId ? null : "Add a new athlete to your account. You are only billed for athletes currently enrolled in classes or cheer."}
+                    </DialogDescription>
+                </DialogHeader>
+                <FieldGroup className="mb-6 no-scrollbar max-h-[70vh] overflow-y-auto mt-6">
+                    <Field>
+                        <Label htmlFor="first-name-1">First Name</Label>
+                        <Input id="first-name-1" name="first_name" defaultValue={first_name ?? ""} placeholder="Jane"/>
+                    </Field>
+                    <Field>
+                        <Label htmlFor="last-name-1">Last Name</Label>
+                        <Input id="last-name-1" name="last_name" defaultValue={last_name ?? ""} placeholder="Doe"/>
+                    </Field>
+                    <Field>
+                        <Label htmlFor="gender-1">
+                            Gender
+                        </Label>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">{genderSelection ?? "Select Gender"}</Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuGroup>
+                                    <DropdownMenuItem onClick={() => setGender("Female")}>Female</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setGender("Male")}>Male</DropdownMenuItem>
+                                </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </Field>
+                    <Field>
+                        <Label htmlFor="phone-1">Phone</Label>
+                        <Input id="phone-1" name="phone" defaultValue={phone ?? ""} placeholder="(123) 456-7890"/>
+                    </Field>
+                    <Field>
+                        <Label htmlFor="dob-1">Date of Birth</Label>
+                        <Input id="dob-1" name="dob" type="date" defaultValue={dob ?? ""} placeholder="MM/DD/YYYY"/>
+                    </Field>
+                    <Field>
+                        <Label htmlFor="shirt-1">
+                            Shirt Size
+                        </Label>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">{shirtSize ?? "Select Size"}</Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuGroup>
+                                    <DropdownMenuItem onClick={() => setShirtSize("S")}>S</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShirtSize("M")}>M</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShirtSize("L")}>L</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShirtSize("XL")}>XL</DropdownMenuItem>
+                                </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </Field>
+                </FieldGroup>
+                {error && <div className="text-sm text-red-600 mb-2">{error}</div>}
+                <DialogFooter>
+                    <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit" disabled={loading}>
+                        {loading ? "Loading..." : athleteId ? "Update" : "Add"}
+                    </Button>
+                </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
 }

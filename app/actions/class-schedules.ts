@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath, revalidateTag } from "next/cache"
+import { revalidatePath } from "next/cache"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
 import { sendContactEmail } from "@/lib/contact/email"
@@ -118,7 +118,6 @@ function buildScheduleSeasonChangeMessage(seasonName: string | null) {
 }
 
 function revalidateClassSchedulePaths() {
-  revalidateTag("public-class-data", "max")
   revalidatePath("/account")
   revalidatePath("/classes")
   revalidatePath("/classes/[className]/schedule", "page")

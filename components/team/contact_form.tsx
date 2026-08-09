@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useTheme } from "next-themes";
 
 export default function ContactForm() {
   const [status, setStatus] = useState<
     "idle" | "sending" | "success" | "error"
   >("idle");
   const [message, setMessage] = useState("");
+
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   async function onSubmit(a: React.FormEvent<HTMLFormElement>) {
     a.preventDefault();
@@ -17,14 +22,10 @@ export default function ContactForm() {
     const form = a.currentTarget;
     const formData = new FormData(form);
 
-    const name = String(formData.get("name") ?? "")
-    const email = String(formData.get("email") ?? "")
-    const subject = String(formData.get("subject") ?? "")
-    const body = String(formData.get("message") ?? "")
     const payload = {
-      email,
-      subject: `LCC Contact Form: ${subject}`,
-      message: `Name: ${name}\nEmail: ${email}\n\nMessage: ${body}`,
+      email: String(formData.get("email") || ""),
+      subject: `LCC Contact Form: ${String(formData.get("subject") || "")}`,
+      message: String("Name: " + formData.get("name") + "\n" + "Email: " + formData.get("email") + "\n\n" + "Message: " + formData.get("message") || ""),
     };
 
     try {
@@ -41,9 +42,9 @@ export default function ContactForm() {
       setStatus("success");
       setMessage("Thanks! Your message has been sent.");
       form.reset();
-    } catch (err: unknown) {
+    } catch (err: any) {
       setStatus("error");
-      setMessage(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setMessage(err?.message || "Something went wrong. Please try again.");
     }
   }
 
@@ -66,7 +67,6 @@ export default function ContactForm() {
             <input
             name="name"
             required
-            maxLength={100}
             className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
             />
         </div>
@@ -79,7 +79,6 @@ export default function ContactForm() {
             name="email"
             type="email"
             required
-            maxLength={254}
             className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
             />
         </div>
@@ -92,7 +91,6 @@ export default function ContactForm() {
         <input
             name="subject"
             required
-            maxLength={100}
             className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
         />
         </div>
@@ -104,8 +102,6 @@ export default function ContactForm() {
         <textarea
             name="message"
             required
-            minLength={10}
-            maxLength={3500}
             rows={6}
             className="mt-2 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
         />

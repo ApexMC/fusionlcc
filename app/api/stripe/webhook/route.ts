@@ -61,6 +61,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     session.metadata?.enrollment_id ?? session.client_reference_id
   const subscriptionId = getStripeId(session.subscription)
 
+  console.log("[handleCheckoutCompleted]", {
+    enrollmentId,
+    subscriptionId,
+    metadata: session.metadata,
+    clientReferenceId: session.client_reference_id,
+  })
+
   if (!enrollmentId || !subscriptionId) {
     return
   }

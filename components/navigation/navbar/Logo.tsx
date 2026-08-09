@@ -1,16 +1,56 @@
-import Image from "next/image"
-import Link from "next/link"
+"use client";
+import Image from "next/image";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 
-export default function Logo() {
+const Logo = () => {
+  //update the size of the logo when the size of the screen changes
+  const [width, setWidth] = useState(0);
+
+  const updateWidth = () => {
+    const newWidth = window.innerWidth;
+    setWidth(newWidth);
+  };
+
+  useEffect(() => {
+    window.addEventListener("resize", updateWidth);
+    updateWidth();
+  }, []);
+
+  // change between the logo and the button when the user scrolls
+  const [showButton, setShowButton] = useState(false);
+
+  const changeNavButton = () => {
+    if (window.scrollY >= 400 && window.innerWidth < 800) {
+      setShowButton(false);
+    } else {
+      setShowButton(false);
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener("scroll", changeNavButton);
+  }, []);
+
   return (
-    <Link href="/" aria-label="Limitless Cheer and Gymnastics home">
-      <Image
-        src="/images/logos/limitless_logo.png"
-        alt="Limitless Cheer and Gymnastics"
-        width={85}
-        height={85}
-        priority
-      />
-    </Link>
-  )
-}
+    <>
+      <Link href="/" style={{ display: showButton ? "none" : "block" }}>
+        <Image
+          src="/images/logos/limitless_logo.png"
+          alt="Logo"
+          width={width < 1024 ? "85" : "85"}
+          height={width < 1024 ? "85" : "85"}
+          className="relative"
+        />
+      </Link>
+      <div
+        style={{
+          display: showButton ? "block" : "none",
+        }}
+      >
+      </div>
+    </>
+  );
+};
+
+export default Logo;

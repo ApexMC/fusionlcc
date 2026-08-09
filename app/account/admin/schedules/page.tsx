@@ -6,13 +6,13 @@ import {
 } from "@/components/account/dashboard_navigation"
 import { CheerScheduleManager } from "@/components/account/admin/cheer_schedule_manager"
 import { ClassScheduleManager } from "@/components/account/admin/class_schedule_manager"
-import { getAdminScheduleManagementData } from "@/lib/account/data"
+import { getAdminDashboardData } from "@/lib/account/data"
 import { requireAdminOwnerAccountSession } from "@/app/account/_lib/route-guards"
 
 export default async function AdminSchedulesPage() {
   await requireAdminOwnerAccountSession()
 
-  const dashboardData = await getAdminScheduleManagementData()
+  const dashboardData = await getAdminDashboardData()
 
   return (
     <AccountDashboardFrame className="max-w-[90rem]">

@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
 
 import createClient from "@/lib/supabase/client";
 
@@ -19,7 +18,6 @@ export default function ProfileButton({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   const supabase = createClient();
-  const router = useRouter();
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -73,8 +71,7 @@ export default function ProfileButton({
           <button onClick={async () => {
               await supabase.auth.signOut();
               setOpen(false);
-              router.replace("/");
-              router.refresh();
+              window.location.href = "/";
             }} className="w-full text-left block px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700">
             Sign out
           </button>

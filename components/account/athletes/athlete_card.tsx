@@ -7,16 +7,16 @@ import ManageAthleteCard from "./manage_athlete";
 
 type Athlete = {
   athlete_id: number;
-  first_name?: string | null;
-  last_name?: string | null;
-  dob?: string | null;
-  phone?: string | null;
-  shirt_size?: string | null;
-  gender?: string | null;
+  first_name?: string;
+  last_name?: string;
+  dob?: string;
+  phone?: string;
+  shirt_size?: string;
+  gender?: string;
   [key: string]: unknown;
 };
 
-export default function AthleteCardList({ athletes }: { athletes: Athlete[] }) {
+export default function AthleteCardList({ userId, athletes }: { userId: string; athletes: Athlete[] }) {
   return (
     <div className="grid w-full grid-cols-1 gap-4 text-zinc-700 dark:text-zinc-300 md:grid-cols-2 xl:grid-cols-3">
         {athletes.map((athlete) => (
@@ -28,14 +28,15 @@ export default function AthleteCardList({ athletes }: { athletes: Athlete[] }) {
                                 {athlete.last_name}, {athlete.first_name}
                             </span>
                             <ManageAthleteCard 
+                                userId={userId} 
                                 athleteId={athlete.athlete_id} 
                                 icon={<Pencil className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />}
-                                first_name={athlete.first_name ?? undefined}
-                                last_name={athlete.last_name ?? undefined}
-                                phone={athlete.phone ?? undefined}
-                                dob={athlete.dob ?? undefined}
-                                shirt_size={athlete.shirt_size ?? undefined}
-                                gender={athlete.gender ?? undefined}
+                                first_name={athlete.first_name}
+                                last_name={athlete.last_name}
+                                phone={athlete.phone}
+                                dob={athlete.dob}
+                                shirt_size={athlete.shirt_size}
+                                gender={athlete.gender}
                             />
                         </div>
                     </CardTitle>

@@ -22,11 +22,6 @@ type ParentPayload = {
   balance?: string
 }
 
-type OwnParentProfilePayload = Pick<
-  ParentPayload,
-  "phone" | "address" | "city" | "state" | "zipCode"
->
-
 function normalizeParentPayload(payload: ParentPayload) {
   const balanceText = payload.balance?.replace(/[$,]/g, "").trim()
   const balance =
@@ -48,67 +43,6 @@ function normalizeParentPayload(payload: ParentPayload) {
     state: payload.state.trim(),
     zip_code: payload.zipCode.trim(),
     ...(balance === undefined ? {} : { balance }),
-  }
-}
-
-function normalizeOwnParentProfile(payload: OwnParentProfilePayload) {
-  const normalized = {
-    phone: payload.phone.trim(),
-    address: payload.address.trim(),
-    city: payload.city.trim(),
-    state: payload.state.trim().toUpperCase(),
-    zip_code: payload.zipCode.trim(),
-  }
-
-  if (normalized.phone.length > 30) {
-    throw new Error("Phone number is too long.")
-  }
-
-  if (normalized.address.length > 200 || normalized.city.length > 100) {
-    throw new Error("Address information is too long.")
-  }
-
-  if (normalized.state.length > 2 || normalized.zip_code.length > 10) {
-    throw new Error("Enter a valid state and ZIP code.")
-  }
-
-  return normalized
-}
-
-export async function updateOwnParentProfile(
-  payload: OwnParentProfilePayload
-): Promise<ActionResult> {
-  const session = await getAccountSession()
-
-  if (!session?.userId || !session.isParent) {
-    return { ok: false, message: "You must be signed in as a parent." }
-  }
-
-  try {
-    const normalized = normalizeOwnParentProfile(payload)
-    const supabase = createAdminClient()
-    const { data, error } = await supabase
-      .from("Parents")
-      .update(normalized)
-      .eq("user_id", session.userId)
-      .select("parent_id")
-      .maybeSingle()
-
-    if (error) {
-      return { ok: false, message: "Your profile could not be updated." }
-    }
-
-    if (!data) {
-      return { ok: false, message: "Parent account was not found." }
-    }
-
-    revalidatePath("/account")
-    return { ok: true, message: "Profile updated." }
-  } catch (error) {
-    return {
-      ok: false,
-      message: error instanceof Error ? error.message : "Profile could not be updated.",
-    }
   }
 }
 

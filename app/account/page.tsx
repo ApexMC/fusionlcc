@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { formatPhoneNumber } from "@/functions/shared_functions";
 import ManageAccountCard from "@/components/account/manage_account";
 import AthleteCardList from "@/components/account/athletes/athlete_card";
@@ -64,7 +65,7 @@ const adminDashboardSections = [
     },
     {
         title: "Billing",
-        description: "Maintain billing setup, descriptions, and Stripe pricing.",
+        description: "Maintain billing setup, program type, and Stripe pricing.",
         href: "/account/admin/billing",
         icon: CreditCard,
     },
@@ -651,14 +652,22 @@ export default async function AccountPage() {
 
     /*Parent Account Page*/
     if (session.isParent && !session.isOwner && !session.isAdmin && !session.isCoach) {
-        const [parent, parentEnrollmentData] = await Promise.all([
-            getParentForUser(session.userId),
-            getParentAthleteEnrollments(session.userId),
-        ]);
-        const athleteCards = parentEnrollmentData.athleteRecords.map((athlete) => ({
+        const supabase = createAdminClient();
+        const parent = await getParentForUser(session.userId);
+        const { data: athletes, error: athletesError } = await supabase
+        .from("Athletes")
+        .select("athlete_id, first_name, last_name, dob, phone, shirt_size, gender")
+        .eq("user_id", session.userId);
+
+        if (athletesError) {
+            throw new Error(athletesError.message);
+        }
+
+        const athleteCards = (athletes ?? []).map((athlete) => ({
             ...athlete,
             athlete_id: Number(athlete.athlete_id),
         }));
+        const parentEnrollmentData = await getParentAthleteEnrollments(session.userId);
         const parentEnrollments = getParentEnrollments(parentEnrollmentData.athletes);
         const enrollmentCounts = getParentEnrollmentCounts(parentEnrollments);
         const parentAddress = formatParentAddress(parent);
@@ -711,6 +720,7 @@ export default async function AccountPage() {
                             </div>
                             {parent ? (
                                 <ManageAccountCard
+                                    userId={session.userId}
                                     phone={parent.phone ?? undefined}
                                     address={parent.address ?? undefined}
                                     city={parent.city ?? undefined}
@@ -792,6 +802,8 @@ export default async function AccountPage() {
                             </p>
                         </div>
                         <ManageAthleteCard
+                            userId={session.userId}
+                            parentId={parent?.parent_id}
                             icon={
                                 <>
                                     <Plus className="size-4" />
@@ -801,7 +813,10 @@ export default async function AccountPage() {
                         />
                     </div>
                     {athleteCards.length ? (
-                        <AthleteCardList athletes={athleteCards} />
+                        <AthleteCardList
+                            userId={session.userId}
+                            athletes={athleteCards}
+                        />
                     ) : (
                         <Card className="rounded-lg border-dashed bg-white dark:bg-black">
                             <CardContent className="py-8 text-sm text-muted-foreground">

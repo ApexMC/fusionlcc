@@ -1,7 +1,5 @@
 import "server-only"
 
-import { cache } from "react"
-
 import createClient from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { ParentRecord } from "@/lib/account/types"
@@ -17,7 +15,7 @@ export type AccountSession = {
   isParent: boolean
 }
 
-export const getAccountSession = cache(async (): Promise<AccountSession | null> => {
+export async function getAccountSession(): Promise<AccountSession | null> {
   const supabase = await createClient()
   const { data: claims, error } = await supabase.auth.getClaims()
 
@@ -45,7 +43,7 @@ export const getAccountSession = cache(async (): Promise<AccountSession | null> 
     isCoach: roles.includes("coach"),
     isParent: roles.includes("parent"),
   }
-})
+}
 
 export function requireAdminSession(session: AccountSession | null) {
   if (!session || (!session.isAdmin && !session.isOwner)) {
@@ -63,7 +61,7 @@ export function requireStaffSession(session: AccountSession | null) {
   return session
 }
 
-export const getParentForUser = cache(async (userId: string) => {
+export async function getParentForUser(userId: string) {
   const admin = createAdminClient()
 
   const { data, error } = await admin
@@ -91,4 +89,4 @@ export const getParentForUser = cache(async (userId: string) => {
   }
 
   return fallbackData as ParentRecord | null
-})
+}

@@ -1,11 +1,11 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { Field, FieldGroup } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button";
+import createClient from "@/lib/supabase/client"
 import { useState } from "react"
-import { Pencil } from "lucide-react"
-
-import { updateOwnParentProfile } from "@/app/actions/parents"
-import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogClose,
@@ -16,104 +16,96 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Field, FieldGroup } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Pencil } from "lucide-react";
 
 export default function ManageAccountCard({
-  phone,
-  address,
-  city,
-  state,
-  zip_code,
-}: {
-  phone?: string
-  address?: string
-  city?: string
-  state?: string
-  zip_code?: string
-}) {
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
+    phone
+    ,address
+    ,city
+    ,state
+    ,zip_code
+    }: 
+    {userId: string
+    ,phone?: string
+    ,address?: string
+    ,city?: string
+    ,state?: string
+    ,zip_code?: string}
+    ) {
+    const supabase = createClient()
+    const [open, setOpen] = useState(false)
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setLoading(true)
-    setError(null)
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setLoading(true)
+        setError(null)
 
-    const form = new FormData(event.currentTarget)
+        const form = new FormData(e.currentTarget)
+        const phone = form.get("phone")?.toString() ?? ""
+        const address = form.get("address")?.toString() ?? ""
 
-    try {
-      const result = await updateOwnParentProfile({
-        phone: String(form.get("phone") ?? ""),
-        address: String(form.get("address") ?? ""),
-        city: String(form.get("city") ?? ""),
-        state: String(form.get("state") ?? ""),
-        zipCode: String(form.get("zip_code") ?? ""),
-      })
-
-      if (!result.ok) {
-        setError(result.message)
-        return
-      }
-
-      setOpen(false)
-      router.refresh()
-    } catch {
-      setError("Profile could not be updated. Please try again.")
-    } finally {
-      setLoading(false)
+        const { data, error } = await supabase.auth.updateUser({
+            data: { 
+                phone: phone,
+                address: address,
+                city: city,
+                state: state,
+                zip_code: zip_code
+            }
+        });
+        // close dialog and refresh current route so lists update
+        setOpen(false)
+        window.location.reload()
     }
-  }
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="outline" aria-label="Edit family profile">
-          <Pencil className="size-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Manage Account</DialogTitle>
-            <DialogDescription>Update your account information below.</DialogDescription>
-          </DialogHeader>
-          <FieldGroup className="my-6 max-h-[50vh] overflow-y-auto no-scrollbar">
-            <Field>
-              <Label htmlFor="profile-phone">Phone</Label>
-              <Input id="profile-phone" name="phone" defaultValue={phone ?? ""} />
-            </Field>
-            <Field>
-              <Label htmlFor="profile-address">Address</Label>
-              <Input id="profile-address" name="address" defaultValue={address ?? ""} />
-            </Field>
-            <Field>
-              <Label htmlFor="profile-city">City</Label>
-              <Input id="profile-city" name="city" defaultValue={city ?? ""} />
-            </Field>
-            <Field>
-              <Label htmlFor="profile-state">State</Label>
-              <Input id="profile-state" name="state" maxLength={2} defaultValue={state ?? ""} />
-            </Field>
-            <Field>
-              <Label htmlFor="profile-zip">Zip Code</Label>
-              <Input id="profile-zip" name="zip_code" maxLength={10} defaultValue={zip_code ?? ""} />
-            </Field>
-          </FieldGroup>
-          {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving" : "Update"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button className="bg-transparent hover:bg-zinc-300 text-white font-bold" type="button" variant="outline"><Pencil className="w-4 h-4 text-zinc-500 dark:text-zinc-400" /></Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-sm">
+                <form onSubmit={handleSubmit}>
+                <DialogHeader>
+                    <DialogTitle>Manage Account</DialogTitle>
+                    <DialogDescription>
+                    Update your account information below.
+                    </DialogDescription>
+                </DialogHeader>
+                <FieldGroup className="mb-6 no-scrollbar max-h-[50vh] overflow-y-auto mt-6">
+                    <Field>
+                    <Label htmlFor="phone-1">Phone</Label>
+                    <Input id="phone-1" name="phone" defaultValue={phone ?? ""} placeholder="(123) 456-7890"/>
+                    </Field>
+                    <Field>
+                    <Label htmlFor="address-1">Address</Label>
+                    <Input id="address-1" name="address" defaultValue={address ?? ""} placeholder="123 Main St"/>
+                    </Field>
+                    <Field>
+                    <Label htmlFor="city-1">City</Label>
+                    <Input id="city-1" name="city" defaultValue={city ?? ""} placeholder="City"/>
+                    </Field>
+                    <Field>
+                    <Label htmlFor="state-1">State</Label>
+                    <Input id="state-1" name="state" defaultValue={state ?? ""} placeholder="State"/>
+                    </Field>
+                    <Field>
+                    <Label htmlFor="zip_code-1">Zip Code</Label>
+                    <Input id="zip_code-1" name="zip_code" defaultValue={zip_code ?? ""} placeholder="Zip Code"/>
+                    </Field>
+                </FieldGroup>
+                {error && <div className="text-sm text-red-600 mb-2">{error}</div>}
+                <DialogFooter>
+                    <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit" disabled={loading}>
+                        {loading ? "Loading..." : "Update"}
+                    </Button>
+                </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
 }

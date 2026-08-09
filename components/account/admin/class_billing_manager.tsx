@@ -22,7 +22,8 @@ import type { ClassBillingRecord } from "@/lib/account/types"
 
 type Draft = {
   className: string
-  description: string
+  classType: string
+  programType: string
   billingDay: number
   stripePriceId: string
 }
@@ -30,11 +31,14 @@ type Draft = {
 function getDefaultDraft(classRecord: ClassBillingRecord): Draft {
   return {
     className: classRecord.className,
-    description: classRecord.description ?? "",
+    classType: classRecord.classType ?? "",
+    programType: classRecord.programType ?? "gymnastics",
     billingDay:
       classRecord.billingDay === 1 || classRecord.billingDay === 15
         ? classRecord.billingDay
-        : 15,
+        : classRecord.programType === "competitive_cheer"
+          ? 1
+          : 15,
     stripePriceId: classRecord.stripePriceId ?? "",
   }
 }
@@ -42,7 +46,8 @@ function getDefaultDraft(classRecord: ClassBillingRecord): Draft {
 function getBlankDraft(): Draft {
   return {
     className: "",
-    description: "",
+    classType: "",
+    programType: "gymnastics",
     billingDay: 15,
     stripePriceId: "",
   }
@@ -75,7 +80,8 @@ export function ClassBillingManager({
       [classId]: {
         ...(current[classId] ?? {
           className: "",
-          description: "",
+          classType: "",
+          programType: "gymnastics",
           billingDay: 15,
           stripePriceId: "",
         }),
@@ -105,7 +111,8 @@ export function ClassBillingManager({
       const result = await updateClassBillingConfig({
         classId: classRecord?.classId,
         className: draft.className,
-        description: draft.description,
+        classType: draft.classType,
+        programType: draft.programType,
         billingDay: draft.billingDay,
         stripePriceId: draft.stripePriceId,
       })
@@ -146,7 +153,7 @@ export function ClassBillingManager({
   return (
     <Card className="w-full bg-white dark:bg-black">
       <CardHeader>
-        <CardTitle>Class Billing</CardTitle>
+        <CardTitle>Program Billing</CardTitle>
       </CardHeader>
       <CardContent className="max-h-[min(55rem,55svh)] min-h-0 overflow-y-auto overscroll-contain pr-3 [scrollbar-gutter:stable]">
         <div className="space-y-3 md:hidden">
@@ -155,7 +162,7 @@ export function ClassBillingManager({
               <div>
                 <div className="font-medium">Add Class</div>
                 <div className="text-xs text-muted-foreground">
-                  Create billing settings for a new class.
+                  Create billing settings for a new program.
                 </div>
               </div>
               <Badge variant="outline">new</Badge>
@@ -198,36 +205,58 @@ export function ClassBillingManager({
                   />
                 </label>
                 <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                  Description
-                  <textarea
-                    value={newClassDraft.description}
+                  Type
+                  <Input
+                    value={newClassDraft.classType}
                     onChange={(event) =>
                       setNewClassDraft((current) => ({
                         ...current,
-                        description: event.target.value,
+                        classType: event.target.value,
                       }))
                     }
-                    placeholder="Describe the class"
-                    rows={1}
-                    className="min-h-24 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-base text-foreground shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    placeholder="Class type"
+                    className="h-10"
                   />
                 </label>
-                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                  Bill Day
-                  <select
-                    value={newClassDraft.billingDay}
-                    onChange={(event) =>
-                      setNewClassDraft((current) => ({
-                        ...current,
-                        billingDay: Number(event.target.value),
-                      }))
-                    }
-                    className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
-                  >
-                    <option value={1}>1st</option>
-                    <option value={15}>15th</option>
-                  </select>
-                </label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                    Program
+                    <select
+                      value={newClassDraft.programType}
+                      onChange={(event) => {
+                        const programType = event.target.value
+                        setNewClassDraft((current) => ({
+                          ...current,
+                          programType,
+                          billingDay:
+                            programType === "competitive_cheer" ? 1 : 15,
+                        }))
+                      }}
+                      className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
+                    >
+                      <option value="gymnastics">Gymnastics</option>
+                      <option value="competitive_cheer">
+                        Competitive cheer
+                      </option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                    Bill Day
+                    <select
+                      value={newClassDraft.billingDay}
+                      onChange={(event) =>
+                        setNewClassDraft((current) => ({
+                          ...current,
+                          billingDay: Number(event.target.value),
+                        }))
+                      }
+                      className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
+                    >
+                      <option value={1}>1st</option>
+                      <option value={15}>15th</option>
+                    </select>
+                  </label>
+                </div>
                 <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                   Stripe Price
                   <Input
@@ -261,6 +290,7 @@ export function ClassBillingManager({
               expandedBillingCardId === classRecord.classId
             const ready =
               Boolean(draft.className) &&
+              Boolean(draft.programType) &&
               Boolean(draft.billingDay) &&
               Boolean(draft.stripePriceId)
 
@@ -271,8 +301,8 @@ export function ClassBillingManager({
                     <div className="font-medium">
                       {draft.className || "Unnamed class"}
                     </div>
-                    <div className="line-clamp-2 text-xs text-muted-foreground">
-                      {draft.description || "No description"}
+                    <div className="text-xs text-muted-foreground">
+                      {draft.programType.replace(/_/g, " ")}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
@@ -322,34 +352,55 @@ export function ClassBillingManager({
                       />
                     </label>
                     <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                      Description
-                      <textarea
-                        value={draft.description}
+                      Type
+                      <Input
+                        value={draft.classType}
                         onChange={(event) =>
                           setDraft(classRecord.classId, {
-                            description: event.target.value,
+                            classType: event.target.value,
                           })
                         }
-                        placeholder="Describe the class"
-                        rows={1}
-                        className="min-h-24 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-base text-foreground shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        placeholder="Class type"
+                        className="h-10"
                       />
                     </label>
-                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-                      Bill Day
-                      <select
-                        value={draft.billingDay}
-                        onChange={(event) =>
-                          setDraft(classRecord.classId, {
-                            billingDay: Number(event.target.value),
-                          })
-                        }
-                        className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
-                      >
-                        <option value={1}>1st</option>
-                        <option value={15}>15th</option>
-                      </select>
-                    </label>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                        Program
+                        <select
+                          value={draft.programType}
+                          onChange={(event) => {
+                            const programType = event.target.value
+                            setDraft(classRecord.classId, {
+                              programType,
+                              billingDay:
+                                programType === "competitive_cheer" ? 1 : 15,
+                            })
+                          }}
+                          className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
+                        >
+                          <option value="gymnastics">Gymnastics</option>
+                          <option value="competitive_cheer">
+                            Competitive cheer
+                          </option>
+                        </select>
+                      </label>
+                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                        Bill Day
+                        <select
+                          value={draft.billingDay}
+                          onChange={(event) =>
+                            setDraft(classRecord.classId, {
+                              billingDay: Number(event.target.value),
+                            })
+                          }
+                          className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
+                        >
+                          <option value={1}>1st</option>
+                          <option value={15}>15th</option>
+                        </select>
+                      </label>
+                    </div>
                     <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                       Stripe Price
                       <Input
@@ -383,7 +434,8 @@ export function ClassBillingManager({
           <TableHeader>
             <TableRow>
               <TableHead>Class</TableHead>
-              <TableHead>Description</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Program</TableHead>
               <TableHead>Bill Day</TableHead>
               <TableHead>Stripe Price</TableHead>
               <TableHead>Status</TableHead>
@@ -406,18 +458,35 @@ export function ClassBillingManager({
                 />
               </TableCell>
               <TableCell>
-                <textarea
-                  value={newClassDraft.description}
+                <Input
+                  value={newClassDraft.classType}
                   onChange={(event) =>
                     setNewClassDraft((current) => ({
                       ...current,
-                      description: event.target.value,
+                      classType: event.target.value,
                     }))
                   }
-                  placeholder="Describe the class"
-                  rows={1}
-                  className="min-h-10 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  placeholder="Class type"
+                  className="min-w-40"
                 />
+              </TableCell>
+              <TableCell>
+                <select
+                  value={newClassDraft.programType}
+                  onChange={(event) => {
+                    const programType = event.target.value
+                    setNewClassDraft((current) => ({
+                      ...current,
+                      programType,
+                      billingDay:
+                        programType === "competitive_cheer" ? 1 : 15,
+                    }))
+                  }}
+                  className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+                >
+                  <option value="gymnastics">Gymnastics</option>
+                  <option value="competitive_cheer">Competitive cheer</option>
+                </select>
               </TableCell>
               <TableCell>
                 <select
@@ -469,6 +538,7 @@ export function ClassBillingManager({
                 drafts[classRecord.classId] ?? getDefaultDraft(classRecord)
               const ready =
                 Boolean(draft.className) &&
+                Boolean(draft.programType) &&
                 Boolean(draft.billingDay) &&
                 Boolean(draft.stripePriceId)
 
@@ -486,17 +556,35 @@ export function ClassBillingManager({
                     />
                   </TableCell>
                   <TableCell>
-                    <textarea
-                      value={draft.description}
+                    <Input
+                      value={draft.classType}
                       onChange={(event) =>
                         setDraft(classRecord.classId, {
-                          description: event.target.value,
+                          classType: event.target.value,
                         })
                       }
-                      placeholder="Describe the class"
-                      rows={1}
-                      className="min-h-10 w-full min-w-0 resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      placeholder="Class type"
+                      className="min-w-40"
                     />
+                  </TableCell>
+                  <TableCell>
+                    <select
+                      value={draft.programType}
+                      onChange={(event) => {
+                        const programType = event.target.value
+                        setDraft(classRecord.classId, {
+                          programType,
+                          billingDay:
+                            programType === "competitive_cheer" ? 1 : 15,
+                        })
+                      }}
+                      className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+                    >
+                      <option value="gymnastics">Gymnastics</option>
+                      <option value="competitive_cheer">
+                        Competitive cheer
+                      </option>
+                    </select>
                   </TableCell>
                   <TableCell>
                     <select

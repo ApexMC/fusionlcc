@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath, revalidateTag } from "next/cache"
+import { revalidatePath } from "next/cache"
 import type Stripe from "stripe"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
@@ -469,7 +469,7 @@ function buildEnrollmentDecisionMessage({
 
   if (status === "approved") {
     lines.push(
-      "Please sign in to your account to review the enrollment and complete payment to activate the enrollment. If you have any questions, please contact us."
+      "Please sign in to your account to review the enrollment and complete any payment setup if requested."
     )
   } else {
     lines.push(
@@ -1284,19 +1284,29 @@ export async function cancelEnrollmentRequest(
 export async function updateClassBillingConfig({
   classId,
   className,
-  description,
+  classType,
+  programType,
   billingDay,
   stripePriceId,
 }: {
   classId?: string | null
   className: string
-  description?: string | null
+  classType?: string | null
+  programType: string
   billingDay: number
   stripePriceId: string
 }): Promise<ActionResult> {
   requireAdminSession(await getAccountSession())
 
+  const normalizedProgramType = programType.trim()
   const normalizedPriceId = stripePriceId.trim()
+
+  if (!["competitive_cheer", "gymnastics"].includes(normalizedProgramType)) {
+    return {
+      ok: false,
+      message: "Choose competitive cheer or gymnastics.",
+    }
+  }
 
   if (billingDay !== 1 && billingDay !== 15) {
     return {
@@ -1315,9 +1325,8 @@ export async function updateClassBillingConfig({
   const supabase = createAdminClient()
   const payload = {
     class_name: className.trim() || "Untitled class",
-    class_description: description?.trim() || null,
-    type: "gymnastics",
-    program_type: "gymnastics",
+    type: classType?.trim() || normalizedProgramType,
+    program_type: normalizedProgramType,
     billing_day: billingDay,
     stripe_price_id: normalizedPriceId || null,
   }
@@ -1340,7 +1349,6 @@ export async function updateClassBillingConfig({
   }
 
   revalidatePath("/account")
-  revalidateTag("public-class-data", "max")
 
   return {
     ok: true,
