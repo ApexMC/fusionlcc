@@ -524,7 +524,7 @@ export function ClassScheduleManager({
   return (
     <Card className="w-full bg-white dark:bg-black">
       <CardHeader>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 mb-2">
           <CardTitle>Class Schedule</CardTitle>
           <Button
             type="button"

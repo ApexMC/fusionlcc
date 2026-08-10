@@ -190,7 +190,7 @@ function ParentAthleteDetails({
           key={athlete.athleteId}
           className="rounded-lg border bg-background p-4"
         >
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-row gap-1 sm:flex-row sm:items-start justify-between">
             <div>
               <div className="font-semibold">
                 {getAthleteName(athlete.firstName, athlete.lastName)}

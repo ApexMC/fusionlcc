@@ -69,11 +69,11 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="w-full flex flex-col items-start">
-      <Card className="w-full bg-white p-4 dark:bg-black">
-        <h1 className="text-2xl font-bold">
+      <Card className="w-full bg-white dark:bg-black">
+        <h1 className="px-4 text-2xl font-bold">
           {title}
         </h1>
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-3 flex px-4 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
               placeholder="Filter by last name..."

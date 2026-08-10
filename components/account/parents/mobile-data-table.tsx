@@ -78,8 +78,8 @@ export function MobileDataTable<TData>({
   renderExpandedRow,
 }: MobileDataTableProps<TData>) {
   return (
-    <CardContent className="max-h-[min(38rem,65svh)] min-h-0 overflow-y-auto overscroll-contain pr-3 scrollbar-gutter:stable">
-      <div className="space-y-3 pr-1">
+    <CardContent className="w-full max-h-[min(38rem,65svh)] min-h-0 overflow-y-auto overscroll-contain scrollbar-gutter:stable">
+      <div className="space-y-3">
         {rows.length ? (
           rows.map((row) => {
             const rowId = getRowId?.(row.original) ?? row.id

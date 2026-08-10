@@ -22,6 +22,7 @@ export type DashboardStat = {
   label: string
   value: string
   detail?: string
+  href?: string
   tone?: "default" | "warning" | "danger" | "success"
 }
 
@@ -144,25 +145,45 @@ export function DashboardStatGrid({ stats }: { stats: DashboardStat[] }) {
       aria-label="Dashboard snapshot"
       className="grid grid-cols-2 gap-3 xl:grid-cols-4"
     >
-      {stats.map((stat) => (
-        <div
-          key={stat.label}
-          className={cn(
-            "rounded-lg border p-4",
-            tonePanelClassName[stat.tone ?? "default"]
-          )}
-        >
-          <div className="text-sm text-muted-foreground">{stat.label}</div>
-          <div className="mt-2 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-            {stat.value}
-          </div>
-          {stat.detail ? (
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              {stat.detail}
+      {stats.map((stat) => {
+        const panel = (
+          <div
+            className={cn(
+              "h-full rounded-lg border p-4",
+              stat.href &&
+                "transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md",
+              tonePanelClassName[stat.tone ?? "default"]
+            )}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-sm text-muted-foreground">{stat.label}</div>
+              {stat.href ? (
+                <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              ) : null}
             </div>
-          ) : null}
-        </div>
-      ))}
+            <div className="mt-2 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+              {stat.value}
+            </div>
+            {stat.detail ? (
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                {stat.detail}
+              </div>
+            ) : null}
+          </div>
+        )
+
+        return stat.href ? (
+          <Link
+            key={stat.label}
+            href={stat.href}
+            className="group block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            {panel}
+          </Link>
+        ) : (
+          <div key={stat.label}>{panel}</div>
+        )
+      })}
     </section>
   )
 }

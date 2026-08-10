@@ -503,28 +503,6 @@ function getParentEnrollmentCounts(enrollments: EnrollmentDisplayRecord[]) {
     );
 }
 
-function getParentProfileMissingFields(parent: ParentRecord | null) {
-    if (!parent) {
-        return ["profile"];
-    }
-
-    const missingFields = [];
-
-    if (!parent.phone) {
-        missingFields.push("phone");
-    }
-
-    if (!parent.email) {
-        missingFields.push("email");
-    }
-
-    if (!formatParentAddress(parent)) {
-        missingFields.push("address");
-    }
-
-    return missingFields;
-}
-
 function getParentDashboardStats({
     parent,
     athleteCount,
@@ -541,6 +519,7 @@ function getParentDashboardStats({
         {
             label: "Athletes",
             value: athleteCount.toLocaleString(),
+            href: "#athletes",
             detail: athleteCount
                 ? countLabel(athleteCount, "athlete")
                 : "Add an athlete to request classes",
@@ -549,6 +528,7 @@ function getParentDashboardStats({
         {
             label: "Active enrollments",
             value: counts.active.toLocaleString(),
+            href: "#enrollments",
             detail: counts.approved
                 ? countLabel(counts.approved, "approved request")
                 : countLabel(enrollments.length, "total enrollment"),
@@ -557,6 +537,7 @@ function getParentDashboardStats({
         {
             label: "Pending requests",
             value: counts.pending.toLocaleString(),
+            href: "#enrollments",
             detail: counts.pending
                 ? "Awaiting staff review"
                 : "No pending requests",
@@ -565,6 +546,7 @@ function getParentDashboardStats({
         {
             label: "Account balance",
             value: formatCurrency(balance),
+            href: "#family-profile",
             detail:
                 typeof balance !== "number"
                     ? "Balance not available"
@@ -577,68 +559,6 @@ function getParentDashboardStats({
                     : typeof balance === "number"
                       ? "success"
                       : "default",
-        },
-    ];
-}
-
-function getParentDashboardLinks({
-    parent,
-    athleteCount,
-    enrollments,
-    classOptionCount,
-}: {
-    parent: ParentRecord | null;
-    athleteCount: number;
-    enrollments: EnrollmentDisplayRecord[];
-    classOptionCount: number;
-}): DashboardNavItem[] {
-    const counts = getParentEnrollmentCounts(enrollments);
-    const missingProfileFields = getParentProfileMissingFields(parent);
-    const profileNeedsUpdate = missingProfileFields.length > 0;
-
-    return [
-        {
-            title: "Family Profile",
-            description: "Review the contact information staff uses for updates.",
-            href: "#family-profile",
-            icon: UserRound,
-            badge: profileNeedsUpdate ? "Needs details" : "Complete",
-            detail: profileNeedsUpdate
-                ? `${missingProfileFields.join(", ")} missing`
-                : parent?.email ?? "Profile ready",
-            tone: profileNeedsUpdate ? "warning" : "success",
-        },
-        {
-            title: "Athletes",
-            description: "Keep athlete records ready for placement and classes.",
-            href: "#athletes",
-            icon: Users,
-            badge: athleteCount ? countLabel(athleteCount, "athlete") : "Add athlete",
-            detail: athleteCount ? "Ready for class requests" : "Required first",
-            tone: athleteCount ? "default" : "warning",
-        },
-        {
-            title: "Enrollments",
-            description: "Track requests, approvals, and subscription status.",
-            href: "#enrollments",
-            icon: ListChecks,
-            badge: counts.pending
-                ? countLabel(counts.pending, "pending request")
-                : "Caught up",
-            detail: `${countLabel(counts.active, "active enrollment")}, ${countLabel(
-                counts.approved,
-                "approved request"
-            )}`,
-            tone: counts.pending ? "warning" : "success",
-        },
-        {
-            title: "Classes",
-            description: "Browse programs and request the next class schedule.",
-            href: "/classes",
-            icon: BookOpen,
-            badge: athleteCount ? "Browse" : "Add athlete first",
-            detail: countLabel(classOptionCount, "class", "classes"),
-            tone: athleteCount ? "default" : "warning",
         },
     ];
 }
@@ -694,15 +614,6 @@ export default async function AccountPage() {
                         enrollments: parentEnrollments,
                     })}
                 />
-                <DashboardLinkGrid
-                    items={getParentDashboardLinks({
-                        parent,
-                        athleteCount: athleteCards.length,
-                        enrollments: parentEnrollments,
-                        classOptionCount: parentEnrollmentData.classOptions.length,
-                    })}
-                />
-
                 <section
                     id="family-profile"
                     className="grid scroll-mt-24 w-full grid-cols-1 gap-4 lg:grid-cols-1"

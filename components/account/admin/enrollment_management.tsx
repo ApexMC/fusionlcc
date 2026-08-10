@@ -747,8 +747,8 @@ export function EnrollmentManagement({
               </label>
             </div>
           </div>
-          <div className="rounded-lg border bg-muted/50 p-4">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="rounded-lg border bg-muted/50">
+            <div className="flex flex-col p-3 gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="font-semibold">Pending Review</h3>
                 <p className="text-sm text-muted-foreground">
@@ -761,7 +761,7 @@ export function EnrollmentManagement({
               </div>
             </div>
             {pendingEnrollments.length ? (
-              <div className="mt-4 space-y-3 md:hidden">
+              <div className="mt-4 space-y-3 md:hidden p-2">
                 {pendingEnrollments.map((enrollment) => {
                   const isExpanded =
                     expandedPendingEnrollmentId === enrollment.enrollmentId
