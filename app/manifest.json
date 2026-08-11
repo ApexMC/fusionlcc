@@ -1,0 +1,22 @@
+{
+  "name": "Limitless Cheer & Gymnastics",
+  "short_name": "Limitless",
+  "description": "Limitless Cheer & Gymnastics, a premier cheerleading and gymnastics gym located in the heart of Tell City.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#171717",
+  "theme_color": "#9217cf",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

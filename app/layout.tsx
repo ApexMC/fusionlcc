@@ -20,8 +20,8 @@ export const metadata = {
   metadataBase: new URL("https://fusionlcc.com"),
   icons: {
     icon: [
-      { url: "/icon0.png", sizes: "32x32", type: "image/png" },
-      { url: "/icon1.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "16x16", type: "image/png" },
     ],
     apple: "/apple-icon.png",
   },
