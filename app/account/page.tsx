@@ -703,14 +703,13 @@ export default async function AccountPage() {
                 >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                            <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-zinc-50">
                                 Athletes
                             </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                {athleteCards.length
-                                    ? countLabel(athleteCards.length, "athlete")
-                                    : "No athletes added yet"}
-                            </p>
+                            <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
+                                <ListChecks className="size-4" />
+                                {countLabel(athleteCards.length, "record")}
+                            </div>
                         </div>
                         <ManageAthleteCard
                             userId={session.userId}
@@ -748,13 +747,6 @@ export default async function AccountPage() {
                                 <BadgeCheck className="size-5" />
                                 Enrollments
                             </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                {[
-                                    countLabel(enrollmentCounts.active, "active enrollment"),
-                                    countLabel(enrollmentCounts.pending, "pending request"),
-                                    countLabel(enrollmentCounts.approved, "approved request"),
-                                ].join(", ")}
-                            </p>
                         </div>
                         <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
                             <ListChecks className="size-4" />

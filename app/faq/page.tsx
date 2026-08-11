@@ -4,7 +4,7 @@ import { Link } from "lucide-react";
 export default function FAQ() {
   return (
     <div className="flex flex-col flex-1 items-center justify-start bg-zinc-100 dark:bg-zinc-900 font-sans">
-      <main className="flex flex-1 min-h-[50vh] w-full max-w-3xl flex-col items-center py-16 px-16 justify-center bg-zinc-100 dark:bg-zinc-900">
+      <main className="flex flex-1 min-h-[50vh] w-full max-w-3xl flex-col items-center py-16 px-4 justify-center bg-zinc-100 dark:bg-zinc-900">
         <h1 className="text-4xl font-bold text-zinc-800 dark:text-zinc-200 mb-8 text-center">
           Frequently Asked Questions
         </h1>
