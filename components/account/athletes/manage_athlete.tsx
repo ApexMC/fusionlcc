@@ -165,6 +165,9 @@ export default function ManageAthleteCard({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
                                 <DropdownMenuGroup>
+                                    <DropdownMenuItem onClick={() => setShirtSize("YS")}>YS</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShirtSize("YM")}>YM</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShirtSize("YL")}>YL</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setShirtSize("S")}>S</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setShirtSize("M")}>M</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setShirtSize("L")}>L</DropdownMenuItem>

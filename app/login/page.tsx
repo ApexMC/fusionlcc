@@ -77,10 +77,14 @@ export default function SignInPage() {
 
     setLoading(true);
     try {
+      const callbackUrl = new URL("/auth/callback", window.location.origin);
+      callbackUrl.searchParams.set("next", "/login");
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: callbackUrl.toString(),
           data: {
             full_name: firstName + " " + lastName,
             first_name: firstName,
