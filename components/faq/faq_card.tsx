@@ -1,13 +1,15 @@
 "use client";
 
+import { CircleAlert } from "lucide-react";
 import { ReactNode, useState } from "react";
 
 interface FAQCardProps {
+  icon?: ReactNode;
   question: string;
   answer: ReactNode;
 }
 
-export default function FAQCard({ question, answer }: FAQCardProps) {
+export default function FAQCard({ icon, question, answer }: FAQCardProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -17,9 +19,12 @@ export default function FAQCard({ question, answer }: FAQCardProps) {
         className="w-full px-6 py-4 text-left flex items-center justify-between gap-4"
         aria-expanded={isOpen}
       >
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          {question}
-        </h3>
+        <div className="flex flex-row gap-4 items-center">
+          {icon}
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            {question}
+          </h3>
+        </div> 
         <svg
           className={`w-5 h-5 text-purple-500 dark:text-purple-500 transition-transform duration-300 shrink-0 ${
             isOpen ? "rotate-180" : ""

@@ -44,10 +44,7 @@ function getDefaultDraft(classRecord: ClassBillingRecord): Draft {
     classType: classRecord.classType ?? "",
     classDescription: classRecord.classDescription ?? "",
     programType: classRecord.programType ?? "gymnastics",
-    billingDay:
-      classRecord.billingDay === 1 || classRecord.billingDay === 15
-        ? classRecord.billingDay
-        : 15,
+    billingDay: classRecord.billingDay ?? 15,
     stripePriceId: classRecord.stripePriceId ?? "",
   }
 }
