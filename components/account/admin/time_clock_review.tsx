@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useToast } from "@/components/ui/toast"
+import { formatPhoneNumber } from "@/functions/shared_functions"
 import type {
   AdminCoachTimeClockGroup,
   AdminTimeClockReviewData,
@@ -274,9 +275,9 @@ function CoachPunchGroup({
           <h3 className="truncate text-base font-semibold">
             {coach.coachName}
           </h3>
-          {coach.coachEmail ? (
+          {coach.coachPhone ? (
             <p className="truncate text-sm text-muted-foreground">
-              {coach.coachEmail}
+              {formatPhoneNumber(coach.coachPhone)}
             </p>
           ) : null}
         </div>

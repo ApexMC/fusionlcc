@@ -1113,9 +1113,9 @@ function AttendanceReviewTable({
                     </TableCell>
                     <TableCell>
                       <div>{athlete.parentName}</div>
-                      {athlete.parentEmail ? (
+                      {athlete.parentPhone ? (
                         <div className="text-xs text-muted-foreground">
-                          {athlete.parentEmail}
+                          {athlete.parentPhone}
                         </div>
                       ) : null}
                     </TableCell>

@@ -53,7 +53,7 @@ const enrollmentSelectWithPayments = `
     last_name,
     user_id,
     parent_id,
-    Parents(parent_id, user_id, first_name, last_name, email)
+    Parents(parent_id, user_id, first_name, last_name, phone, email)
   ),
   ClassSchedules(
     schedule_id,
@@ -79,7 +79,7 @@ const enrollmentSelectBase = `
     last_name,
     user_id,
     parent_id,
-    Parents(parent_id, user_id, first_name, last_name, email)
+    Parents(parent_id, user_id, first_name, last_name, phone, email)
   ),
   ClassSchedules(
     schedule_id,
@@ -174,7 +174,7 @@ type CoachTimeClockRow = {
 
 type CoachProfile = {
   coachName: string
-  coachEmail: string | null
+  coachPhone: string | null
 }
 
 const dayOrder = [
@@ -378,6 +378,7 @@ export function toDisplayEnrollment(
     athleteId: toId(enrollment.athlete_id ?? athlete?.athlete_id),
     athleteName: athleteName || "Unknown athlete",
     parentName: parentName || "Unknown parent",
+    parentPhone: parent?.phone ?? null,
     parentEmail: parent?.email ?? null,
     scheduleId,
     classId,
@@ -803,7 +804,7 @@ async function fetchCoachProfiles(userIds: string[]) {
       if (error || !data.user) {
         profiles.set(userId, {
           coachName: getFallbackCoachName(userId),
-          coachEmail: null,
+          coachPhone: null,
         })
         return
       }
@@ -818,13 +819,14 @@ async function fetchCoachProfiles(userIds: string[]) {
         getMetadataText(metadata, "name") ??
         [firstName, lastName].filter(Boolean).join(" ").trim()
       const email = data.user.email ?? null
+      const phone = getMetadataText(metadata, "phone") ?? data.user.phone ?? null
 
       profiles.set(userId, {
         coachName:
           fullName ||
           (email ? email.split("@")[0] : null) ||
           getFallbackCoachName(userId),
-        coachEmail: email,
+        coachPhone: phone,
       })
     })
   )
@@ -863,14 +865,14 @@ export async function getAdminTimeClockReviewData(): Promise<AdminTimeClockRevie
     const coachUserId = entry.coachUserId || "unknown"
     const profile = profiles.get(coachUserId) ?? {
       coachName: getFallbackCoachName(coachUserId),
-      coachEmail: null,
+      coachPhone: null,
     }
     const group =
       groupsByCoach.get(coachUserId) ??
       ({
         coachUserId,
         coachName: profile.coachName,
-        coachEmail: profile.coachEmail,
+        coachPhone: profile.coachPhone,
         currentPeriodEntries: [],
         historyEntries: [],
         currentPeriodMinutes: 0,
@@ -1258,7 +1260,7 @@ function buildClassSessionRosterIndexes(enrollments: EnrollmentDisplayRecord[]) 
       scheduleId,
       scheduleLabel: enrollment.scheduleLabel,
       parentName: enrollment.parentName,
-      parentPhone: null,
+      parentPhone: enrollment.parentPhone,
       parentEmail: enrollment.parentEmail,
       isMakeup: false,
       attendanceStatus: null,

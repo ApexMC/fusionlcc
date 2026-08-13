@@ -99,6 +99,7 @@ export type EnrollmentDisplayRecord = {
   athleteId: string | null
   athleteName: string
   parentName: string
+  parentPhone: string | null
   parentEmail: string | null
   scheduleId: string | null
   classId: string | null
@@ -335,7 +336,7 @@ export type CoachTimeClockData = {
 export type AdminCoachTimeClockGroup = {
   coachUserId: string
   coachName: string
-  coachEmail: string | null
+  coachPhone: string | null
   currentPeriodEntries: CoachTimeClockEntry[]
   historyEntries: CoachTimeClockEntry[]
   currentPeriodMinutes: number

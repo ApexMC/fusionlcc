@@ -348,18 +348,20 @@ function getAdminDashboardStats(
         {
             label: "Review queue",
             value: reviewQueue?.value ?? "0",
+            href: "/account/admin/enrollments",
             detail: reviewQueue?.detail,
             tone: reviewQueue?.tone,
         },
         {
             label: "Ready to bill",
             value: readyToBill?.value ?? "0",
+            href: "/account/admin/enrollments",
             detail: readyToBill?.detail,
             tone: readyToBill?.tone,
         },
         {
             label: "Monthly recurring revenue",
-            value: metricValue(dashboardData, "Monthly recurring revenue"),
+            value: `$${metricValue(dashboardData, "Monthly recurring revenue")}`,
             detail: metricDetail(
                 dashboardData,
                 "Monthly recurring revenue",
@@ -374,6 +376,7 @@ function getAdminDashboardStats(
         {
             label: "Parent accounts",
             value: metricValue(dashboardData, "Parent accounts"),
+            href: "/account/admin/customers",
             detail: "Total parent records",
         },
     ];

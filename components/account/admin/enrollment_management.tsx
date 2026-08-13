@@ -39,6 +39,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useToast } from "@/components/ui/toast"
+import { formatPhoneNumber } from "@/functions/shared_functions"
 import type {
   AdminEnrollmentAthleteOption,
   ClassScheduleDisplayRecord,
@@ -178,7 +179,7 @@ function matchesSearch(enrollment: EnrollmentDisplayRecord, query: string) {
     enrollment.enrollmentId,
     enrollment.athleteName,
     enrollment.parentName,
-    enrollment.parentEmail,
+    enrollment.parentPhone,
     enrollment.className,
     enrollment.scheduleLabel,
     enrollment.status,
@@ -825,9 +826,9 @@ export function EnrollmentManagement({
                                 Parent
                               </div>
                               <div>{enrollment.parentName}</div>
-                              {enrollment.parentEmail ? (
-                                <div className="break-all text-xs text-muted-foreground">
-                                  {enrollment.parentEmail}
+                              {enrollment.parentPhone ? (
+                                <div className="text-xs text-muted-foreground">
+                                  {formatPhoneNumber(enrollment.parentPhone)}
                                 </div>
                               ) : null}
                             </div>
@@ -917,9 +918,9 @@ export function EnrollmentManagement({
                         <TableCell>{enrollment.athleteName}</TableCell>
                         <TableCell>
                           <div>{enrollment.parentName}</div>
-                          {enrollment.parentEmail ? (
+                          {enrollment.parentPhone ? (
                             <div className="text-xs text-muted-foreground">
-                              {enrollment.parentEmail}
+                              {formatPhoneNumber(enrollment.parentPhone)}
                             </div>
                           ) : null}
                         </TableCell>
@@ -1061,9 +1062,9 @@ export function EnrollmentManagement({
                               Parent
                             </div>
                             <div>{enrollment.parentName}</div>
-                            {enrollment.parentEmail ? (
-                              <div className="break-all text-xs text-muted-foreground">
-                                {enrollment.parentEmail}
+                            {enrollment.parentPhone ? (
+                              <div className="text-xs text-muted-foreground">
+                                {formatPhoneNumber(enrollment.parentPhone)}
                               </div>
                             ) : null}
                           </div>
@@ -1156,9 +1157,9 @@ export function EnrollmentManagement({
                       <TableCell>{enrollment.athleteName}</TableCell>
                       <TableCell>
                         <div>{enrollment.parentName}</div>
-                        {enrollment.parentEmail ? (
+                        {enrollment.parentPhone ? (
                           <div className="text-xs text-muted-foreground">
-                            {enrollment.parentEmail}
+                            {formatPhoneNumber(enrollment.parentPhone)}
                           </div>
                         ) : null}
                       </TableCell>
