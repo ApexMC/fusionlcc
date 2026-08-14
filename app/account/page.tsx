@@ -355,7 +355,7 @@ function getAdminDashboardStats(
         {
             label: "Ready to bill",
             value: readyToBill?.value ?? "0",
-            href: "/account/admin/enrollments",
+            href: "/account/admin/customers",
             detail: readyToBill?.detail,
             tone: readyToBill?.tone,
         },

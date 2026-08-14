@@ -15,7 +15,7 @@ export default function FAQ() {
         <FAQCard
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I pay for gymnastics classes?"
-          answer={<span>Once an enrollment request has been approved by our staff, you can then begin payment for the enrollment on your <a className="text-purple-400" href="/account">account dashboard</a>. Payments for gymnastics classes are now structured as monthly subscriptions. This allows for consistent scheduling and ensures that athletes can continue their training without interruption.</span>}
+          answer={<span>Once an enrollment request has been approved by our staff, you can then begin payment for the enrollment on your <a className="text-purple-400" href="/account">account dashboard</a>. Payments for gymnastics classes are now structured as monthly subscriptions. This allows for consistent scheduling and replaces the need for manual monthly invoicing. Classes are billed monthly on the 1st, so starting payment for a new enrollment will present as $0.00 today, then the full monthly amount on the 1st of the following month.</span>}
         />
         <FAQCard 
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
