@@ -126,6 +126,13 @@ export type EnrollmentMetric = {
   detail?: string
 }
 
+export type AdminDashboardMetrics = {
+  parentAccounts: EnrollmentMetric
+  approvedActive: EnrollmentMetric
+  deniedCanceled: EnrollmentMetric
+  monthlyRecurringRevenue: EnrollmentMetric
+}
+
 export type ChartDatum = {
   name: string
   label: string
@@ -139,7 +146,7 @@ export type TrendDatum = {
 }
 
 export type AdminDashboardData = {
-  metrics: EnrollmentMetric[]
+  metrics: AdminDashboardMetrics
   actionItems: OperationsActionItem[]
   pendingEnrollments: EnrollmentDisplayRecord[]
   allEnrollments: EnrollmentDisplayRecord[]

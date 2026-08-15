@@ -199,28 +199,6 @@ function findActionItem(
     return dashboardData.actionItems.find((item) => item.label === label);
 }
 
-function metricValue(
-    dashboardData: AdminDashboardData,
-    label: string,
-    fallback = "0"
-) {
-    return (
-        dashboardData.metrics.find((metric) => metric.label === label)?.value ??
-        fallback
-    );
-}
-
-function metricDetail(
-    dashboardData: AdminDashboardData,
-    label: string,
-    fallback?: string
-) {
-    return (
-        dashboardData.metrics.find((metric) => metric.label === label)?.detail ??
-        fallback
-    );
-}
-
 function countLabel(value: number, singular: string, plural = `${singular}s`) {
     return `${value.toLocaleString()} ${value === 1 ? singular : plural}`;
 }
@@ -315,7 +293,7 @@ function getAdminDashboardLinks(
         if (section.href.endsWith("/customers")) {
             return {
                 ...section,
-                detail: `${metricValue(dashboardData, "Parent accounts")} parent accounts`,
+                detail: `${dashboardData.metrics.parentAccounts.value} parent accounts`,
             };
         }
 
@@ -343,6 +321,7 @@ function getAdminDashboardStats(
 ): DashboardStat[] {
     const reviewQueue = findActionItem(dashboardData, "Review queue");
     const readyToBill = findActionItem(dashboardData, "Ready to bill");
+    const { monthlyRecurringRevenue, parentAccounts } = dashboardData.metrics;
 
     return [
         {
@@ -360,24 +339,17 @@ function getAdminDashboardStats(
             tone: readyToBill?.tone,
         },
         {
-            label: "Monthly recurring revenue",
-            value: `$${metricValue(dashboardData, "Monthly recurring revenue")}`,
-            detail: metricDetail(
-                dashboardData,
-                "Monthly recurring revenue",
-                "Estimated from active monthly Stripe prices"
-            ),
+            ...monthlyRecurringRevenue,
+            value: `$${monthlyRecurringRevenue.value}`,
+            href: "https://dashboard.stripe.com/subscriptions",
             tone:
-                metricValue(dashboardData, "Monthly recurring revenue") ===
-                "0"
+                monthlyRecurringRevenue.value === "0"
                     ? "default"
                     : "success",
         },
         {
-            label: "Parent accounts",
-            value: metricValue(dashboardData, "Parent accounts"),
+            ...parentAccounts,
             href: "/account/admin/customers",
-            detail: "Total parent records",
         },
     ];
 }

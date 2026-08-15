@@ -1,9 +1,11 @@
 import "server-only"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getStripe } from "@/lib/stripe/server"
 import type {
   AdminCoachTimeClockGroup,
   AdminDashboardData,
+  AdminDashboardMetrics,
   AdminEnrollmentAthleteOption,
   AdminTimeClockReviewData,
   AthleteRecord,
@@ -24,7 +26,6 @@ import type {
   ClassSessionExpectedAthlete,
   DeadPeriodRecord,
   EnrollmentDisplayRecord,
-  EnrollmentMetric,
   EnrollmentRecord,
   OperationsActionItem,
   ParentAthleteEnrollment,
@@ -1523,32 +1524,96 @@ function buildMonthlyTrend(enrollments: EnrollmentDisplayRecord[]) {
   )
 }
 
+function formatCurrencyAmount(cents: number) {
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100)
+}
+
+async function estimateMonthlyRecurringRevenue(
+  enrollments: EnrollmentDisplayRecord[]
+) {
+  const activeEnrollments = enrollments.filter((enrollment) =>
+    ["active", "trialing"].includes(enrollment.subscriptionStatus ?? "")
+  )
+  const priceIds = Array.from(
+    new Set(
+      activeEnrollments
+        .map((enrollment) => enrollment.stripePriceId)
+        .filter((priceId): priceId is string => Boolean(priceId))
+    )
+  )
+
+  if (!activeEnrollments.length) {
+    return 0
+  }
+
+  if (
+    activeEnrollments.some((enrollment) => !enrollment.stripePriceId) ||
+    !process.env.STRIPE_SECRET_KEY
+  ) {
+    return null
+  }
+
+  try {
+    const stripe = getStripe()
+    const prices = await Promise.all(
+      priceIds.map((priceId) => stripe.prices.retrieve(priceId))
+    )
+    const monthlyAmountByPriceId = new Map(
+      prices.map((price) => [
+        price.id,
+        price.recurring?.interval === "month" ? price.unit_amount ?? 0 : 0,
+      ])
+    )
+
+    return activeEnrollments.reduce(
+      (total, enrollment) =>
+        total +
+        (monthlyAmountByPriceId.get(enrollment.stripePriceId ?? "") ?? 0),
+      0
+    )
+  } catch (error) {
+    console.error("Unable to estimate Stripe monthly recurring revenue.", error)
+    return null
+  }
+}
+
 function buildMetrics(
   parents: ParentRecord[],
-  athletes: AthleteRecord[],
   enrollments: EnrollmentDisplayRecord[],
+  mrrCents: number | null
 ) {
   const statusCount = (statuses: string[]) =>
     enrollments.filter((enrollment) =>
       statuses.includes(enrollment.status.toLowerCase())
     ).length
-  return [
-    {
+  return {
+    parentAccounts: {
       label: "Parent accounts",
       value: String(parents.length),
       detail: "Total parent records",
     },
-    {
+    approvedActive: {
       label: "Approved / active",
       value: String(statusCount(["approved", "active"])),
       detail: "Ready for payment or currently active",
     },
-    {
+    deniedCanceled: {
       label: "Denied / canceled",
       value: String(statusCount(["denied", "canceled"])),
       detail: "Not moving forward",
     },
-  ] satisfies EnrollmentMetric[]
+    monthlyRecurringRevenue: {
+      label: "Monthly recurring revenue",
+      value: mrrCents === null ? "0" : formatCurrencyAmount(mrrCents),
+      detail:
+        mrrCents === null
+          ? "Stripe monthly revenue is currently unavailable"
+          : "Estimated from active monthly Stripe prices",
+    },
+  } satisfies AdminDashboardMetrics
 }
 
 function buildActionItems(
@@ -1665,9 +1730,10 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     schedules: cheerSchedules,
     teamNameById: cheerTeamNameById,
   })
+  const mrrCents = await estimateMonthlyRecurringRevenue(enrollments)
 
   return {
-    metrics: buildMetrics(parents, athletes, enrollments),
+    metrics: buildMetrics(parents, enrollments, mrrCents),
     actionItems: buildActionItems(enrollments, classBilling, cheerBilling),
     pendingEnrollments: enrollments.filter(
       (enrollment) => enrollment.status.toLowerCase() === "pending"

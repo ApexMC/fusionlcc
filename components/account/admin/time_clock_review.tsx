@@ -334,7 +334,7 @@ function CoachPunchGroup({
           </div>
           {entries.length ? (
             <>
-              <div className="mt-4 space-y-3 pr-1 md:hidden">
+              <div className="mt-4 space-y-3 pr-1 max-h-100 overflow-y-auto md:hidden">
                 {entries.map((entry) => {
                   const status = localStatuses[entry.entryId] ?? entry.status
 
@@ -349,7 +349,7 @@ function CoachPunchGroup({
                   )
                 })}
               </div>
-              <div className="mt-4 hidden max-h-[32rem] min-h-0 overflow-y-auto rounded-md border md:block">
+              <div className="mt-4 hidden max-h-100 min-h-0 overflow-y-auto rounded-md border md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
