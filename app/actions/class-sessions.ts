@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
 import { sendContactEmail } from "@/lib/contact/email"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { formatDay } from "@/lib/scheduling"
 
 type ActionResult = {
   ok: boolean
@@ -73,15 +74,6 @@ type EnrollmentRow = {
 
 const rosterEnrollmentStatuses = ["approved", "active"] as const
 const classSessionTimeZone = "America/Indiana/Tell_City"
-const dayOrder = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-]
 
 type DateParts = {
   year: number
@@ -237,35 +229,6 @@ function toZonedTimestampIso(
   }
 
   return new Date(utcMilliseconds).toISOString()
-}
-
-function normalizeDay(value: string | number | null | undefined) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    if (value === 0 || value === 7) {
-      return "sunday"
-    }
-
-    return dayOrder[value - 1] ?? String(value)
-  }
-
-  const normalized = String(value ?? "").trim().toLowerCase()
-  const numericDay = Number(normalized)
-
-  if (normalized && Number.isInteger(numericDay)) {
-    return normalizeDay(numericDay)
-  }
-
-  return normalized
-}
-
-function formatDay(value: string | number | null | undefined) {
-  const normalized = normalizeDay(value)
-
-  if (!normalized) {
-    return "Unscheduled"
-  }
-
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 
 function formatDate(value: string | null | undefined) {

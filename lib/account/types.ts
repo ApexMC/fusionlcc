@@ -147,6 +147,7 @@ export type TrendDatum = {
 
 export type AdminDashboardData = {
   metrics: AdminDashboardMetrics
+  reviewQueue: OperationsActionItem
   actionItems: OperationsActionItem[]
   pendingEnrollments: EnrollmentDisplayRecord[]
   allEnrollments: EnrollmentDisplayRecord[]

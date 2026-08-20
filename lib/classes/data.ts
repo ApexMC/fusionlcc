@@ -1,6 +1,11 @@
 import "server-only"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import {
+  formatDay,
+  getWeekdaySortIndex,
+  normalizeDay,
+} from "@/lib/scheduling"
 
 export type PublicClass = {
   classId: string
@@ -56,16 +61,6 @@ type PublicScheduleSeasonRow = {
   season_id: string | number
 }
 
-const dayOrder = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-]
-
 function toId(value: string | number | null | undefined) {
   return value === null || value === undefined ? null : String(value)
 }
@@ -86,35 +81,6 @@ function normalizeProgramType(value: string | null | undefined) {
   }
 
   return normalized
-}
-
-function normalizeDay(value: string | number | null | undefined) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    if (value === 0 || value === 7) {
-      return "sunday"
-    }
-
-    return dayOrder[value - 1] ?? String(value)
-  }
-
-  const normalized = String(value ?? "").trim().toLowerCase()
-  const numericDay = Number(normalized)
-
-  if (normalized && Number.isInteger(numericDay)) {
-    return normalizeDay(numericDay)
-  }
-
-  return normalized
-}
-
-function formatDay(value: string | number | null | undefined) {
-  const normalized = normalizeDay(value)
-
-  if (!normalized) {
-    return "Unscheduled"
-  }
-
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 
 function formatTime(value: string | null | undefined) {
@@ -339,11 +305,9 @@ function buildPublicSchedules(
       }
     })
     .sort((first, second) => {
-      const firstDay = dayOrder.indexOf(first.dayOfWeek)
-      const secondDay = dayOrder.indexOf(second.dayOfWeek)
       const dayComparison =
-        (firstDay === -1 ? dayOrder.length : firstDay) -
-        (secondDay === -1 ? dayOrder.length : secondDay)
+        getWeekdaySortIndex(first.dayOfWeek) -
+        getWeekdaySortIndex(second.dayOfWeek)
 
       if (dayComparison !== 0) {
         return dayComparison

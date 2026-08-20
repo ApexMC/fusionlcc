@@ -1,3 +1,7 @@
+import Link from "next/link";
+
+import { footerNavigationItems } from "@/components/navigation/links";
+
 const Footer = () => {
   return (
     <footer className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black">
@@ -34,11 +38,16 @@ const Footer = () => {
             Explore
           </h4>
           <ul className="mt-4 space-y-2 text-sm text-zinc-700 dark:text-zinc-200 text-center md:text-start">
-            <li><a href="/class-schedules" className="hover:text-purple-600 transition">Classes</a></li>
-            <li><a href="/staff" className="hover:text-purple-600 transition">Staff</a></li>
-            <li><a href="/faq" className="hover:text-purple-600 transition">FAQ</a></li>
-            <li><a href="/competitive-cheer" className="hover:text-purple-600 transition">Competitive Cheer</a></li>
-            <li><a href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310" className="hover:text-purple-600 transition">JackRabbit</a></li>
+            {footerNavigationItems.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className="hover:text-purple-600 transition"
+                >
+                  {item.label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
       </div>

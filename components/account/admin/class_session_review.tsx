@@ -34,6 +34,21 @@ import {
   TableHead,
   TableHeader,
   TableRow} from "@/components/ui/table"
+import {
+  dateKeyToLocalDate,
+  getDateKey,
+  getDateKeyInTimeZone as getLocalDateKey,
+  organizationTimeZone as classSessionTimeZone,
+  shiftDateKey,
+} from "@/lib/date_keys"
+import {
+  formatSessionDate as formatDate,
+  formatSessionStatus,
+  formatSessionTime as formatTime,
+  getSessionScheduleDisplay as getScheduleDisplay,
+  getSessionStatusVariant,
+  normalizeDateRange,
+} from "@/lib/account/session_presentation"
 
 const attendanceOptions = [
   { value: "present", label: "Present" },
@@ -59,7 +74,6 @@ const sortOptions = [
 ] as const
 
 const selectControlClassName = "h-8 rounded-lg border border-input bg-background px-2 text-sm"
-const classSessionTimeZone = "America/Indiana/Tell_City"
 const defaultHistoryDays = 7
 
 type AttendanceDraft = {
@@ -77,26 +91,6 @@ type FilterOption = {
   label: string
 }
 
-function getLocalDateKey(date = new Date()) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-
-  return `${year}-${month}-${day}`
-}
-
-function shiftDateKey(dateKey: string, days: number) {
-  const date = dateKeyToLocalDate(dateKey)
-
-  if (!date) {
-    return dateKey
-  }
-
-  date.setDate(date.getDate() + days)
-
-  return getLocalDateKey(date)
-}
-
 function getDefaultDateRange() {
   const endDate = getLocalDateKey()
 
@@ -104,59 +98,6 @@ function getDefaultDateRange() {
     dateFrom: shiftDateKey(endDate, -(defaultHistoryDays - 1)),
     dateTo: endDate,
   }
-}
-
-function getDateKey(value: string | null) {
-  if (!value) {
-    return ""
-  }
-
-  const dateText = value.match(/^(\d{4}-\d{2}-\d{2})/)?.[1]
-
-  if (dateText) {
-    return dateText
-  }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return ""
-  }
-
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-
-  return `${year}-${month}-${day}`
-}
-
-function dateKeyToLocalDate(dateKey: string) {
-  const [year, month, day] = dateKey.split("-").map(Number)
-
-  if (!year || !month || !day) {
-    return null
-  }
-
-  return new Date(year, month - 1, day)
-}
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "Date TBD"
-  }
-
-  const dateKey = getDateKey(value)
-  const date = dateKey ? dateKeyToLocalDate(dateKey) : new Date(value)
-
-  if (!date || Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(date)
 }
 
 function formatDateTime(value: string | null) {
@@ -176,37 +117,6 @@ function formatDateTime(value: string | null) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date)
-}
-
-function formatTime(value: string | null) {
-  if (!value) {
-    return "Time TBD"
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    const date = new Date(value)
-
-    if (!Number.isNaN(date.getTime())) {
-      return new Intl.DateTimeFormat("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        timeZone: "America/Indiana/Tell_City",
-      }).format(date)
-    }
-  }
-
-  const timeMatch = value.match(/(\d{1,2}):(\d{2})(?::\d{2})?/)
-  const hour = Number(timeMatch?.[1])
-  const minute = Number(timeMatch?.[2] ?? "00")
-
-  if (Number.isNaN(hour) || Number.isNaN(minute)) {
-    return value
-  }
-
-  const period = hour >= 12 ? "PM" : "AM"
-  const displayHour = hour % 12 || 12
-
-  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`
 }
 
 function getSessionTime(session: ClassSessionDisplayRecord) {
@@ -322,13 +232,6 @@ function matchesAttendanceFilter(
   return completion === filter
 }
 
-function getScheduleDisplay(session: ClassSessionDisplayRecord) {
-  return (
-    session.scheduleLabel ??
-    (session.scheduleId ? `Schedule #${session.scheduleId}` : "Unscheduled")
-  )
-}
-
 function getScheduleFilterValue(session: ClassSessionDisplayRecord) {
   if (session.scheduleId) {
     return `schedule:${session.scheduleId}`
@@ -339,10 +242,6 @@ function getScheduleFilterValue(session: ClassSessionDisplayRecord) {
   }
 
   return "unscheduled"
-}
-
-function formatSessionStatus(status: string | null | undefined) {
-  return (status || "unknown").replace(/_/g, " ")
 }
 
 function normalizeSessionStatus(status: string | null | undefined) {
@@ -379,9 +278,8 @@ function getWeekStartDateKey(dateKey: string) {
 
   const day = date.getDay()
   const mondayOffset = day === 0 ? -6 : 1 - day
-  date.setDate(date.getDate() + mondayOffset)
 
-  return getLocalDateKey(date)
+  return shiftDateKey(dateKey, mondayOffset)
 }
 
 function getWeekEndDateKey(weekStartDateKey: string) {
@@ -443,24 +341,6 @@ function groupSessionsByWeek(sessions: ClassSessionDisplayRecord[]) {
   )
 }
 
-function getSessionStatusVariant(status: string | null | undefined) {
-  const normalized = (status ?? "").toLowerCase()
-
-  if (["complete", "completed", "reviewed"].includes(normalized)) {
-    return "success" as const
-  }
-
-  if (["cancelled", "canceled"].includes(normalized)) {
-    return "destructive" as const
-  }
-
-  if (["pending", "in progress"].includes(normalized)) {
-    return "warning" as const
-  }
-
-  return "outline" as const
-}
-
 function getAttendanceVariant(status: string | null) {
   if (status === "present") {
     return "success" as const
@@ -501,20 +381,6 @@ function matchesSearch(session: ClassSessionDisplayRecord, query: string) {
   ]
     .filter(Boolean)
     .some((value) => String(value).toLowerCase().includes(normalizedQuery))
-}
-
-function normalizeDateRange(dateFrom: string, dateTo: string) {
-  if (dateFrom && dateTo && dateFrom > dateTo) {
-    return {
-      startDate: dateTo,
-      endDate: dateFrom,
-    }
-  }
-
-  return {
-    startDate: dateFrom,
-    endDate: dateTo,
-  }
 }
 
 function isInDateRange(

@@ -3,6 +3,7 @@ import Logo from "./Logo";
 import { ModeToggle } from "./theme_selector";
 import AuthButton from "./AuthButton";
 import SocialLinks from "./social_links";
+import { navigationItems } from "../links";
 
 const Navbar = ({ toggle }: { toggle: () => void }) => {
   return (
@@ -11,37 +12,17 @@ const Navbar = ({ toggle }: { toggle: () => void }) => {
         <div className="container mx-auto px-4 h-full">
           <div className="flex justify-between items-center h-full">
             <Logo />
-            <ul className="hidden md:flex gap-x-12 text-white ">
-              <li>
-                <Link href="/" className="font-bold text-zinc-800 dark:text-zinc-200">
-                  <p>Home</p>
-                </Link>
-              </li>
-              <li>
-                <Link href="/classes" className="font-bold text-zinc-800 dark:text-zinc-200">
-                  <p>Classes</p>
-                </Link>
-              </li>
-              <li>
-                <Link href="/staff" className="font-bold text-zinc-800 dark:text-zinc-200">
-                  <p>Staff</p>
-                </Link>
-              </li>
-              <li>
-                <Link href="/faq" className="font-bold text-zinc-800 dark:text-zinc-200">
-                  <p>FAQ</p>
-                </Link>
-              </li>
-              <li>
-                <Link href="/competitive-cheer" className="font-bold text-zinc-800 dark:text-zinc-200">
-                  <p>Competitive Cheer</p>
-                </Link>
-              </li>
-              <li>
-                <Link href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310" className="font-bold text-zinc-800 dark:text-zinc-200">
-                  <p>JackRabbit</p>
-                </Link>
-              </li>
+            <ul className="hidden md:flex md:items-center text-center gap-x-12 text-white ">
+              {navigationItems.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="font-bold text-zinc-800 dark:text-zinc-200"
+                  >
+                    <p>{item.label}</p>
+                  </Link>
+                </li>
+              ))}
             </ul>
             <div className="flex justify-center items-center gap-4 h-full">
               <SocialLinks />

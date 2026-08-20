@@ -24,23 +24,22 @@ import type {
     ParentRecord,
 } from "@/lib/account/types";
 import { cn } from "@/lib/utils";
+import { getDateKey, getDateKeyInTimeZone } from "@/lib/date_keys";
 import {
     BadgeCheck,
-    BarChart3,
     BookOpen,
-    CalendarDays,
     CircleDollarSign,
-    ClipboardCheck,
-    Clock,
     CreditCard,
     ListChecks,
     Mail,
     MapPin,
     Phone,
     Plus,
-    UserRound,
-    Users,
 } from "lucide-react";
+import {
+    adminDashboardRoutes,
+    coachDashboardRoutes,
+} from "@/components/account/dashboard_routes";
 import {
     AccountDashboardFrame,
     DashboardHeader,
@@ -51,100 +50,24 @@ import {
 } from "@/components/account/dashboard_navigation";
 
 const adminDashboardSections = [
-    {
-        title: "Customers",
-        description: "Search parent accounts and attached athletes.",
-        href: "/account/admin/customers",
-        icon: UserRound,
-    },
-    {
-        title: "Enrollments",
-        description: "Review requests and manage athlete enrollments.",
-        href: "/account/admin/enrollments",
-        icon: Users,
-    },
+    adminDashboardRoutes.customers,
+    adminDashboardRoutes.enrollments,
     {
         title: "Billing",
         description: "Maintain billing setup, program type, and Stripe pricing.",
         href: "/account/admin/billing",
         icon: CreditCard,
     },
-    {
-        title: "Schedules",
-        description: "Manage class days, times, active status, and rosters.",
-        href: "/account/admin/schedules",
-        icon: CalendarDays,
-    },
-    {
-        title: "Sessions",
-        description: "Review class sessions and attendance details.",
-        href: "/account/admin/sessions",
-        icon: ClipboardCheck,
-    },
-    {
-        title: "Staff Time Clock",
-        description: "Review coach time entries and pay-period totals.",
-        href: "/account/admin/time-clock",
-        icon: Clock,
-    },
-    {
-        title: "Charts",
-        description: "Track enrollment status and request trends.",
-        href: "/account/admin/charts",
-        icon: BarChart3,
-    },
+    adminDashboardRoutes.schedules,
+    adminDashboardRoutes.sessions,
+    adminDashboardRoutes.timeClock,
+    adminDashboardRoutes.charts,
 ] satisfies DashboardNavItem[];
 
 const coachDashboardSections = [
-    {
-        title: "Sessions",
-        description: "Review class sessions and attendance.",
-        href: "/account/coach/sessions",
-        icon: ClipboardCheck,
-    },
-    {
-        title: "Time Clock",
-        description: "Clock in and out for coaching shifts.",
-        href: "/account/time-clock",
-        icon: Clock,
-    },
+    coachDashboardRoutes.sessions,
+    coachDashboardRoutes.timeClock,
 ] satisfies DashboardNavItem[];
-
-const classSessionTimeZone = "America/Indiana/Tell_City";
-
-function getLocalDateKey(date = new Date()) {
-    const parts = new Intl.DateTimeFormat("en-US", {
-        timeZone: classSessionTimeZone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-    }).formatToParts(date);
-    const dateParts = Object.fromEntries(
-        parts.map((part) => [part.type, part.value])
-    );
-
-    return `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
-}
-
-function getDateKey(value: string | null) {
-    if (!value) {
-        return null;
-    }
-
-    const directDate = value.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
-
-    if (directDate) {
-        return directDate;
-    }
-
-    const parsedDate = new Date(value);
-
-    if (Number.isNaN(parsedDate.getTime())) {
-        return null;
-    }
-
-    return getLocalDateKey(parsedDate);
-}
 
 function normalizeSessionStatus(status: string | null | undefined) {
     return status?.trim().toLowerCase() || "scheduled";
@@ -185,7 +108,7 @@ function needsAttendanceReview(
 function getUnfilledAttendanceSessionCount(
     sessions: ClassSessionDisplayRecord[]
 ) {
-    const todayDateKey = getLocalDateKey();
+    const todayDateKey = getDateKeyInTimeZone();
 
     return sessions.filter((session) =>
         needsAttendanceReview(session, todayDateKey)
@@ -220,7 +143,7 @@ function actionBadge(
 function getAdminDashboardLinks(
     dashboardData: AdminDashboardData
 ): DashboardNavItem[] {
-    const reviewQueue = findActionItem(dashboardData, "Review queue");
+    const reviewQueue = dashboardData.reviewQueue;
     const billingSetup = findActionItem(dashboardData, "Class billing setup");
     const unfilledAttendanceSessions = getUnfilledAttendanceSessionCount(
         dashboardData.classSessions
@@ -319,17 +242,14 @@ function getAdminDashboardLinks(
 function getAdminDashboardStats(
     dashboardData: AdminDashboardData
 ): DashboardStat[] {
-    const reviewQueue = findActionItem(dashboardData, "Review queue");
+    const reviewQueue = dashboardData.reviewQueue;
     const readyToBill = findActionItem(dashboardData, "Ready to bill");
     const { monthlyRecurringRevenue, parentAccounts } = dashboardData.metrics;
 
     return [
         {
-            label: "Review queue",
-            value: reviewQueue?.value ?? "0",
+            ...reviewQueue,
             href: "/account/admin/enrollments",
-            detail: reviewQueue?.detail,
-            tone: reviewQueue?.tone,
         },
         {
             label: "Ready to bill",
@@ -564,7 +484,6 @@ export default async function AccountPage() {
         }));
         const parentEnrollmentData = await getParentAthleteEnrollments(session.userId);
         const parentEnrollments = getParentEnrollments(parentEnrollmentData.athletes);
-        const enrollmentCounts = getParentEnrollmentCounts(parentEnrollments);
         const parentAddress = formatParentAddress(parent);
             
         return (

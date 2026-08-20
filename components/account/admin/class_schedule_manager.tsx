@@ -50,21 +50,12 @@ import {
 } from "@/components/ui/table"
 import { useToast } from "@/components/ui/toast"
 import { cn } from "@/lib/utils"
+import { weekdayOptions } from "@/lib/scheduling"
 import type {
   ClassBillingRecord,
   ClassScheduleDisplayRecord,
   ScheduleSeasonRecord,
 } from "@/lib/account/types"
-
-const days = [
-  { value: "monday", label: "Monday" },
-  { value: "tuesday", label: "Tuesday" },
-  { value: "wednesday", label: "Wednesday" },
-  { value: "thursday", label: "Thursday" },
-  { value: "friday", label: "Friday" },
-  { value: "saturday", label: "Saturday" },
-  { value: "sunday", label: "Sunday" },
-]
 
 type ScheduleDraft = {
   classId: string
@@ -412,7 +403,7 @@ export function ClassScheduleManager({
         onChange={(event) => onChange(event.target.value)}
         className={className}
       >
-        {days.map((day) => (
+        {weekdayOptions.map((day) => (
           <option key={day.value} value={day.value}>
             {day.label}
           </option>

@@ -5,10 +5,7 @@ import { Check, ChevronDown, Clock, History, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { updateCoachTimeClockEntryStatus } from "@/app/actions/time-clock"
-import {
-  isPendingTimeClockStatus,
-  TimeClockEntryEditDialog,
-} from "@/components/account/time_clock_entry_edit_dialog"
+import { TimeClockEntryEditDialog } from "@/components/account/time_clock_entry_edit_dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,46 +24,20 @@ import type {
   AdminTimeClockReviewData,
   CoachTimeClockEntry,
 } from "@/lib/account/types"
-
-function toDate(value: string | null) {
-  if (!value) {
-    return null
-  }
-
-  const date = new Date(value)
-
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
-function formatDate(value: string | null) {
-  const date = toDate(value)
-
-  if (!date) {
-    return "Date TBD"
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(date)
-}
-
-function formatTime(value: string | null) {
-  const date = toDate(value)
-
-  if (!date) {
-    return "Time TBD"
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date)
-}
+import {
+  formatTimeClockDate as formatDate,
+  formatTimeClockDuration as formatDuration,
+  formatTimeClockTime as formatTime,
+  getTimeClockEntryDurationMinutes as getDurationMinutes,
+  getTimeClockEntryNote as getEntryNote,
+  getTimeClockEntryStatusLabel as getEntryStatusLabel,
+  getTimeClockEntryStatusVariant as getEntryStatusVariant,
+  isPendingTimeClockStatus,
+  parseTimeClockDate,
+} from "@/lib/account/time_clock_presentation"
 
 function formatPeriod(start: string, end: string) {
-  const endDate = toDate(end)
+  const endDate = parseTimeClockDate(end)
 
   if (!endDate) {
     return formatDate(start)
@@ -75,66 +46,6 @@ function formatPeriod(start: string, end: string) {
   endDate.setDate(endDate.getDate() - 1)
 
   return `${formatDate(start)} - ${formatDate(endDate.toISOString())}`
-}
-
-function getDurationMinutes(entry: CoachTimeClockEntry) {
-  const start = toDate(entry.clockInAt)
-  const end = toDate(entry.clockOutAt) ?? new Date()
-
-  if (!start) {
-    return 0
-  }
-
-  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 60000))
-}
-
-function formatDuration(minutes: number) {
-  const hours = Math.floor(minutes / 60)
-  const remainingMinutes = minutes % 60
-
-  return `${hours}h ${String(remainingMinutes).padStart(2, "0")}m`
-}
-
-function getEntryNote(entry: CoachTimeClockEntry) {
-  return [entry.clockInNote, entry.clockOutNote].filter(Boolean).join(" / ")
-}
-
-function getStatusVariant(status: string) {
-  const normalized = status.toLowerCase()
-
-  if (normalized === "approved") {
-    return "success" as const
-  }
-
-  if (normalized === "denied") {
-    return "destructive" as const
-  }
-
-  if (normalized === "pending") {
-    return "warning" as const
-  }
-
-  return "outline" as const
-}
-
-function getEntryStatusVariant(entry: CoachTimeClockEntry, status: string) {
-  if (!entry.clockOutAt) {
-    return "purple" as const
-  }
-
-  return getStatusVariant(status)
-}
-
-function formatStatus(status: string) {
-  return status.replace(/_/g, " ")
-}
-
-function getEntryStatusLabel(entry: CoachTimeClockEntry, status: string) {
-  if (!entry.clockOutAt) {
-    return "on the clock"
-  }
-
-  return formatStatus(status)
 }
 
 function PunchDecisionControls({

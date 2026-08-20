@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/toast"
 import type { CoachTimeClockEntry } from "@/lib/account/types"
+import { isPendingTimeClockStatus } from "@/lib/account/time_clock_presentation"
 
 type PunchDraft = {
   clockInAt: string
@@ -69,10 +70,6 @@ function getDraftFromEntry(entry: CoachTimeClockEntry): PunchDraft {
     clockInNote: entry.clockInNote ?? "",
     clockOutNote: entry.clockOutNote ?? "",
   }
-}
-
-export function isPendingTimeClockStatus(status: string) {
-  return status.trim().toLowerCase() === "pending"
 }
 
 export function TimeClockEntryEditDialog({

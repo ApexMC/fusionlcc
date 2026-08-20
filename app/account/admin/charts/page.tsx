@@ -1,5 +1,3 @@
-import { BarChart3 } from "lucide-react"
-
 import {
   AccountDashboardFrame,
   AccountSectionHeader,
@@ -7,18 +5,20 @@ import {
 import { AdminCharts } from "@/components/account/admin/admin_charts"
 import { getAdminDashboardData } from "@/lib/account/data"
 import { requireAdminOwnerAccountSession } from "@/app/account/_lib/route-guards"
+import { adminDashboardRoutes } from "@/components/account/dashboard_routes"
 
 export default async function AdminChartsPage() {
   await requireAdminOwnerAccountSession()
 
   const dashboardData = await getAdminDashboardData()
+  const route = adminDashboardRoutes.charts
 
   return (
     <AccountDashboardFrame className="max-w-6xl">
       <AccountSectionHeader
-        title="Charts"
-        description="See enrollment status and request trends at a glance."
-        icon={BarChart3}
+        title={route.title}
+        description={route.description}
+        icon={route.icon}
         backLabel="Dashboard"
       />
       <AdminCharts

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { JSX } from "react";
+import { navigationItems } from "../links";
 
 const Sidebar = ({
   isOpen,
@@ -17,37 +18,18 @@ const Sidebar = ({
           top: ` ${isOpen ? "0" : "-100%"}`,
         }}
       >
-        <ul className="sidebar-nav text-center leading-relaxed text-xl">
-          <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/" onClick={toggle}>
-              <p>Home</p>
-            </Link>
-          </li>
-          <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/classes" onClick={toggle}>
-              <p>Classes</p>
-            </Link>
-          </li>
-          <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/staff" onClick={toggle}>
-              <p>Staff</p>
-            </Link>
-          </li>
-          <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/faq" onClick={toggle}>
-              <p>FAQ</p>
-            </Link>
-          </li>
-          <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="/competitive-cheer" onClick={toggle}>
-              <p>Competitive Cheer</p>
-            </Link>
-          </li>
-          <li>
-            <Link className="font-bold text-zinc-800 dark:text-zinc-200" href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310" onClick={toggle}>
-              <p>JackRabbit</p>
-            </Link>
-          </li>
+        <ul className="sidebar-nav text-center leading-relaxed text-2xl">
+          {navigationItems.map((item) => (
+            <li key={item.href}>
+              <Link
+                className="font-bold text-zinc-800 dark:text-zinc-200"
+                href={item.href}
+                onClick={toggle}
+              >
+                <p>{item.label}</p>
+              </Link>
+            </li>
+          ))}
         </ul>
       </div>
     </>

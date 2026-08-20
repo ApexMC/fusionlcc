@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CalendarOff, ClipboardCheck } from "lucide-react"
+import { CalendarOff } from "lucide-react"
 
 import {
   AccountDashboardFrame,
@@ -10,18 +10,20 @@ import { ClassSessionReview } from "@/components/account/admin/class_session_rev
 import { Button } from "@/components/ui/button"
 import { getAdminDashboardData } from "@/lib/account/data"
 import { requireAdminOwnerAccountSession } from "@/app/account/_lib/route-guards"
+import { adminDashboardRoutes } from "@/components/account/dashboard_routes"
 
 export default async function AdminSessionsPage() {
   await requireAdminOwnerAccountSession()
 
   const dashboardData = await getAdminDashboardData()
+  const route = adminDashboardRoutes.sessions
 
   return (
     <AccountDashboardFrame className="max-w-[90rem]">
       <AccountSectionHeader
-        title="Sessions"
-        description="Review class sessions and cheer practice sessions."
-        icon={ClipboardCheck}
+        title={route.title}
+        description={route.description}
+        icon={route.icon}
         backLabel="Dashboard"
         actions={
           <Button asChild variant="outline">

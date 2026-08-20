@@ -9,10 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import {
-  isPendingTimeClockStatus,
-  TimeClockEntryEditDialog,
-} from "@/components/account/time_clock_entry_edit_dialog"
+import { TimeClockEntryEditDialog } from "@/components/account/time_clock_entry_edit_dialog"
 import {
   Table,
   TableBody,
@@ -26,83 +23,17 @@ import type {
   CoachTimeClockData,
   CoachTimeClockEntry,
 } from "@/lib/account/types"
-
-function toDate(value: string | null) {
-  if (!value) {
-    return null
-  }
-
-  // clock_in_at/clock_out_at/work_date are stored as timestamptz values, so
-  // they can be parsed directly.
-  const date = new Date(value)
-
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
-function formatDate(value: string | null) {
-  const date = toDate(value)
-
-  if (!date) {
-    return "Date TBD"
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(date)
-}
-
-function formatTime(value: string | null) {
-  const date = toDate(value)
-
-  if (!date) {
-    return "Time TBD"
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date)
-}
-
-function formatDateTime(value: string | null) {
-  const date = toDate(value)
-
-  if (!date) {
-    return "Time TBD"
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date)
-}
-
-function getDurationMs(entry: CoachTimeClockEntry, now: Date) {
-  const start = toDate(entry.clockInAt)
-  const end = toDate(entry.clockOutAt) ?? now
-
-  if (!start) {
-    return 0
-  }
-
-  return Math.max(0, end.getTime() - start.getTime())
-}
-
-function formatDuration(durationMs: number) {
-  const totalMinutes = Math.floor(durationMs / 60000)
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-
-  return `${hours}h ${String(minutes).padStart(2, "0")}m`
-}
-
-function getEntryNote(entry: CoachTimeClockEntry) {
-  return [entry.clockInNote, entry.clockOutNote].filter(Boolean).join(" / ")
-}
+import {
+  formatTimeClockDate as formatDate,
+  formatTimeClockDateTime as formatDateTime,
+  formatTimeClockDuration as formatDuration,
+  formatTimeClockStatus,
+  formatTimeClockTime as formatTime,
+  getTimeClockEntryDurationMinutes as getDurationMinutes,
+  getTimeClockEntryNote as getEntryNote,
+  getTimeClockStatusVariant,
+  isPendingTimeClockStatus,
+} from "@/lib/account/time_clock_presentation"
 
 function TimeClockEntryMobileRow({
   entry,
@@ -128,11 +59,13 @@ function TimeClockEntryMobileRow({
         </div>
         <div className="flex flex-row items-center gap-1">
           <Badge variant={entry.clockOutAt ? "outline" : "success"}>
-            {entry.clockOutAt ? formatDuration(getDurationMs(entry, now)) : "Active"}
+            {entry.clockOutAt
+              ? formatDuration(getDurationMinutes(entry, now))
+              : "Active"}
           </Badge>
           {entry.clockOutAt ? (
-            <Badge variant={entry.status === "pending" ? "warning" : entry.status === "approved" ? "success" : "destructive"}>
-              {entry.status}
+            <Badge variant={getTimeClockStatusVariant(entry.status)}>
+              {formatTimeClockStatus(entry.status)}
             </Badge>
           ) : null}
         </div>
@@ -237,7 +170,7 @@ export function CoachTimeClock({
               <Timer className="mb-1 size-5 text-muted-foreground" />
               <div className="text-3xl font-semibold">
                 {activeEntry
-                  ? formatDuration(getDurationMs(activeEntry, now))
+                  ? formatDuration(getDurationMinutes(activeEntry, now))
                   : "Ready"}
               </div>
             </div>
@@ -321,14 +254,14 @@ export function CoachTimeClock({
                               : "Active"}
                           </TableCell>
                           <TableCell>
-                            {formatDuration(getDurationMs(entry, now))}
+                            {formatDuration(getDurationMinutes(entry, now))}
                           </TableCell>
                           <TableCell className="max-w-80 whitespace-normal text-muted-foreground">
                             {noteText || "None"}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={entry.status === "pending" ? "warning" : entry.status === "approved" ? "success" : "destructive"}>
-                              {entry.status}
+                            <Badge variant={getTimeClockStatusVariant(entry.status)}>
+                              {formatTimeClockStatus(entry.status)}
                             </Badge>
                           </TableCell>
                           {hasEditableRecentEntries ? (

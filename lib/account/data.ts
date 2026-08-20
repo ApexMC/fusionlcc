@@ -2,6 +2,11 @@ import "server-only"
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getStripe } from "@/lib/stripe/server"
+import {
+  formatDay,
+  getWeekdaySortIndex,
+  normalizeDay,
+} from "@/lib/scheduling"
 import type {
   AdminCoachTimeClockGroup,
   AdminDashboardData,
@@ -178,15 +183,6 @@ type CoachProfile = {
   coachPhone: string | null
 }
 
-const dayOrder = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-]
 const seasonOrder = ["spring", "summer", "fall", "winter"]
 const rosterEnrollmentStatuses = new Set(["approved", "active"])
 const timeClockSelectColumns =
@@ -198,35 +194,6 @@ function firstRelation<T>(value: T | T[] | null | undefined) {
 
 function toId(value: string | number | null | undefined) {
   return value === null || value === undefined ? null : String(value)
-}
-
-function normalizeDay(value: string | number | null | undefined) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    if (value === 0 || value === 7) {
-      return "sunday"
-    }
-
-    return dayOrder[value - 1] ?? String(value)
-  }
-
-  const normalized = String(value ?? "").trim().toLowerCase()
-  const numericDay = Number(normalized)
-
-  if (normalized && Number.isInteger(numericDay)) {
-    return normalizeDay(numericDay)
-  }
-
-  return normalized
-}
-
-function formatDay(value: string | number | null | undefined) {
-  const normalized = normalizeDay(value)
-
-  if (!normalized) {
-    return "Unscheduled"
-  }
-
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 
 function normalizeSeason(value: string | null | undefined) {
@@ -1160,11 +1127,9 @@ function buildClassScheduleRows(
       }
     })
     .sort((first, second) => {
-      const firstDay = dayOrder.indexOf(first.dayOfWeek)
-      const secondDay = dayOrder.indexOf(second.dayOfWeek)
       const dayComparison =
-        (firstDay === -1 ? dayOrder.length : firstDay) -
-        (secondDay === -1 ? dayOrder.length : secondDay)
+        getWeekdaySortIndex(first.dayOfWeek) -
+        getWeekdaySortIndex(second.dayOfWeek)
 
       if (dayComparison !== 0) {
         return dayComparison
@@ -1204,11 +1169,9 @@ function buildCheerScheduleRows(
       }
     })
     .sort((first, second) => {
-      const firstDay = dayOrder.indexOf(first.dayOfWeek)
-      const secondDay = dayOrder.indexOf(second.dayOfWeek)
       const dayComparison =
-        (firstDay === -1 ? dayOrder.length : firstDay) -
-        (secondDay === -1 ? dayOrder.length : secondDay)
+        getWeekdaySortIndex(first.dayOfWeek) -
+        getWeekdaySortIndex(second.dayOfWeek)
 
       if (dayComparison !== 0) {
         return dayComparison
@@ -1616,16 +1579,26 @@ function buildMetrics(
   } satisfies AdminDashboardMetrics
 }
 
+function buildReviewQueueAction(enrollments: EnrollmentDisplayRecord[]) {
+  const pending = enrollments.filter(
+    (enrollment) => enrollment.status.toLowerCase() === "pending"
+  ).length
+
+  return {
+    label: "Review queue",
+    value: String(pending),
+    detail: pending
+      ? "Enrollment requests need a decision"
+      : "No requests waiting",
+    tone: pending ? "warning" : "success",
+  } satisfies OperationsActionItem
+}
+
 function buildActionItems(
   enrollments: EnrollmentDisplayRecord[],
   classBilling: ClassBillingRecord[],
   cheerBilling: CheerBillingRecord[]
 ) {
-  const countByStatus = (statuses: string[]) =>
-    enrollments.filter((enrollment) =>
-      statuses.includes(enrollment.status.toLowerCase())
-    ).length
-  const pending = countByStatus(["pending"])
   const readyToPay = enrollments.filter(
     (enrollment) =>
       enrollment.status === "approved" && !enrollment.stripeSubscriptionId
@@ -1644,12 +1617,6 @@ function buildActionItems(
   ).length
 
   return [
-    {
-      label: "Review queue",
-      value: String(pending),
-      detail: pending ? "Enrollment requests need a decision" : "No requests waiting",
-      tone: pending ? "warning" : "success",
-    },
     {
       label: "Ready to bill",
       value: String(readyToPay),
@@ -1734,6 +1701,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
 
   return {
     metrics: buildMetrics(parents, enrollments, mrrCents),
+    reviewQueue: buildReviewQueueAction(enrollments),
     actionItems: buildActionItems(enrollments, classBilling, cheerBilling),
     pendingEnrollments: enrollments.filter(
       (enrollment) => enrollment.status.toLowerCase() === "pending"

@@ -10,17 +10,22 @@ export default function FAQ() {
         <FAQCard
           icon={<Minus className="w-5 h-5 text-black dark:text-white" />}
           question="How do I register for classes?"
-          answer="Regstering for classes requires creating an account and adding at least one athlete to your profile. Navigate to the Classes page and click the 'Register' button on the class you want to register for. Complete the registration form and submit. Our staff will review your registration and reach out if any additional information is needed. Once your registration is approved, you will receive a confirmation email with details about the class schedule and next steps."
+          answer="Registering for classes requires creating an account and adding at least one athlete to your profile. Navigate to the Classes page and click the 'Register' button on the class you want to register for. Complete the registration form and submit. Our staff will review your registration and reach out if any additional information is needed. Once your registration is approved, you will receive a confirmation email with details about the class schedule and next steps."
         />
         <FAQCard
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I pay for gymnastics classes?"
-          answer={<span>Once an enrollment request has been approved by our staff, you can then begin payment for the enrollment on your <a className="text-purple-400" href="/account">account dashboard</a>. Payments for gymnastics classes are now structured as monthly subscriptions. This allows for consistent scheduling and replaces the need for manual monthly invoicing. Classes are billed monthly on the 1st, so starting payment for a new enrollment will present as $0.00 today, then the full monthly amount on the 1st of the following month.</span>}
+          answer={<span>Once an enrollment request has been approved by our staff, you can then begin payment for the enrollment on your <a className="text-purple-400" href="/account">account dashboard</a>. Payments for gymnastics classes are now structured as monthly subscriptions. This allows for consistent scheduling and replaces the need for manual monthly invoicing. Classes are billed monthly on the 1st, so starting payment for a new enrollment will present as $0.00 today, then the full monthly amount on the 1st of the following month. Once you've subscribed to your class plan, your enrollment becomes active and your athlete is placed on the roster for the session time you selected.</span>}
         />
         <FAQCard 
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I pay for competitive cheer?"
           answer={<span>Currently, cheer payments are still processed through <a className="text-purple-400" href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310">JackRabbit</a>. Cheer will be transitioned to our new in-house payment platform in the near future, however until that time, continue to access their platform to process payments.</span>}
+        />
+        <FAQCard 
+          icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
+          question="How do I manage my subscriptions?"
+          answer={<span>Managing your subscriptions is done through your <a className="text-purple-400" href="/account">account dashboard</a>. Scroll to the enrollments section and select the "Manage" button on any active enrollment. This will direct you to our payment portal where you can cancel active subscriptions or update on file payment methods.</span>}
         />
         <FAQCard
           icon={<Minus className="w-5 h-5 text-black dark:text-white" />}

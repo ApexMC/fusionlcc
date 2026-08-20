@@ -13,19 +13,12 @@ import {
   getPublicClassBySlug,
   type PublicClassSchedule,
 } from "@/lib/classes/data"
-
-const days = [
-  { value: "sunday", label: "Sunday" },
-  { value: "monday", label: "Monday" },
-  { value: "tuesday", label: "Tuesday" },
-  { value: "wednesday", label: "Wednesday" },
-  { value: "thursday", label: "Thursday" },
-  { value: "friday", label: "Friday" },
-  { value: "saturday", label: "Saturday" },
-]
+import { sundayFirstWeekdayOptions as days } from "@/lib/scheduling"
 
 function buildWeeklyRows(schedules: PublicClassSchedule[]) {
-  const timesByDay = new Map(days.map((day) => [day.value, [] as string[]]))
+  const timesByDay = new Map<string, string[]>(
+    days.map((day) => [day.value, []])
+  )
 
   schedules.forEach((schedule) => {
     const times = timesByDay.get(schedule.dayOfWeek)
