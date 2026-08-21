@@ -1187,6 +1187,7 @@ export async function requestEnrollment({
       {
         athlete_id: athleteId,
         class_id: normalizedClassId,
+        parent_id: athlete.parent_id ?? null,
         schedule_id: normalizedScheduleId,
         status: "pending",
       },
@@ -1263,7 +1264,7 @@ export async function cancelEnrollmentRequest(
 
   const { error: updateError } = await supabase
     .from("Enrollments")
-    .update({ status: "canceled" })
+    .delete()
     .eq("enrollment_id", enrollmentId)
 
   if (updateError) {

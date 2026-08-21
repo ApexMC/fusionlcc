@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import createClient from "@/lib/supabase/client";
 import { requestEnrollment } from "@/app/actions/enrollments";
+import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
+
+const ADD_ATHLETE_VALUE = "__add_athlete__";
 
 type Parent = {
   parent_id: string | number;
@@ -39,6 +42,9 @@ export default function RegistrationForm({
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [athletes, setAthletes] = useState<Array<{ athlete_id: string; first_name: string; last_name: string }>>([]);
+  const [selectedAthleteId, setSelectedAthleteId] = useState("");
+  const [userId, setUserId] = useState("");
+  const [addAthleteOpen, setAddAthleteOpen] = useState(false);
   const [parent, setParent] = useState<Parent | null>(null);
   const [scheduleOptions, setScheduleOptions] = useState<ScheduleOption[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>(
@@ -57,6 +63,7 @@ export default function RegistrationForm({
       const uid = claims?.claims.sub;
 
       if (uid) {
+        setUserId(uid);
         const { data: athletesData } = await supabase
           .from("Athletes")
           .select("athlete_id, first_name, last_name")
@@ -68,7 +75,19 @@ export default function RegistrationForm({
           .eq("user_id", uid)
           .single();
 
-        setAthletes(athletesData || []);
+        const nextAthletes = (athletesData || []).map((athlete) => ({
+          ...athlete,
+          athlete_id: String(athlete.athlete_id),
+        }));
+
+        setAthletes(nextAthletes);
+        setSelectedAthleteId((currentAthleteId) =>
+          nextAthletes.some(
+            (athlete) => athlete.athlete_id === currentAthleteId
+          )
+            ? currentAthleteId
+            : nextAthletes[0]?.athlete_id ?? ""
+        );
         setParent(parentData);
       }
 
@@ -110,12 +129,7 @@ export default function RegistrationForm({
     setStatus("sending");
     setMessage("");
 
-    const register = e.currentTarget;
-    const registerData = new FormData(register);
-
     try {
-      // Get athlete_id from selected athlete name
-      const selectedAthleteName = String(registerData.get("childName") || "");
       const selectedClass = classes.find(
         (option) => option.classId === selectedClassId
       );
@@ -123,12 +137,14 @@ export default function RegistrationForm({
         (option) => option.scheduleId === selectedScheduleId
       );
       const selectedAthlete = athletes.find(
-        (a) => `${a.first_name} ${a.last_name}` === selectedAthleteName
+        (athlete) => athlete.athlete_id === selectedAthleteId
       );
 
       if (!selectedAthlete || !selectedClass || !selectedSchedule) {
         throw new Error("Please choose an athlete, class, and class time.");
       }
+
+      const selectedAthleteName = `${selectedAthlete.first_name} ${selectedAthlete.last_name}`;
 
       const enrollmentResult = await requestEnrollment({
         athleteId: String(selectedAthlete.athlete_id),
@@ -175,6 +191,7 @@ export default function RegistrationForm({
   }
 
   return (
+    <>
     <form
         onSubmit={onSubmit}
         className="mt-10 space-y-5 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
@@ -195,14 +212,25 @@ export default function RegistrationForm({
                 </label>
                 <select
                     name="childName"
+                    value={selectedAthleteId}
+                    onChange={(event) => {
+                      if (event.target.value === ADD_ATHLETE_VALUE) {
+                        setAddAthleteOpen(true);
+                        return;
+                      }
+
+                      setSelectedAthleteId(event.target.value);
+                    }}
                     required
                     className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
                 >
+                <option value="" disabled>Select athlete</option>
                 {athletes?.map((athlete) => (
-                    <option key={athlete.athlete_id} value={athlete.first_name + " " + athlete.last_name}>
+                    <option key={athlete.athlete_id} value={athlete.athlete_id}>
                     {athlete.first_name} {athlete.last_name}
                     </option>
                 ))}
+                <option value={ADD_ATHLETE_VALUE}>+ Add Athlete</option>
                 </select>
             </div>
 
@@ -286,5 +314,16 @@ export default function RegistrationForm({
             ) : null}
         </div>
     </form>
+    {userId ? (
+      <ManageAthleteCard
+        userId={userId}
+        parentId={parent?.parent_id}
+        icon="+ Add Athlete"
+        open={addAthleteOpen}
+        onOpenChange={setAddAthleteOpen}
+        showTrigger={false}
+      />
+    ) : null}
+    </>
   );
 }

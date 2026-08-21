@@ -35,6 +35,9 @@ export default function ManageAthleteCard({
     ,dob
     ,shirt_size
     ,gender
+    ,open
+    ,onOpenChange
+    ,showTrigger = true
     }: 
     {icon: React.ReactNode
     ,userId: string
@@ -45,14 +48,25 @@ export default function ManageAthleteCard({
     ,phone?: string
     ,dob?: string
     ,shirt_size?: string
-    ,gender?: string}
+    ,gender?: string
+    ,open?: boolean
+    ,onOpenChange?: (open: boolean) => void
+    ,showTrigger?: boolean}
     ) {
     const supabase = createClient()
-    const [open, setOpen] = useState(false)
+    const [internalOpen, setInternalOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [shirtSize, setShirtSize] = useState<string | undefined>(shirt_size)
     const [genderSelection, setGender] = useState<string | undefined>(gender)
     const [error, setError] = useState<string | null>(null)
+
+    const dialogOpen = open ?? internalOpen
+    const handleOpenChange = (nextOpen: boolean) => {
+      if (open === undefined) {
+        setInternalOpen(nextOpen)
+      }
+      onOpenChange?.(nextOpen)
+    }
     
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -67,9 +81,9 @@ export default function ManageAthleteCard({
     const shirt_size = shirtSize ?? ""
     const user_id = userId
     const parent_id = parentId
-    const gender = ''
+    const gender = genderSelection ?? ""
 
-    const { data, error } = athleteId ? await supabase
+    const { error } = athleteId ? await supabase
       .from("Athletes")
       .upsert([{
         athlete_id: athleteId ?? undefined
@@ -103,15 +117,15 @@ export default function ManageAthleteCard({
     }
 
     // close dialog and refresh current route so lists update
-    setOpen(false)
+    handleOpenChange(false)
     window.location.reload()
   }
 
     return (
-        <Dialog>
-            <DialogTrigger asChild>
+        <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+            {showTrigger ? <DialogTrigger asChild>
                 <Button className={athleteId ? "bg-transparent hover:bg-zinc-300 text-white font-bold" : "bg-purple-500 dark:bg-purple-500 dark:hover:bg-purple-600 hover:bg-purple-600 text-white font-bold"} type="button" variant="outline">{icon}</Button>
-            </DialogTrigger>
+            </DialogTrigger> : null}
             <DialogContent className="sm:max-w-sm">
                 <form onSubmit={handleSubmit}>
                 <DialogHeader>
@@ -168,6 +182,7 @@ export default function ManageAthleteCard({
                                     <DropdownMenuItem onClick={() => setShirtSize("YS")}>YS</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setShirtSize("YM")}>YM</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setShirtSize("YL")}>YL</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShirtSize("YXL")}>YXL</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setShirtSize("S")}>S</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setShirtSize("M")}>M</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setShirtSize("L")}>L</DropdownMenuItem>
@@ -180,7 +195,7 @@ export default function ManageAthleteCard({
                 {error && <div className="text-sm text-red-600 mb-2">{error}</div>}
                 <DialogFooter>
                     <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
+                    <Button type="button" variant="outline">Cancel</Button>
                     </DialogClose>
                     <Button type="submit" disabled={loading}>
                         {loading ? "Loading..." : athleteId ? "Update" : "Add"}

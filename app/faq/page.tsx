@@ -29,6 +29,11 @@ export default function FAQ() {
         />
         <FAQCard
           icon={<Minus className="w-5 h-5 text-black dark:text-white" />}
+          question="Is there a dress code for athletes?"
+          answer="Athletes are encouraged to wear athletic attire for their classes. Shorts and a t-shirt or leotard are recommended. Please avoid wearing denim and remove all jewelry before class."
+        />
+        <FAQCard
+          icon={<Minus className="w-5 h-5 text-black dark:text-white" />}
           question="What is your inclement weather policy?"
           answer="In the event of inclement weather, classes at Limitless Cheer and Gymnastics will be cancelled if Tell City Schools cancel their classes due to weather."
         />
