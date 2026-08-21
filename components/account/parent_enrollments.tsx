@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/toast"
+import { SmartSelect } from "@/components/ui/smart-select"
 import type {
   ClassOption,
   ClassScheduleOption,
@@ -393,38 +394,36 @@ export function ParentEnrollments({
                               </div>
                             </div>
                             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                              <select
+                              <SmartSelect
                                 value={selectedScheduleId}
                                 disabled={
                                   !scheduleOptions.length ||
                                   busyKey ===
                                     `schedule-${enrollment.enrollmentId}`
                                 }
-                                onChange={(event) =>
+                                onValueChange={(value) =>
                                   setScheduleSelections((current) => ({
                                     ...current,
-                                    [enrollment.enrollmentId]:
-                                      event.target.value,
+                                    [enrollment.enrollmentId]: value,
                                   }))
                                 }
+                                options={
+                                  scheduleOptions.length
+                                    ? scheduleOptions.map((option) => ({
+                                        value: option.scheduleId,
+                                        label: option.scheduleLabel,
+                                      }))
+                                    : [
+                                        {
+                                          value: "",
+                                          label: "No active times available",
+                                        },
+                                      ]
+                                }
+                                searchPlaceholder="Search schedule slots..."
                                 className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm text-foreground disabled:opacity-60"
                                 aria-label={`New schedule slot for ${enrollment.className}`}
-                              >
-                                {scheduleOptions.length ? (
-                                  scheduleOptions.map((option) => (
-                                    <option
-                                      key={option.scheduleId}
-                                      value={option.scheduleId}
-                                    >
-                                      {option.scheduleLabel}
-                                    </option>
-                                  ))
-                                ) : (
-                                  <option value="">
-                                    No active times available
-                                  </option>
-                                )}
-                              </select>
+                              />
                               <Button
                                 type="button"
                                 size="sm"

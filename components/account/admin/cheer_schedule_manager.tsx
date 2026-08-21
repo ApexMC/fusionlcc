@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { SmartSelect } from "@/components/ui/smart-select"
 import {
   Table,
   TableBody,
@@ -207,17 +208,16 @@ export function CheerScheduleManager({
     className?: string
   }) {
     return (
-      <select
+      <SmartSelect
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onValueChange={onChange}
+        options={teams.map((team) => ({
+          value: team.teamId,
+          label: team.teamName,
+        }))}
+        searchPlaceholder="Search teams..."
         className={className}
-      >
-        {teams.map((team) => (
-          <option key={team.teamId} value={team.teamId}>
-            {team.teamName}
-          </option>
-        ))}
-      </select>
+      />
     )
   }
 
@@ -231,17 +231,12 @@ export function CheerScheduleManager({
     className?: string
   }) {
     return (
-      <select
+      <SmartSelect
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onValueChange={onChange}
+        options={weekdayOptions}
         className={className}
-      >
-        {weekdayOptions.map((day) => (
-          <option key={day.value} value={day.value}>
-            {day.label}
-          </option>
-        ))}
-      </select>
+      />
     )
   }
 

@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { SmartSelect } from "@/components/ui/smart-select"
 import {
   Table,
   TableBody,
@@ -267,18 +268,19 @@ export function ClassBillingManager({
                       </label>
                       <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                         Bill Day
-                        <select
+                        <SmartSelect
                           value={draft.billingDay}
-                          onChange={(event) =>
+                          onValueChange={(value) =>
                             setDraft(classRecord.classId, {
-                              billingDay: Number(event.target.value),
+                              billingDay: Number(value),
                             })
                           }
+                          options={[
+                            { value: 1, label: "1st" },
+                            { value: 15, label: "15th" },
+                          ]}
                           className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
-                        >
-                          <option value={1}>1st</option>
-                          <option value={15}>15th</option>
-                        </select>
+                        />
                       </label>
                       <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                         Stripe Price
@@ -365,18 +367,19 @@ export function ClassBillingManager({
                         />
                       </TableCell>
                       <TableCell>
-                        <select
+                        <SmartSelect
                           value={draft.billingDay}
-                          onChange={(event) =>
+                          onValueChange={(value) =>
                             setDraft(classRecord.classId, {
-                              billingDay: Number(event.target.value),
+                              billingDay: Number(value),
                             })
                           }
+                          options={[
+                            { value: 1, label: "1st" },
+                            { value: 15, label: "15th" },
+                          ]}
                           className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-                        >
-                          <option value={1}>1st</option>
-                          <option value={15}>15th</option>
-                        </select>
+                        />
                       </TableCell>
                       <TableCell>
                         <Input
@@ -473,19 +476,20 @@ export function ClassBillingManager({
               </label>
               <label className="grid gap-1 text-sm">
                 <span className="font-medium">Bill Day</span>
-                <select
+                <SmartSelect
                   value={newClassDraft.billingDay}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     setNewClassDraft((current) => ({
                       ...current,
-                      billingDay: Number(event.target.value),
+                      billingDay: Number(value),
                     }))
                   }
+                  options={[
+                    { value: 1, label: "1st" },
+                    { value: 15, label: "15th" },
+                  ]}
                   className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-                >
-                  <option value={1}>1st</option>
-                  <option value={15}>15th</option>
-                </select>
+                />
               </label>
               <label className="grid gap-1 text-sm">
                 <span className="font-medium">Stripe Price</span>

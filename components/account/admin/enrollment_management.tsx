@@ -30,6 +30,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { SmartSelect } from "@/components/ui/smart-select"
 import {
   Table,
   TableBody,
@@ -273,65 +274,56 @@ function CreateEnrollmentDialog({
           <div className="my-6 grid gap-4">
             <label className="grid gap-1 text-sm">
               <span className="font-medium">Athlete</span>
-              <select
+              <SmartSelect
                 value={draft.athleteId}
-                onChange={(event) => {
-                  const athleteId = event.target.value
-
+                onValueChange={(athleteId) => {
                   setDraft((current) => ({
                     ...current,
                     athleteId,
                     parentId: getAthleteParentId(athletes, athleteId),
                   }))
                 }}
+                options={athletes.map((athlete) => ({
+                  value: athlete.athleteId,
+                  label: `${athlete.athleteName} - ${athlete.parentName}`,
+                }))}
+                searchPlaceholder="Search athletes..."
                 className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-              >
-                {athletes.map((athlete) => (
-                  <option key={athlete.athleteId} value={athlete.athleteId}>
-                    {athlete.athleteName} - {athlete.parentName}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <label className="grid gap-1 text-sm">
               <span className="font-medium">Class Schedule</span>
-              <select
+              <SmartSelect
                 value={draft.scheduleId}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setDraft((current) => ({
                     ...current,
-                    scheduleId: event.target.value,
+                    scheduleId: value,
                   }))
                 }
+                options={enrollmentSchedules.map((schedule) => ({
+                  value: schedule.scheduleId,
+                  label: `${schedule.className} - ${schedule.scheduleLabel}`,
+                }))}
+                searchPlaceholder="Search class schedules..."
                 className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-              >
-                {enrollmentSchedules.map((schedule) => (
-                  <option key={schedule.scheduleId} value={schedule.scheduleId}>
-                    {schedule.className} - {schedule.scheduleLabel}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <label className="grid gap-1 text-sm">
               <span className="font-medium">Status</span>
-              <select
+              <SmartSelect
                 value={draft.status}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setDraft((current) => ({
                     ...current,
-                    status: event.target.value,
+                    status: value,
                   }))
                 }
-                className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-              >
-                {statuses
+                options={statuses
                   .filter((option) => option !== "all")
-                  .map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-              </select>
+                  .map((option) => ({ value: option, label: option }))}
+                className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+              />
             </label>
             {!canCreate ? (
               <p className="text-sm text-muted-foreground">
@@ -517,45 +509,40 @@ function ReassignEnrollmentDialog({
             </div>
             <label className="grid gap-1 text-sm">
               <span className="font-medium">New Class</span>
-              <select
+              <SmartSelect
                 value={draft.classId}
-                onChange={(event) => setClassId(event.target.value)}
+                onValueChange={setClassId}
+                options={classOptions.map((option) => ({
+                  value: option.classId,
+                  label: option.className,
+                }))}
+                searchPlaceholder="Search classes..."
                 className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-              >
-                {classOptions.map((option) => (
-                  <option key={option.classId} value={option.classId}>
-                    {option.className}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <label className="grid gap-1 text-sm">
               <span className="font-medium">New Class Schedule</span>
-              <select
+              <SmartSelect
                 value={draft.scheduleId}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setDraft((current) => ({
                     ...current,
-                    scheduleId: event.target.value,
+                    scheduleId: value,
                     confirmed: false,
                   }))
                 }
+                options={
+                  selectedClassSchedules.length
+                    ? selectedClassSchedules.map((schedule) => ({
+                        value: schedule.scheduleId,
+                        label: schedule.scheduleLabel,
+                      }))
+                    : [{ value: "", label: "No active schedules" }]
+                }
+                searchPlaceholder="Search schedules..."
                 className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
                 disabled={!selectedClassSchedules.length}
-              >
-                {selectedClassSchedules.length ? (
-                  selectedClassSchedules.map((schedule) => (
-                    <option
-                      key={schedule.scheduleId}
-                      value={schedule.scheduleId}
-                    >
-                      {schedule.scheduleLabel}
-                    </option>
-                  ))
-                ) : (
-                  <option value="">No active schedules</option>
-                )}
-              </select>
+              />
             </label>
             {selectedSchedule ? (
               <div className="rounded-lg border bg-muted/40 p-3 text-sm">
@@ -732,19 +719,17 @@ export function EnrollmentManagement({
               </div>
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
                 <SlidersHorizontal className="h-4 w-4" />
-                <select
+                <SmartSelect
                   value={status}
-                  onChange={(event) =>
-                    setStatus(event.target.value as (typeof statuses)[number])
+                  onValueChange={(value) =>
+                    setStatus(value as (typeof statuses)[number])
                   }
+                  options={statuses.map((option) => ({
+                    value: option,
+                    label: option === "all" ? "All statuses" : option,
+                  }))}
                   className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-                >
-                  {statuses.map((option) => (
-                    <option key={option} value={option}>
-                      {option === "all" ? "All statuses" : option}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
             </div>
           </div>
@@ -1088,25 +1073,23 @@ export function EnrollmentManagement({
                         <label className="mt-3 grid gap-1 text-xs font-medium text-muted-foreground">
                           Update Status
                           <div className="flex items-center gap-2">
-                            <select
+                            <SmartSelect
                               value={enrollment.status}
                               disabled={busyId === enrollment.enrollmentId}
-                              onChange={(event) =>
+                              onValueChange={(value) =>
                                 updateStatus(
                                   enrollment.enrollmentId,
-                                  event.target.value
+                                  value
                                 )
                               }
-                              className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-base"
-                            >
-                              {statuses
+                              options={statuses
                                 .filter((option) => option !== "all")
-                                .map((option) => (
-                                  <option key={option} value={option}>
-                                    {option}
-                                  </option>
-                                ))}
-                            </select>
+                                .map((option) => ({
+                                  value: option,
+                                  label: option,
+                                }))}
+                              className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-base"
+                            />
                             {busyId === enrollment.enrollmentId ? (
                               <span className="text-xs text-muted-foreground">
                                 Saving
@@ -1203,25 +1186,23 @@ export function EnrollmentManagement({
                             disabled={Boolean(busyId)}
                             onReassigned={() => router.refresh()}
                           />
-                          <select
+                          <SmartSelect
                             value={enrollment.status}
                             disabled={busyId === enrollment.enrollmentId}
-                            onChange={(event) =>
+                            onValueChange={(value) =>
                               updateStatus(
                                 enrollment.enrollmentId,
-                                event.target.value
+                                value
                               )
                             }
-                            className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-                          >
-                            {statuses
+                            options={statuses
                               .filter((option) => option !== "all")
-                              .map((option) => (
-                                <option key={option} value={option}>
-                                  {option}
-                                </option>
-                              ))}
-                          </select>
+                              .map((option) => ({
+                                value: option,
+                                label: option,
+                              }))}
+                            className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+                          />
                           {busyId === enrollment.enrollmentId ? (
                             <span className="self-center text-xs text-muted-foreground">
                               Saving

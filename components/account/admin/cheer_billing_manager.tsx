@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { SmartSelect } from "@/components/ui/smart-select"
 import {
   Table,
   TableBody,
@@ -245,17 +246,16 @@ export function CheerBillingManager({
                       </label>
                       <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                         Bill Day
-                        <select
+                        <SmartSelect
                           value={draft.billingDay}
-                          onChange={(event) =>
+                          onValueChange={(value) =>
                             setDraft(team.teamId, {
-                              billingDay: event.target.value,
+                              billingDay: value,
                             })
                           }
+                          options={[{ value: "1/15", label: "1st & 15th" }]}
                           className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
-                        >
-                          <option value="1/15">1st &amp; 15th</option>
-                        </select>
+                        />
                       </label>
                       <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                         Tuition Price
@@ -341,17 +341,16 @@ export function CheerBillingManager({
                         />
                       </TableCell>
                       <TableCell>
-                        <select
+                        <SmartSelect
                           value={draft.billingDay}
-                          onChange={(event) =>
+                          onValueChange={(value) =>
                             setDraft(team.teamId, {
-                              billingDay: event.target.value,
+                              billingDay: value,
                             })
                           }
+                          options={[{ value: "1/15", label: "1st & 15th" }]}
                           className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-                        >
-                          <option value="1/15">1st &amp; 15th</option>
-                        </select>
+                        />
                       </TableCell>
                       <TableCell>
                         <Input
@@ -445,18 +444,17 @@ export function CheerBillingManager({
               </label>
               <label className="grid gap-1 text-sm">
                 <span className="font-medium">Bill Day</span>
-                <select
+                <SmartSelect
                   value={newTeamDraft.billingDay}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     setNewTeamDraft((current) => ({
                       ...current,
-                      billingDay: event.target.value,
+                      billingDay: value,
                     }))
                   }
+                  options={[{ value: "1/15", label: "1st & 15th" }]}
                   className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-                >
-                  <option value="1/15">1st &amp; 15th</option>
-                </select>
+                />
               </label>
               <label className="grid gap-1 text-sm">
                 <span className="font-medium">Tuition Price</span>

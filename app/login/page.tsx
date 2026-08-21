@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes"
 import US_STATES from "@/utils/us_states";
 import { useToast } from "@/components/ui/toast";
+import { SmartSelect } from "@/components/ui/smart-select";
 import { TriangleAlert } from "lucide-react";
 
 function formatPhoneInput(value: string): string {
@@ -305,20 +306,18 @@ export default function SignInPage() {
                     <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                         State
                     </label>
-                    <select 
+                    <SmartSelect
                         name="state"
                         required
                         value={state}
-                        onChange={(e) => setState(e.target.value)}
-                        className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50">
-                        <option value="">Choose a state</option>
-
-                        {US_STATES.map((state) => (
-                            <option key={state.value} value={state.value}>
-                            {state.label}
-                            </option>
-                        ))}
-                    </select>
+                        onValueChange={setState}
+                        options={[
+                            { value: "", label: "Choose a state" },
+                            ...US_STATES,
+                        ]}
+                        searchPlaceholder="Search states..."
+                        className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                    />
                 </div>
                 <div>
                     <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">

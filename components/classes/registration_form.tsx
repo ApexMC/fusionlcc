@@ -5,6 +5,7 @@ import Image from "next/image";
 import createClient from "@/lib/supabase/client";
 import { requestEnrollment } from "@/app/actions/enrollments";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
+import { SmartSelect } from "@/components/ui/smart-select";
 
 const ADD_ATHLETE_VALUE = "__add_athlete__";
 
@@ -210,39 +211,39 @@ export default function RegistrationForm({
                 <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                     Athlete Name
                 </label>
-                <select
+                <SmartSelect
                     name="childName"
                     value={selectedAthleteId}
-                    onChange={(event) => {
-                      if (event.target.value === ADD_ATHLETE_VALUE) {
+                    onValueChange={(value) => {
+                      if (value === ADD_ATHLETE_VALUE) {
                         setAddAthleteOpen(true);
                         return;
                       }
 
-                      setSelectedAthleteId(event.target.value);
+                      setSelectedAthleteId(value);
                     }}
+                    options={[
+                      { value: "", label: "Select athlete", disabled: true },
+                      ...(athletes ?? []).map((athlete) => ({
+                        value: athlete.athlete_id,
+                        label: `${athlete.first_name} ${athlete.last_name}`,
+                      })),
+                      { value: ADD_ATHLETE_VALUE, label: "+ Add Athlete" },
+                    ]}
+                    searchPlaceholder="Search athletes..."
                     required
                     className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-                >
-                <option value="" disabled>Select athlete</option>
-                {athletes?.map((athlete) => (
-                    <option key={athlete.athlete_id} value={athlete.athlete_id}>
-                    {athlete.first_name} {athlete.last_name}
-                    </option>
-                ))}
-                <option value={ADD_ATHLETE_VALUE}>+ Add Athlete</option>
-                </select>
+                />
             </div>
 
             <div>
                 <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                     Requested Class
                 </label>
-                <select 
+                <SmartSelect
                     className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
                     name="requestedClass"
-                    onChange={(e) => {
-                        const nextClassId = e.target.value;
+                    onValueChange={(nextClassId) => {
                         const nextSchedule = scheduleOptions.find(
                             (option) => option.classId === nextClassId
                         );
@@ -251,42 +252,40 @@ export default function RegistrationForm({
                         setSelectedScheduleId(nextSchedule?.scheduleId ?? "");
                     }}
                     value={selectedClassId}
+                    options={
+                      classes.length
+                        ? classes.map((option) => ({
+                            value: option.classId,
+                            label: option.className,
+                          }))
+                        : [{ value: "", label: "No classes available" }]
+                    }
+                    searchPlaceholder="Search classes..."
                     required
-                >
-                    {classes.length ? (
-                      classes.map((option) => (
-                        <option key={option.classId} value={option.classId}>
-                            {option.className}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="">No classes available</option>
-                    )}
-                </select>
+                />
             </div>
 
             <div>
                 <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                     Selected Time
                 </label>
-                <select
+                <SmartSelect
                     className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
                     name="selectedTime"
-                    onChange={(e) => setSelectedScheduleId(e.target.value)}
+                    onValueChange={setSelectedScheduleId}
                     value={selectedScheduleId}
+                    options={
+                      selectedClassSchedules.length
+                        ? selectedClassSchedules.map((option) => ({
+                            value: option.scheduleId,
+                            label: option.scheduleLabel,
+                          }))
+                        : [{ value: "", label: "No times available" }]
+                    }
+                    searchPlaceholder="Search times..."
                     required
                     disabled={!selectedClassSchedules.length}
-                >
-                    {selectedClassSchedules.length ? (
-                        selectedClassSchedules.map((option) => (
-                            <option key={option.scheduleId} value={option.scheduleId}>
-                                {option.scheduleLabel}
-                            </option>
-                        ))
-                    ) : (
-                        <option value="">No times available</option>
-                    )}
-                </select>
+                />
             </div>
         </div>
 

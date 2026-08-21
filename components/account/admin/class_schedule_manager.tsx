@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { SmartSelect } from "@/components/ui/smart-select"
 import {
   Table,
   TableBody,
@@ -374,17 +375,16 @@ export function ClassScheduleManager({
     className?: string
   }) {
     return (
-      <select
+      <SmartSelect
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onValueChange={onChange}
+        options={classes.map((classRecord) => ({
+          value: classRecord.classId,
+          label: classRecord.className,
+        }))}
+        searchPlaceholder="Search classes..."
         className={className}
-      >
-        {classes.map((classRecord) => (
-          <option key={classRecord.classId} value={classRecord.classId}>
-            {classRecord.className}
-          </option>
-        ))}
-      </select>
+      />
     )
   }
 
@@ -398,17 +398,12 @@ export function ClassScheduleManager({
     className?: string
   }) {
     return (
-      <select
+      <SmartSelect
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onValueChange={onChange}
+        options={weekdayOptions}
         className={className}
-      >
-        {weekdayOptions.map((day) => (
-          <option key={day.value} value={day.value}>
-            {day.label}
-          </option>
-        ))}
-      </select>
+      />
     )
   }
 

@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { SmartSelect } from "@/components/ui/smart-select"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -786,24 +787,21 @@ function AttendanceReviewTable({
         <div className="mt-4 flex flex-col gap-2 rounded-md border border-dashed p-3 sm:flex-row sm:items-end">
           <label className="grid min-w-0 flex-1 gap-1 text-xs font-medium text-muted-foreground">
             Makeup athlete
-            <select
+            <SmartSelect
               value={makeupEnrollmentId}
-              onChange={(event) => setMakeupEnrollmentId(event.target.value)}
+              onValueChange={setMakeupEnrollmentId}
+              options={[
+                { value: "", label: "Select athlete" },
+                ...availableMakeupAthletes.map((athlete) => ({
+                  value: athlete.enrollmentId,
+                  label: `${athlete.athleteName}${
+                    athlete.scheduleLabel ? ` - ${athlete.scheduleLabel}` : ""
+                  }`,
+                })),
+              ]}
+              searchPlaceholder="Search athletes..."
               className="h-10 w-full min-w-0 rounded-lg border border-input bg-background px-2 text-base sm:text-sm"
-            >
-              <option value="">Select athlete</option>
-              {availableMakeupAthletes.map((athlete) => (
-                <option
-                  key={athlete.enrollmentId}
-                  value={athlete.enrollmentId}
-                >
-                  {athlete.athleteName}
-                  {athlete.scheduleLabel
-                    ? ` - ${athlete.scheduleLabel}`
-                    : ""}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           <Button
             type="button"
@@ -883,23 +881,19 @@ function AttendanceReviewTable({
                   ) : null}
                 </div>
                 <div className="mt-3 grid gap-2">
-                  <select
+                  <SmartSelect
                     value={draft.attendanceStatus}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       updateDraft(athlete.enrollmentId, {
-                        attendanceStatus: event.target
-                          .value as ClassSessionAttendanceStatus,
+                        attendanceStatus: value as ClassSessionAttendanceStatus,
                       })
                     }
+                    options={[
+                      { value: "", label: "Mark attendance" },
+                      ...attendanceOptions,
+                    ]}
                     className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
-                  >
-                    <option value="">Mark attendance</option>
-                    {attendanceOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  />
                   <Input
                     value={draft.notes}
                     onChange={(event) =>
@@ -987,23 +981,20 @@ function AttendanceReviewTable({
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-2">
-                        <select
+                        <SmartSelect
                           value={draft.attendanceStatus}
-                          onChange={(event) =>
+                          onValueChange={(value) =>
                             updateDraft(athlete.enrollmentId, {
-                              attendanceStatus: event.target
-                                .value as ClassSessionAttendanceStatus,
+                              attendanceStatus:
+                                value as ClassSessionAttendanceStatus,
                             })
                           }
+                          options={[
+                            { value: "", label: "Mark attendance" },
+                            ...attendanceOptions,
+                          ]}
                           className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-                        >
-                          <option value="">Mark attendance</option>
-                          {attendanceOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
+                        />
                         {draft.attendanceStatus ? (
                           <Badge
                             className="w-fit"
@@ -1678,83 +1669,72 @@ export function ClassSessionReview({
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Class
-              <select
+              <SmartSelect
                 value={classFilter}
-                onChange={(event) => setClassFilter(event.target.value)}
+                onValueChange={setClassFilter}
+                options={[
+                  { value: "all", label: "All classes" },
+                  ...classOptions.map((className) => ({
+                    value: className,
+                    label: className,
+                  })),
+                ]}
+                searchPlaceholder="Search classes..."
                 className={selectControlClassName}
-              >
-                <option value="all">All classes</option>
-                {classOptions.map((className) => (
-                  <option key={className} value={className}>
-                    {className}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Schedule
-              <select
+              <SmartSelect
                 value={scheduleFilter}
-                onChange={(event) => setScheduleFilter(event.target.value)}
+                onValueChange={setScheduleFilter}
+                options={[
+                  { value: "all", label: "All schedules" },
+                  ...scheduleOptions,
+                ]}
+                searchPlaceholder="Search schedules..."
                 className={selectControlClassName}
-              >
-                <option value="all">All schedules</option>
-                {scheduleOptions.map((schedule) => (
-                  <option key={schedule.value} value={schedule.value}>
-                    {schedule.label}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Status
-              <select
+              <SmartSelect
                 value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
+                onValueChange={setStatusFilter}
+                options={[
+                  { value: "all", label: "All statuses" },
+                  ...statusOptions.map((status) => ({
+                    value: status,
+                    label: formatSessionStatus(status),
+                  })),
+                ]}
                 className={selectControlClassName}
-              >
-                <option value="all">All statuses</option>
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {formatSessionStatus(status)}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Attendance
-              <select
+              <SmartSelect
                 value={attendanceFilter}
-                onChange={(event) =>
-                  setAttendanceFilter(event.target.value as AttendanceFilter)
+                onValueChange={(value) =>
+                  setAttendanceFilter(value as AttendanceFilter)
                 }
+                options={attendanceFilterOptions}
                 className={selectControlClassName}
-              >
-                {attendanceFilterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Sort By
               <div className="flex gap-2">
-                <select
+                <SmartSelect
                   value={sortKey}
-                  onChange={(event) => {
-                    const nextSortKey = event.target.value as SortKey
+                  onValueChange={(value) => {
+                    const nextSortKey = value as SortKey
                     setSortKey(nextSortKey)
                     setSortDirection(getDefaultSortDirection(nextSortKey))
                   }}
+                  options={sortOptions}
                   className={`${selectControlClassName} min-w-0 flex-1`}
-                >
-                  {sortOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                />
                 <Button
                   type="button"
                   variant="outline"

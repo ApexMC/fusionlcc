@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { SmartSelect } from "@/components/ui/smart-select"
 import {
   Table,
   TableBody,
@@ -192,33 +193,34 @@ export function CheerSessionReview({
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             Team
-            <select
+            <SmartSelect
               value={teamFilter}
-              onChange={(event) => setTeamFilter(event.target.value)}
+              onValueChange={setTeamFilter}
+              options={[
+                { value: "all", label: "All teams" },
+                ...teamOptions.map((teamName) => ({
+                  value: teamName,
+                  label: teamName,
+                })),
+              ]}
+              searchPlaceholder="Search teams..."
               className={selectControlClassName}
-            >
-              <option value="all">All teams</option>
-              {teamOptions.map((teamName) => (
-                <option key={teamName} value={teamName}>
-                  {teamName}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             Status
-            <select
+            <SmartSelect
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
+              onValueChange={setStatusFilter}
+              options={[
+                { value: "all", label: "All statuses" },
+                ...statusOptions.map((status) => ({
+                  value: status,
+                  label: formatSessionStatus(status),
+                })),
+              ]}
               className={selectControlClassName}
-            >
-              <option value="all">All statuses</option>
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {formatSessionStatus(status)}
-                </option>
-              ))}
-            </select>
+            />
           </label>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
