@@ -760,10 +760,10 @@ export function EnrollmentManagement({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="font-medium">
-                            Enrollment #{enrollment.enrollmentId}
+                            {enrollment.athleteName} / {enrollment.className}
                           </div>
                           <div className="truncate text-xs text-muted-foreground">
-                            {enrollment.athleteName} / {enrollment.className}
+                            ID #{enrollment.enrollmentId}
                           </div>
                         </div>
                         <EnrollmentStatusBadge status={enrollment.status} />

@@ -58,6 +58,42 @@ function getAthleteName(
   return [firstName, lastName].filter(Boolean).join(" ") || "Unnamed athlete"
 }
 
+function getCustomerAccountSearchText(parent: Parent) {
+  return [
+    parent.parent_id,
+    parent.user_id,
+    parent.first_name,
+    parent.last_name,
+    parent.email,
+    parent.phone,
+    parent.address,
+    parent.city,
+    parent.state,
+    parent.zip_code,
+    parent.balance,
+    parent.stripe_customer_id,
+    parent.stripe_payment_status,
+    ...(parent.athletes ?? []).flatMap((athlete) => [
+      athlete.athleteId,
+      athlete.firstName,
+      athlete.lastName,
+      athlete.dob,
+      athlete.shirtSize,
+      ...athlete.enrollments.flatMap((enrollment) => [
+        enrollment.enrollmentId,
+        enrollment.scheduleId,
+        enrollment.classId,
+        enrollment.className,
+        enrollment.classType,
+        enrollment.scheduleLabel,
+        enrollment.status,
+      ]),
+    ]),
+  ]
+    .filter((value) => value !== null && value !== undefined && value !== "")
+    .join(" ")
+}
+
 function ParentAthleteActions({
   athlete,
   onDeleted,
@@ -293,6 +329,8 @@ export default function ParentList() {
         columns={columns}
         data={parents}
         getRowId={(parent) => String(parent.parent_id)}
+        getSearchText={getCustomerAccountSearchText}
+        searchPlaceholder="Search customer accounts..."
         renderExpandedRow={(parent) => (
           <ParentAthleteDetails
             parent={parent}
