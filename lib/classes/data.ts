@@ -1,6 +1,7 @@
 import "server-only"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getDateKey } from "@/lib/date_keys"
 import {
   formatDay,
   getWeekdaySortIndex,
@@ -32,6 +33,12 @@ export type PublicClassSchedule = {
   timeLabel: string
 }
 
+export type PublicDeadPeriod = {
+  periodId: string
+  startsAt: string | null
+  endsAt: string | null
+}
+
 type PublicClassRow = {
   class_id: string | number
   class_name?: string | null
@@ -59,6 +66,12 @@ type PublicClassScheduleRow = {
 
 type PublicScheduleSeasonRow = {
   season_id: string | number
+}
+
+type PublicDeadPeriodRow = {
+  period_id: string | number
+  starts_at?: string | null
+  ends_at?: string | null
 }
 
 function toId(value: string | number | null | undefined) {
@@ -273,6 +286,24 @@ async function fetchActivePublicScheduleSeasonIds() {
   )
 }
 
+async function fetchPublicDeadPeriods(): Promise<PublicDeadPeriod[]> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("DeadPeriods")
+    .select("period_id,starts_at,ends_at")
+    .order("starts_at", { ascending: true })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return ((data ?? []) as PublicDeadPeriodRow[]).map((row) => ({
+    periodId: String(row.period_id),
+    startsAt: getDateKey(row.starts_at) || null,
+    endsAt: getDateKey(row.ends_at) || null,
+  }))
+}
+
 function isPublicClass(row: PublicClassRow) {
   const active = getBoolean(row, ["is_active", "active"])
   const isPublic = getBoolean(row, ["is_public", "public"])
@@ -429,4 +460,21 @@ export async function getPublicClassBySlug(slug: string) {
 
 export async function getPublicClassSchedules() {
   return (await getPublicClassData()).schedules
+}
+
+export async function getPublicClassCalendarData() {
+  const [classData, deadPeriods] = await Promise.all([
+    getPublicClassData(),
+    fetchPublicDeadPeriods(),
+  ])
+  const publicClassIds = new Set(
+    classData.classes.map((classRecord) => classRecord.classId)
+  )
+
+  return {
+    schedules: classData.schedules.filter(
+      (schedule) => schedule.classId && publicClassIds.has(schedule.classId)
+    ),
+    deadPeriods,
+  }
 }

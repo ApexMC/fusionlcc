@@ -74,6 +74,7 @@ export async function saveDeadPeriod({
   }
 
   revalidatePath("/account/admin/dead-weeks")
+  revalidatePath("/classes/calendar")
 
   return {
     ok: true,
@@ -109,6 +110,7 @@ export async function deleteDeadPeriod(
   }
 
   revalidatePath("/account/admin/dead-weeks")
+  revalidatePath("/classes/calendar")
 
   return {
     ok: true,

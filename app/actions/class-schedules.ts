@@ -120,6 +120,7 @@ function buildScheduleSeasonChangeMessage(seasonName: string | null) {
 function revalidateClassSchedulePaths() {
   revalidatePath("/account")
   revalidatePath("/classes")
+  revalidatePath("/classes/calendar")
   revalidatePath("/classes/[className]/schedule", "page")
   revalidatePath("/classes/[className]/register", "page")
   revalidatePath("/api/class-schedules")

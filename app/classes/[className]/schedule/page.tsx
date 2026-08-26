@@ -14,6 +14,9 @@ import {
   type PublicClassSchedule,
 } from "@/lib/classes/data"
 import { sundayFirstWeekdayOptions as days } from "@/lib/scheduling"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft } from "lucide-react"
+import Link from "next/link"
 
 function buildWeeklyRows(schedules: PublicClassSchedule[]) {
   const timesByDay = new Map<string, string[]>(
@@ -55,8 +58,14 @@ export default async function ClassSchedule({
   const weeklyRows = buildWeeklyRows(classData.schedules)
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-100 font-sans dark:bg-zinc-900">
-      <main className="flex min-h-[50vh] w-full flex-1 flex-col items-center justify-center bg-zinc-100 px-8 py-16 dark:bg-zinc-900 md:px-16">
+    <div className="flex flex-1 flex-col justify-center bg-zinc-100 font-sans dark:bg-zinc-900">
+      <Button asChild variant="outline" className="max-w-40 mt-8 mx-6 my-6 md:mx-12 md:my-12">
+        <Link href={"/classes"} className="flex items-center gap-2">
+          <ArrowLeft />
+          Back to classes
+        </Link>
+      </Button>
+      <main className="flex min-h-[50vh] w-full flex-1 flex-col items-center justify-center bg-zinc-100 px-8 py-4 dark:bg-zinc-900 md:px-16">
         <h1 className="mx-auto text-center text-4xl font-bold text-zinc-800 dark:text-zinc-200">
           {classData.classRecord.className}
           <br />

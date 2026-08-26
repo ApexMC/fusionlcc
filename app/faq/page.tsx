@@ -1,5 +1,6 @@
 import FAQCard from "@/components/faq/faq_card";
-import { CircleAlert, CircleQuestionMark, Minus, MinusSquare } from "lucide-react";
+import { CircleAlert, Minus } from "lucide-react";
+import Link from "next/link";
 export default function FAQ() {
   return (
     <div className="flex flex-col flex-1 items-center justify-start bg-zinc-100 dark:bg-zinc-900 font-sans">
@@ -15,17 +16,17 @@ export default function FAQ() {
         <FAQCard
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I pay for gymnastics classes?"
-          answer={<span>Once an enrollment request has been approved by our staff, you can then begin payment for the enrollment on your <a className="text-purple-400" href="/account">account dashboard</a>. Payments for gymnastics classes are now structured as monthly subscriptions. This allows for consistent scheduling and replaces the need for manual monthly invoicing. Classes are billed monthly on the 1st, so starting payment for a new enrollment will present as $0.00 today, then the full monthly amount on the 1st of the following month. Once you've subscribed to your class plan, your enrollment becomes active and your athlete is placed on the roster for the session time you selected.</span>}
+          answer={<span>Once an enrollment request has been approved by our staff, you can then begin payment for the enrollment on your <Link className="text-purple-400" href="/account">account dashboard</Link>. Payments for gymnastics classes are now structured as monthly subscriptions. This allows for consistent scheduling and replaces the need for manual monthly invoicing. Classes are billed monthly on the 1st, so starting payment for a new enrollment will present as $0.00 today, then the full monthly amount on the 1st of the following month. Once you've subscribed to your class plan, your enrollment becomes active and your athlete is placed on the roster for the session time you selected.</span>}
         />
         <FAQCard 
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I pay for competitive cheer?"
-          answer={<span>Currently, cheer payments are still processed through <a className="text-purple-400" href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310">JackRabbit</a>. Cheer will be transitioned to our new in-house payment platform in the near future, however until that time, continue to access their platform to process payments.</span>}
+          answer={<span>Currently, cheer payments are still processed through <Link className="text-purple-400" href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310">JackRabbit</Link>. Cheer will be transitioned to our new in-house payment platform in the near future, however until that time, continue to access their platform to process payments.</span>}
         />
         <FAQCard 
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I manage my subscriptions?"
-          answer={<span>Managing your subscriptions is done through your <a className="text-purple-400" href="/account">account dashboard</a>. Scroll to the enrollments section and select the "Manage" button on any active enrollment. This will direct you to our payment portal where you can cancel active subscriptions or update on file payment methods.</span>}
+          answer={<span>Managing your subscriptions is done through your <Link className="text-purple-400" href="/account">account dashboard</Link>. Scroll to the enrollments section and select the "Manage" button on any active enrollment. This will direct you to our payment portal where you can cancel active subscriptions or update on file payment methods.</span>}
         />
         <FAQCard
           icon={<Minus className="w-5 h-5 text-black dark:text-white" />}
@@ -45,7 +46,7 @@ export default function FAQ() {
         <FAQCard 
           icon={<Minus className="w-5 h-5 text-black dark:text-white" />}
           question="What if my child misses a class?"
-          answer={<span>If your child misses a class for any reason, they are welcome to attend any make-up class at their level at any time in the current schedule. If you know your child will miss a class in advance, please <a className="text-purple-400" href="/contact">notify</a> us as soon as possible so we can find the next available make-up class for them.</span>}
+          answer={<span>If your child misses a class for any reason, they are welcome to attend any make-up class at their level at any time in the current schedule. If you know your child will miss a class in advance, please <Link className="text-purple-400" href="/contact">notify</Link> us as soon as possible so we can find the next available make-up class for them.</span>}
         />
       </main>
     </div>
