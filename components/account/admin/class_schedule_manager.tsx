@@ -39,6 +39,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card"
 import { Input } from "@/components/ui/input"
 import { SmartSelect } from "@/components/ui/smart-select"
 import {
@@ -189,6 +194,8 @@ export function ClassScheduleManager({
   const [addDialogOpen, setAddDialogOpen] = React.useState(false)
   const [busyId, setBusyId] = React.useState<string | null>(null)
   const [expandedScheduleCardId, setExpandedScheduleCardId] =
+    React.useState<string | null>(null)
+  const [expandedRosterCardId, setExpandedRosterCardId] =
     React.useState<string | null>(null)
   const [scheduleToDelete, setScheduleToDelete] =
     React.useState<ClassScheduleDisplayRecord | null>(null)
@@ -533,6 +540,8 @@ export function ClassScheduleManager({
                 drafts[schedule.scheduleId] ?? getDefaultDraft(schedule)
               const isExpanded =
                 expandedScheduleCardId === schedule.scheduleId
+              const isRosterExpanded =
+                expandedRosterCardId === schedule.scheduleId
 
               return (
                 <div key={schedule.scheduleId} className="rounded-lg border p-3">
@@ -553,6 +562,53 @@ export function ClassScheduleManager({
                       </Badge>
                     </div>
                   </div>
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant={isRosterExpanded ? "secondary" : "outline"}
+                    className="mt-3 h-10 w-full justify-between"
+                    aria-expanded={isRosterExpanded}
+                    aria-controls={`schedule-roster-${schedule.scheduleId}`}
+                    onClick={() =>
+                      setExpandedRosterCardId((current) =>
+                        current === schedule.scheduleId
+                          ? null
+                          : schedule.scheduleId
+                      )
+                    }
+                  >
+                    {isRosterExpanded ? "Hide Roster" : "View Roster"}
+                    <ChevronDown
+                      className={
+                        isRosterExpanded
+                          ? "rotate-180 transition-transform"
+                          : "transition-transform"
+                      }
+                    />
+                  </Button>
+                  {isRosterExpanded ? (
+                    <div
+                      id={`schedule-roster-${schedule.scheduleId}`}
+                      className="mt-3 rounded-lg bg-muted/50 p-3"
+                    >
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Enrolled athletes:
+                      </div>
+                      {schedule.athleteNames.length ? (
+                        <ul className="mt-2 grid gap-1 text-sm">
+                          {schedule.athleteNames.map((athleteName, index) => (
+                            <li key={`${athleteName}-${index}`}>
+                              {athleteName}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          No athletes enrolled.
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
                   <Button
                     type="button"
                     size="lg"
@@ -774,9 +830,39 @@ export function ClassScheduleManager({
                       </label>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="outline">
-                        {schedule.enrollmentCount}
-                      </Badge>
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <button
+                            type="button"
+                            className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                            aria-label={`${schedule.enrollmentCount} athletes enrolled in ${schedule.className}. View roster.`}
+                          >
+                            <Badge variant="outline">
+                              {schedule.enrollmentCount}
+                            </Badge>
+                          </button>
+                        </HoverCardTrigger>
+                        <HoverCardContent align="center">
+                          <div className="text-sm font-medium">
+                            Enrolled athletes:
+                          </div>
+                          {schedule.athleteNames.length ? (
+                            <ul className="mt-2 grid gap-1 text-sm">
+                              {schedule.athleteNames.map(
+                                (athleteName, index) => (
+                                  <li key={`${athleteName}-${index}`}>
+                                    {athleteName}
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              No athletes enrolled.
+                            </p>
+                          )}
+                        </HoverCardContent>
+                      </HoverCard>
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">

@@ -193,7 +193,7 @@ export default function MonthlyCalendar({
               {formatDate(rangeStartDateKey)}–{formatDate(rangeEndDateKey)}
             </p>
           </div>
-          <div className="flex max-w-5xl flex-wrap gap-2 lg:justify-end">
+          <div className="flex max-w-5xl flex-wrap gap-2 items-center justify-center lg:justify-end">
             <span
               className={cn(
                 "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",

@@ -195,7 +195,7 @@ export default function ManageAthleteCard({
                 {error && <div className="text-sm text-red-600 mb-2">{error}</div>}
                 <DialogFooter>
                     <DialogClose asChild>
-                    <Button type="button" variant="outline">Cancel</Button>
+                        <Button type="button" variant="outline">Cancel</Button>
                     </DialogClose>
                     <Button type="submit" disabled={loading}>
                         {loading ? "Loading..." : athleteId ? "Update" : "Add"}

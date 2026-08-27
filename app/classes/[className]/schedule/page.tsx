@@ -123,6 +123,13 @@ export default async function ClassSchedule({
             )}
           </CardContent>
         </Card>
+        {classData.schedules.length ? (
+          <Link
+            href={`/classes/${className}/register`}
+            className="inline-block font-semibold text-md px-3 py-1.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300 mb-4">
+            Register
+          </Link>
+        ) : null}
       </main>
     </div>
   )

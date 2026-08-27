@@ -246,6 +246,7 @@ export type ClassScheduleDisplayRecord = {
   endTime: string | null
   isActive: boolean
   enrollmentCount: number
+  athleteNames: string[]
   createdAt: string | null
   scheduleLabel: string
 }

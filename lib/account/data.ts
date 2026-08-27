@@ -1090,11 +1090,46 @@ function buildEnrollmentCountBySchedule(
   )
 }
 
+function buildAthleteNamesBySchedule(
+  enrollments: EnrollmentDisplayRecord[]
+) {
+  const athletesBySchedule = new Map<string, Map<string, string>>()
+
+  enrollments.forEach((enrollment) => {
+    const scheduleId = enrollment.scheduleId
+
+    if (
+      !scheduleId ||
+      !rosterEnrollmentStatuses.has(enrollment.status.toLowerCase())
+    ) {
+      return
+    }
+
+    const athletes =
+      athletesBySchedule.get(scheduleId) ?? new Map<string, string>()
+    athletes.set(
+      enrollment.athleteId ?? enrollment.enrollmentId,
+      enrollment.athleteName
+    )
+    athletesBySchedule.set(scheduleId, athletes)
+  })
+
+  return new Map(
+    Array.from(athletesBySchedule.entries()).map(([scheduleId, athletes]) => [
+      scheduleId,
+      Array.from(athletes.values()).sort((first, second) =>
+        first.localeCompare(second)
+      ),
+    ])
+  )
+}
+
 function buildClassScheduleRows(
   scheduleRows: ClassScheduleRow[],
   classNameById: Map<string, string>,
   scheduleSeasonById: Map<string, ScheduleSeasonRecord>,
-  enrollmentCountBySchedule: Map<string, number>
+  enrollmentCountBySchedule: Map<string, number>,
+  athleteNamesBySchedule: Map<string, string[]>
 ): ClassScheduleDisplayRecord[] {
   return scheduleRows
     .map((row) => {
@@ -1118,6 +1153,7 @@ function buildClassScheduleRows(
         endTime: row.end_time ?? null,
         isActive: row.is_active ?? true,
         enrollmentCount: enrollmentCountBySchedule.get(scheduleId) ?? 0,
+        athleteNames: athleteNamesBySchedule.get(scheduleId) ?? [],
         createdAt: row.created_at ?? null,
         scheduleLabel: formatScheduleLabel(
           dayOfWeek,
@@ -1675,11 +1711,13 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     ])
   )
   const enrollmentCountBySchedule = buildEnrollmentCountBySchedule(enrollments)
+  const athleteNamesBySchedule = buildAthleteNamesBySchedule(enrollments)
   const classSchedules = buildClassScheduleRows(
     classScheduleRows,
     classNameById,
     scheduleSeasonById,
-    enrollmentCountBySchedule
+    enrollmentCountBySchedule,
+    athleteNamesBySchedule
   )
   const cheerSchedules = buildCheerScheduleRows(
     cheerScheduleRows,
@@ -1752,11 +1790,13 @@ export async function getCoachDashboardData(
     ])
   )
   const enrollmentCountBySchedule = buildEnrollmentCountBySchedule(enrollments)
+  const athleteNamesBySchedule = buildAthleteNamesBySchedule(enrollments)
   const classSchedules = buildClassScheduleRows(
     classScheduleRows,
     classNameById,
     scheduleSeasonById,
-    enrollmentCountBySchedule
+    enrollmentCountBySchedule,
+    athleteNamesBySchedule
   )
 
   return {

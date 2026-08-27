@@ -637,14 +637,16 @@ export default async function AccountPage() {
                 >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h2 className="flex items-center gap-2 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                                <BadgeCheck className="size-5" />
-                                Enrollments
-                            </h2>
-                        </div>
-                        <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
-                            <ListChecks className="size-4" />
-                            {countLabel(parentEnrollments.length, "record")}
+                            <div>
+                                <h2 className="flex items-center gap-2 mb-2 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                                    <BadgeCheck className="size-5" />
+                                    Enrollments
+                                </h2>
+                            </div>
+                            <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
+                                <ListChecks className="size-4" />
+                                {countLabel(parentEnrollments.length, "record")}
+                            </div>
                         </div>
                     </div>
                     <ParentEnrollments

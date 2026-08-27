@@ -175,6 +175,7 @@ function CoachPunchGroup({
   const entryLabel = entries.length === 1 ? "punch" : "punches"
   const currentEntryLabel =
     coach.currentPeriodEntries.length === 1 ? "punch" : "punches"
+  const isOnTheClock = coach.historyEntries.some((entry) => !entry.clockOutAt)
   const hasPendingEntries = entries.some((entry) =>
     isPendingTimeClockStatus(localStatuses[entry.entryId] ?? entry.status)
   )
@@ -183,9 +184,22 @@ function CoachPunchGroup({
     <div className="rounded-lg border bg-background p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold">
-            {coach.coachName}
-          </h3>
+          <div className="flex min-w-0 items-center gap-3">
+            <h3 className="truncate text-base font-semibold">
+              {coach.coachName}
+            </h3>
+            {isOnTheClock ? (
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  {/* pulse ring */}
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
+                  {/* solid ring */}
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500"></span>
+                </span>
+                <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Clocked In</span>
+              </div>
+            ) : null}
+          </div>
           {coach.coachPhone ? (
             <p className="truncate text-sm text-muted-foreground">
               {formatPhoneNumber(coach.coachPhone)}
