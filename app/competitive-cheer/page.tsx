@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { connection } from "next/server";
 import {
   ArrowRight,
   X,
@@ -9,29 +10,12 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
+import { getPublicCheerTeams } from "@/lib/cheer/data";
 
-const teams = [
-  {
-    name: "Venom",
-    level: "Senior Level 2",
-    description:
-      "A driven senior team for athletes ready to sharpen Level 2 tumbling, stunts, jumps, and performance quality in a competitive team setting.",
-    accent: "from-purple-500 to-fuchsia-500",
-  },
-  {
-    name: "Shimmer Storm",
-    level: "Youth Level 1",
-    description:
-      "A youth team focused on strong Level 1 fundamentals, clean technique, confident motions, and learning how to perform together.",
-    accent: "from-sky-400 to-purple-500",
-  },
-  {
-    name: "Surge",
-    level: "Prep Level 1",
-    description:
-      "A prep team for athletes building their first competitive cheer foundation with a team-first environment and steady skill progression.",
-    accent: "from-orange-400 to-pink-500",
-  },
+const teamAccents = [
+  "from-purple-500 to-fuchsia-500",
+  "from-sky-400 to-purple-500",
+  "from-orange-400 to-pink-500",
 ];
 
 const programHighlights = [
@@ -69,7 +53,10 @@ const expectations = [
   "Family communication as registration details are finalized",
 ];
 
-export default function CompetitiveCheer() {
+export default async function CompetitiveCheer() {
+  await connection();
+  const teams = await getPublicCheerTeams();
+
   return (
     <main className="min-h-screen bg-zinc-100 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-50">
       <section className="relative flex min-h-[76svh] w-full items-center overflow-hidden px-6 py-20 sm:px-10 lg:px-16">
@@ -154,34 +141,46 @@ export default function CompetitiveCheer() {
             </p>
           </div>
 
-          <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {teams.map((team) => (
-              <article
-                key={team.name}
-                className="group overflow-hidden rounded-lg bg-zinc-100 shadow-md transition hover:-translate-y-1 hover:shadow-xl dark:bg-zinc-800"
-              >
-                <div className={`h-2 bg-linear-to-r ${team.accent}`} />
-                <div className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-                        {team.name}
-                      </h3>
-                      <p className="mt-2 inline-flex rounded-full bg-zinc-900 px-3 py-1 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900">
-                        {team.level}
+          {teams.length ? (
+            <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
+              {teams.map((team, index) => (
+                <article
+                  key={team.teamId}
+                  className="group overflow-hidden rounded-lg bg-zinc-100 shadow-md transition hover:-translate-y-1 hover:shadow-xl dark:bg-zinc-800"
+                >
+                  <div
+                    className={`h-2 bg-linear-to-r ${teamAccents[index % teamAccents.length]}`}
+                  />
+                  <div className="p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
+                          {team.name}
+                        </h3>
+                        {team.level ? (
+                          <p className="mt-2 inline-flex rounded-full bg-zinc-900 px-3 py-1 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900">
+                            {team.level}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-purple-600 shadow-sm dark:bg-zinc-900 dark:text-purple-300">
+                        <Trophy className="size-5" />
+                      </div>
+                    </div>
+                    {team.description ? (
+                      <p className="mt-6 leading-7 text-zinc-600 dark:text-zinc-300">
+                        {team.description}
                       </p>
-                    </div>
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-purple-600 shadow-sm dark:bg-zinc-900 dark:text-purple-300">
-                      <Trophy className="size-5" />
-                    </div>
+                    ) : null}
                   </div>
-                  <p className="mt-6 leading-7 text-zinc-600 dark:text-zinc-300">
-                    {team.description}
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-10 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+              No competitive cheer teams are available right now.
+            </p>
+          )}
         </div>
       </section>
 
@@ -278,10 +277,10 @@ export default function CompetitiveCheer() {
 
           <div className="flex flex-col justify-center gap-3 sm:flex-row lg:flex-col">
             <Link
-              href="/contact"
+              href="/competitive-cheer/request-tryout"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-purple-500 px-6 py-3 font-bold text-white transition hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
             >
-              Contact Us
+              Request Tryout
               <ArrowRight className="size-4" />
             </Link>
             <Link

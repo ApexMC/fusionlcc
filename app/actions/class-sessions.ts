@@ -621,6 +621,7 @@ export async function cancelClassSession(
   revalidatePath("/account")
   revalidatePath("/account/admin/sessions")
   revalidatePath("/account/coach/sessions")
+  revalidatePath("/classes/calendar")
 
   return {
     ok: true,
@@ -772,6 +773,7 @@ export async function createMakeupClassSession({
   revalidatePath("/account")
   revalidatePath("/account/admin/sessions")
   revalidatePath("/account/coach/sessions")
+  revalidatePath("/classes/calendar")
 
   if (!noticeResult.ok) {
     return {

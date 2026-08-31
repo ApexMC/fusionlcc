@@ -5,22 +5,13 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import type {
-  PublicClassSchedule,
+  PublicClassSession,
   PublicDeadPeriod,
 } from "@/lib/classes/data"
+import { getDateKeyInTimeZone } from "@/lib/date_keys"
 import { cn } from "@/lib/utils"
 
 const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-const weekdayKeys = [
-  "sunday",
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-]
-
 const classColors = [
   {
     chip: "border-fuchsia-200 bg-fuchsia-100 text-fuchsia-950 dark:border-fuchsia-800 dark:bg-fuchsia-950/70 dark:text-fuchsia-100",
@@ -58,8 +49,16 @@ function stableColorIndex(value: string) {
   return hash % classColors.length
 }
 
-function getScheduleColor(schedule: PublicClassSchedule) {
-  return classColors[stableColorIndex(schedule.classId ?? schedule.scheduleId)]
+function getSessionColor(session: PublicClassSession) {
+  return classColors[stableColorIndex(session.classId)]
+}
+
+function isCanceledSession(session: PublicClassSession) {
+  return ["canceled", "cancelled"].includes(session.status.toLowerCase())
+}
+
+function isMakeupSession(session: PublicClassSession) {
+  return session.type?.toLowerCase() === "makeup"
 }
 
 function toDateKey(date: Date) {
@@ -133,52 +132,80 @@ function includesDate(period: PublicDeadPeriod, dateKey: string) {
 }
 
 export default function MonthlyCalendar({
-  schedules,
+  sessions,
   deadPeriods,
   todayDateKey,
 }: {
-  schedules: PublicClassSchedule[]
+  sessions: PublicClassSession[]
   deadPeriods: PublicDeadPeriod[]
   todayDateKey: string
 }) {
-  const firstMonth = todayDateKey.slice(0, 7)
+  const [currentTodayDateKey, setCurrentTodayDateKey] =
+    React.useState(todayDateKey)
+  const todayDateKeyRef = React.useRef(todayDateKey)
+  const firstMonth = currentTodayDateKey.slice(0, 7)
   const rangeStartDateKey = `${firstMonth}-01`
-  const rangeEndDateKey = shiftDate(todayDateKey, 30)
+  const rangeEndDateKey = shiftDate(currentTodayDateKey, 30)
   const lastMonth = rangeEndDateKey.slice(0, 7)
   const [visibleMonth, setVisibleMonth] = React.useState(firstMonth)
+  React.useEffect(() => {
+    function syncTodayDateKey() {
+      const nextTodayDateKey = getDateKeyInTimeZone()
+      const previousTodayDateKey = todayDateKeyRef.current
+
+      if (nextTodayDateKey === previousTodayDateKey) {
+        return
+      }
+
+      todayDateKeyRef.current = nextTodayDateKey
+      setCurrentTodayDateKey(nextTodayDateKey)
+
+      const previousMonth = previousTodayDateKey.slice(0, 7)
+      const nextMonth = nextTodayDateKey.slice(0, 7)
+
+      if (previousMonth !== nextMonth) {
+        setVisibleMonth((month) =>
+          month === previousMonth ? nextMonth : month
+        )
+      }
+    }
+
+    syncTodayDateKey()
+    const intervalId = window.setInterval(syncTodayDateKey, 60_000)
+
+    return () => window.clearInterval(intervalId)
+  }, [])
   const calendarDates = React.useMemo(
     () => getCalendarDates(visibleMonth),
     [visibleMonth]
   )
   const classKey = React.useMemo(() => {
-    const classes = new Map<string, PublicClassSchedule>()
+    const classes = new Map<string, PublicClassSession>()
 
-    schedules.forEach((schedule) => {
-      const key = schedule.classId ?? schedule.className
+    sessions.forEach((session) => {
+      const key = session.classId
 
       if (!classes.has(key)) {
-        classes.set(key, schedule)
+        classes.set(key, session)
       }
     })
 
     return Array.from(classes.values()).sort((first, second) =>
       first.className.localeCompare(second.className)
     )
-  }, [schedules])
-  const schedulesByDay = React.useMemo(() => {
-    const result = new Map<string, PublicClassSchedule[]>()
+  }, [sessions])
+  const sessionsByDate = React.useMemo(() => {
+    const result = new Map<string, PublicClassSession[]>()
 
-    weekdayKeys.forEach((day) => result.set(day, []))
-    schedules.forEach((schedule) => {
-      const daySchedules = result.get(schedule.dayOfWeek)
-
-      if (daySchedules) {
-        daySchedules.push(schedule)
-      }
+    sessions.forEach((session) => {
+      result.set(session.sessionDate, [
+        ...(result.get(session.sessionDate) ?? []),
+        session,
+      ])
     })
 
     return result
-  }, [schedules])
+  }, [sessions])
 
   return (
     <section className="w-full" aria-label="Class calendar">
@@ -207,12 +234,12 @@ export default function MonthlyCalendar({
               Dead Period
             </span>
             {classKey.length ? (
-              classKey.map((schedule) => {
-                const color = getScheduleColor(schedule)
+              classKey.map((session) => {
+                const color = getSessionColor(session)
 
                 return (
                   <span
-                    key={schedule.classId ?? schedule.className}
+                    key={session.classId}
                     className={cn(
                       "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
                       color.chip
@@ -222,13 +249,13 @@ export default function MonthlyCalendar({
                       className={cn("size-2 rounded-full", color.dot)}
                       aria-hidden="true"
                     />
-                    {schedule.className}
+                    {session.className}
                   </span>
                 )
               })
             ) : (
               <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                No active classes are available.
+                No class sessions are scheduled in this window.
               </span>
             )}
           </div>
@@ -294,14 +321,13 @@ export default function MonthlyCalendar({
                 const isInRange =
                   dateKey >= rangeStartDateKey && dateKey <= rangeEndDateKey
                 const isAvailableDate = isCurrentMonth && isInRange
-                const daySchedules = isAvailableDate
-                  ? schedulesByDay.get(weekdayKeys[dayOfWeek]) ?? []
+                const daySessions = isAvailableDate
+                  ? sessionsByDate.get(dateKey) ?? []
                   : []
                 const dateDeadPeriods = isAvailableDate
                   ? deadPeriods.filter((period) => includesDate(period, dateKey))
                   : []
-                const isToday = dateKey === todayDateKey
-                const isClosed = dateDeadPeriods.length > 0
+                const isToday = dateKey === currentTodayDateKey
                 const accessibleDate = new Intl.DateTimeFormat("en-US", {
                   weekday: "long",
                   month: "long",
@@ -380,26 +406,55 @@ export default function MonthlyCalendar({
                             )
                           })}
 
-                          {daySchedules.map((schedule) => {
-                            const color = getScheduleColor(schedule)
+                          {daySessions.map((session) => {
+                            const color = getSessionColor(session)
+                            const isCanceled = isCanceledSession(session)
+                            const isMakeup = isMakeupSession(session)
+                            const sessionDetails = [
+                              session.timeLabel,
+                              isMakeup ? "Makeup" : null,
+                              isCanceled ? "Canceled" : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" • ")
 
                             return (
                               <div
-                                key={schedule.scheduleId}
-                                title={schedule.scheduleLabel}
-                                aria-label={`${schedule.className}, ${schedule.scheduleLabel}${isClosed ? ", canceled during dead period" : ""}`}
+                                key={session.sessionId}
+                                title={`${session.className}, ${sessionDetails}`}
+                                aria-label={`${session.className}, ${sessionDetails}`}
                                 className={cn(
                                   "rounded-md border px-2 py-1.5 text-xs leading-tight shadow-xs",
                                   color.chip,
-                                  isClosed && "opacity-45 line-through"
+                                  isCanceled && "border-dashed opacity-70"
                                 )}
                               >
-                                <div className="truncate font-bold">
-                                  {schedule.className}
+                                <div
+                                  className={cn(
+                                    "truncate font-bold",
+                                    isCanceled && "line-through"
+                                  )}
+                                >
+                                  {session.className}
                                 </div>
-                                <div className="mt-0.5 truncate text-[11px] opacity-80">
-                                  {schedule.timeLabel}
+                                <div
+                                  className={cn(
+                                    "mt-0.5 truncate text-[11px] opacity-80",
+                                    isCanceled && "line-through"
+                                  )}
+                                >
+                                  {session.timeLabel}
                                 </div>
+                                {isMakeup || isCanceled ? (
+                                  <div className="mt-1 flex flex-wrap gap-1 text-[9px] font-bold tracking-wide uppercase no-underline">
+                                    {isMakeup ? <span>Makeup</span> : null}
+                                    {isCanceled ? (
+                                      <span className="text-rose-700 dark:text-rose-300">
+                                        Canceled
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                ) : null}
                               </div>
                             )
                           })}
@@ -416,8 +471,8 @@ export default function MonthlyCalendar({
 
       <p className="mt-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
         Dead periods appear as connected “No classes” bands across every
-        affected day. Recurring class times are dimmed during those closures.
-        Scroll horizontally to see the full week on smaller screens.
+        affected day. Canceled sessions and their makeup sessions remain visible.
+        <span className="md:hidden"> Scroll horizontally to see the full week on smaller screens.</span> 
       </p>
     </section>
   )

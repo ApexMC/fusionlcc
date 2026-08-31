@@ -18,7 +18,6 @@ import type {
     AdminDashboardData,
     CoachDashboardData,
     ClassSessionDisplayRecord,
-    EnrollmentDisplayRecord,
     OperationsActionItem,
     ParentAthleteEnrollment,
     ParentRecord,
@@ -355,14 +354,22 @@ function formatParentAddress(parent: ParentRecord | null) {
 }
 
 function getParentEnrollments(athletes: ParentAthleteEnrollment[]) {
-    return athletes.flatMap((athlete) => athlete.enrollments);
+    return athletes.flatMap((athlete) => [
+        ...athlete.enrollments,
+        ...athlete.cheerEnrollments,
+    ]);
 }
 
 function normalizeEnrollmentStatusValue(status: string | null | undefined) {
     return status?.trim().toLowerCase() ?? "";
 }
 
-function getParentEnrollmentCounts(enrollments: EnrollmentDisplayRecord[]) {
+type ParentEnrollmentSummary = {
+    status: string;
+    subscriptionStatus: string | null;
+};
+
+function getParentEnrollmentCounts(enrollments: ParentEnrollmentSummary[]) {
     return enrollments.reduce(
         (counts, enrollment) => {
             const enrollmentStatus = normalizeEnrollmentStatusValue(
@@ -405,7 +412,7 @@ function getParentDashboardStats({
 }: {
     parent: ParentRecord | null;
     athleteCount: number;
-    enrollments: EnrollmentDisplayRecord[];
+    enrollments: ParentEnrollmentSummary[];
 }): DashboardStat[] {
     const counts = getParentEnrollmentCounts(enrollments);
     const balance = parent?.balance;

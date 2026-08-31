@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { connection } from "next/server"
 import { ArrowLeft } from "lucide-react"
 
 import MonthlyCalendar from "@/components/classes/monthly_calendar"
@@ -13,8 +14,11 @@ export const metadata: Metadata = {
 }
 
 export default async function ClassCalendarPage() {
-  const { schedules, deadPeriods } = await getPublicClassCalendarData()
+  await connection()
+
   const todayDateKey = getDateKeyInTimeZone()
+  const { sessions, deadPeriods } =
+    await getPublicClassCalendarData(todayDateKey)
 
   return (
     <div className="flex flex-1 flex-col bg-zinc-100 font-sans dark:bg-zinc-900">
@@ -34,13 +38,13 @@ export default async function ClassCalendarPage() {
             Class Calendar
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-zinc-600 dark:text-zinc-400">
-            Browse every active weekly class time and see scheduled closures at
-            a glance.
+            Browse scheduled class sessions, including cancellations and makeup
+            dates, and see planned closures at a glance.
           </p>
         </div>
 
         <MonthlyCalendar
-          schedules={schedules}
+          sessions={sessions}
           deadPeriods={deadPeriods}
           todayDateKey={todayDateKey}
         />

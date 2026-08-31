@@ -1,7 +1,11 @@
 import "server-only"
 
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getDateKey } from "@/lib/date_keys"
+import {
+  getDateKey,
+  organizationTimeZone,
+  shiftDateKey,
+} from "@/lib/date_keys"
 import {
   formatDay,
   getWeekdaySortIndex,
@@ -30,6 +34,18 @@ export type PublicClassSchedule = {
   startTime: string | null
   endTime: string | null
   scheduleLabel: string
+  timeLabel: string
+}
+
+export type PublicClassSession = {
+  sessionId: string
+  classId: string
+  className: string
+  sessionDate: string
+  startsAt: string | null
+  endsAt: string | null
+  status: string
+  type: string | null
   timeLabel: string
 }
 
@@ -72,6 +88,17 @@ type PublicDeadPeriodRow = {
   period_id: string | number
   starts_at?: string | null
   ends_at?: string | null
+}
+
+type PublicClassSessionRow = {
+  session_id: string | number
+  class_id?: string | number | null
+  schedule_id?: string | number | null
+  session_date?: string | null
+  starts_at?: string | null
+  ends_at?: string | null
+  status?: string | null
+  type?: string | null
 }
 
 function toId(value: string | number | null | undefined) {
@@ -120,6 +147,38 @@ function formatTimeLabel(
   endTime: string | null | undefined
 ) {
   return `${formatTime(startTime)} - ${formatTime(endTime)}`
+}
+
+function formatTimestampTime(value: string | null | undefined) {
+  if (!value) {
+    return null
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: organizationTimeZone,
+  }).format(date)
+}
+
+function formatSessionTimeLabel(
+  startsAt: string | null | undefined,
+  endsAt: string | null | undefined
+) {
+  const startTime = formatTimestampTime(startsAt)
+  const endTime = formatTimestampTime(endsAt)
+
+  if (startTime && endTime) {
+    return `${startTime} - ${endTime}`
+  }
+
+  return startTime ?? endTime ?? "Time TBD"
 }
 
 function formatScheduleLabel(row: PublicClassScheduleRow) {
@@ -304,6 +363,28 @@ async function fetchPublicDeadPeriods(): Promise<PublicDeadPeriod[]> {
   }))
 }
 
+async function fetchPublicClassSessionRows(
+  startsOn: string,
+  endsOn: string
+) {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("ClassSessions")
+    .select(
+      "session_id,class_id,schedule_id,session_date,starts_at,ends_at,status,type"
+    )
+    .gte("session_date", startsOn)
+    .lte("session_date", endsOn)
+    .order("session_date", { ascending: true })
+    .order("starts_at", { ascending: true })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return (data ?? []) as PublicClassSessionRow[]
+}
+
 function isPublicClass(row: PublicClassRow) {
   const active = getBoolean(row, ["is_active", "active"])
   const isPublic = getBoolean(row, ["is_public", "public"])
@@ -462,19 +543,54 @@ export async function getPublicClassSchedules() {
   return (await getPublicClassData()).schedules
 }
 
-export async function getPublicClassCalendarData() {
-  const [classData, deadPeriods] = await Promise.all([
+export async function getPublicClassCalendarData(todayDateKey: string) {
+  const rangeStartDateKey = `${todayDateKey.slice(0, 7)}-01`
+  const rangeEndDateKey = shiftDateKey(todayDateKey, 30)
+  const [classData, sessionRows, deadPeriods] = await Promise.all([
     getPublicClassData(),
+    fetchPublicClassSessionRows(rangeStartDateKey, rangeEndDateKey),
     fetchPublicDeadPeriods(),
   ])
   const publicClassIds = new Set(
     classData.classes.map((classRecord) => classRecord.classId)
   )
+  const classNameById = new Map(
+    classData.classes.map((classRecord) => [
+      classRecord.classId,
+      classRecord.className,
+    ])
+  )
+  const scheduleById = new Map(
+    classData.schedules.map((schedule) => [schedule.scheduleId, schedule])
+  )
+  const sessions = sessionRows.flatMap<PublicClassSession>((row) => {
+    const scheduleId = toId(row.schedule_id)
+    const schedule = scheduleId ? scheduleById.get(scheduleId) : null
+    const classId = toId(row.class_id) ?? schedule?.classId ?? null
+    const sessionDate = getDateKey(row.session_date)
+
+    if (!classId || !publicClassIds.has(classId) || !sessionDate) {
+      return []
+    }
+
+    return [
+      {
+        sessionId: String(row.session_id),
+        classId,
+        className:
+          classNameById.get(classId) ?? schedule?.className ?? `Class #${classId}`,
+        sessionDate,
+        startsAt: row.starts_at ?? null,
+        endsAt: row.ends_at ?? null,
+        status: row.status?.trim() || "scheduled",
+        type: row.type?.trim() || null,
+        timeLabel: formatSessionTimeLabel(row.starts_at, row.ends_at),
+      },
+    ]
+  })
 
   return {
-    schedules: classData.schedules.filter(
-      (schedule) => schedule.classId && publicClassIds.has(schedule.classId)
-    ),
+    sessions,
     deadPeriods,
   }
 }

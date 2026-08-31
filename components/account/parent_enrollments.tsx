@@ -29,6 +29,7 @@ import {
 import { useToast } from "@/components/ui/toast"
 import { SmartSelect } from "@/components/ui/smart-select"
 import type {
+  CheerEnrollmentDisplayRecord,
   ClassOption,
   ClassScheduleOption,
   EnrollmentDisplayRecord,
@@ -96,6 +97,8 @@ export function ParentEnrollments({
   const [busyKey, setBusyKey] = React.useState<string | null>(null)
   const [selectedEnrollment, setSelectedEnrollment] =
     React.useState<EnrollmentDisplayRecord | null>(null)
+  const [selectedCheerEnrollment, setSelectedCheerEnrollment] =
+    React.useState<CheerEnrollmentDisplayRecord | null>(null)
   const [scheduleSelections, setScheduleSelections] = React.useState<
     Record<string, string>
   >({})
@@ -252,9 +255,19 @@ export function ParentEnrollments({
             <CardHeader>
               <CardTitle>{athlete.athleteName}</CardTitle>
             </CardHeader>
-            <CardContent>
-              {athlete.enrollments.length ? (
-                <div className="space-y-3">
+            <CardContent className="space-y-6">
+              <section
+                className="space-y-3"
+                aria-labelledby={`${athlete.athleteId}-classes-heading`}
+              >
+                <h3
+                  id={`${athlete.athleteId}-classes-heading`}
+                  className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+                >
+                  Classes
+                </h3>
+                {athlete.enrollments.length ? (
+                  <div className="space-y-3">
                   {athlete.enrollments.map((enrollment) => {
                     const canStartSubscription =
                       enrollment.status === "approved" &&
@@ -456,12 +469,83 @@ export function ParentEnrollments({
                       </div>
                     )
                   })}
-                </div>
-              ) : (
-                <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                  No enrollments yet.
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    No class enrollments yet.
+                  </div>
+                )}
+              </section>
+
+              <section
+                className="space-y-3"
+                aria-labelledby={`${athlete.athleteId}-cheer-heading`}
+              >
+                <h3
+                  id={`${athlete.athleteId}-cheer-heading`}
+                  className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+                >
+                  Cheer Teams
+                </h3>
+                {athlete.cheerEnrollments.length ? (
+                  <div className="space-y-3">
+                    {athlete.cheerEnrollments.map((enrollment) => (
+                      <div
+                        key={enrollment.enrollmentId}
+                        className="rounded-lg border p-3"
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="mb-3 font-medium text-zinc-900 dark:text-zinc-50">
+                              {enrollment.teamName}
+                              {enrollment.scheduleLabel ? (
+                                <span className="ml-2 text-sm font-normal text-zinc-600 dark:text-zinc-400">
+                                  {enrollment.scheduleLabel}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="mt-1 flex flex-col gap-2">
+                              <div className="flex flex-row gap-2">
+                                <p className="text-sm text-zinc-900 dark:text-zinc-50">
+                                  Enrollment:
+                                </p>
+                                <EnrollmentStatusBadge
+                                  status={enrollment.status}
+                                />
+                              </div>
+                              {enrollment.subscriptionStatus ? (
+                                <div className="flex flex-row gap-2">
+                                  <p className="text-sm text-zinc-900 dark:text-zinc-50">
+                                    Subscription:
+                                  </p>
+                                  <EnrollmentStatusBadge
+                                    status={enrollment.subscriptionStatus}
+                                  />
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setSelectedCheerEnrollment(enrollment)
+                            }
+                          >
+                            <Eye />
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    No cheer team enrollments yet.
+                  </div>
+                )}
+              </section>
             </CardContent>
           </Card>
         ))}
@@ -524,6 +608,75 @@ export function ParentEnrollments({
                     {selectedEnrollment.billingDay
                       ? `${selectedEnrollment.billingDay} of each month`
                       : "Not configured"}
+                  </dd>
+                </div>
+              </dl>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(selectedCheerEnrollment)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedCheerEnrollment(null)
+          }
+        }}
+      >
+        <DialogContent>
+          {selectedCheerEnrollment ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selectedCheerEnrollment.teamName}</DialogTitle>
+                <DialogDescription>
+                  Cheer enrollment #{selectedCheerEnrollment.enrollmentId}
+                </DialogDescription>
+              </DialogHeader>
+              <dl className="grid gap-3 text-sm">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Athlete</dt>
+                  <dd>{selectedCheerEnrollment.athleteName}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Schedule</dt>
+                  <dd className="text-right">
+                    {selectedCheerEnrollment.scheduleLabel ?? "Not assigned"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Enrollment status</dt>
+                  <dd>
+                    <EnrollmentStatusBadge
+                      status={selectedCheerEnrollment.status}
+                    />
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">
+                    Subscription status
+                  </dt>
+                  <dd>
+                    {selectedCheerEnrollment.subscriptionStatus ? (
+                      <EnrollmentStatusBadge
+                        status={selectedCheerEnrollment.subscriptionStatus}
+                      />
+                    ) : (
+                      "Not started"
+                    )}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Payment status</dt>
+                  <dd>
+                    {selectedCheerEnrollment.paymentStatus ?? "Not available"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Current period</dt>
+                  <dd className="text-right">
+                    {formatDate(selectedCheerEnrollment.currentPeriodStart)} to{" "}
+                    {formatDate(selectedCheerEnrollment.currentPeriodEnd)}
                   </dd>
                 </div>
               </dl>

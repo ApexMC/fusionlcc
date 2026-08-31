@@ -33,6 +33,7 @@ import type { CheerBillingRecord } from "@/lib/account/types"
 type Draft = {
   teamName: string
   teamType: string
+  teamDescription: string
   billingDay: string
   tuitionPriceId: string
   feePriceId: string
@@ -42,6 +43,7 @@ function getDefaultDraft(team: CheerBillingRecord): Draft {
   return {
     teamName: team.teamName,
     teamType: team.teamType ?? "",
+    teamDescription: team.teamDescription ?? "",
     billingDay: team.billingDay ?? "1/15",
     tuitionPriceId: team.tuitionPriceId ?? "",
     feePriceId: team.feePriceId ?? "",
@@ -52,6 +54,7 @@ function getBlankDraft(): Draft {
   return {
     teamName: "",
     teamType: "",
+    teamDescription: "",
     billingDay: "1/15",
     tuitionPriceId: "",
     feePriceId: "",
@@ -115,6 +118,7 @@ export function CheerBillingManager({
         teamId: team?.teamId,
         teamName: draft.teamName,
         teamType: draft.teamType,
+        teamDescription: draft.teamDescription,
         billingDay: draft.billingDay,
         tuitionPriceId: draft.tuitionPriceId,
         feePriceId: draft.feePriceId,
@@ -179,15 +183,15 @@ export function CheerBillingManager({
               return (
                 <div key={team.teamId} className="rounded-lg border p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <div className="font-medium">
                         {draft.teamName || "Unnamed team"}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {draft.teamType || "Competitive cheer"}
+                      <div className="truncate text-xs text-muted-foreground">
+                        {draft.teamDescription || draft.teamType || "No description"}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
+                    <div className="flex shrink-0 flex-col items-end gap-2">
                       <div className="text-right">Bills on 1st &amp; 15th</div>
                       {isReady(draft) ? (
                         <Badge variant="success">ready</Badge>
@@ -242,6 +246,20 @@ export function CheerBillingManager({
                           }
                           placeholder="Level, division, or team type"
                           className="h-10"
+                        />
+                      </label>
+                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                        Description
+                        <textarea
+                          value={draft.teamDescription}
+                          onChange={(event) =>
+                            setDraft(team.teamId, {
+                              teamDescription: event.target.value,
+                            })
+                          }
+                          rows={3}
+                          placeholder="Team description"
+                          className="min-h-20 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                         />
                       </label>
                       <label className="grid gap-1 text-xs font-medium text-muted-foreground">
@@ -304,6 +322,7 @@ export function CheerBillingManager({
                 <TableRow>
                   <TableHead>Team</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Description</TableHead>
                   <TableHead>Bill Day</TableHead>
                   <TableHead>Tuition Price</TableHead>
                   <TableHead>Fee Price</TableHead>
@@ -338,6 +357,19 @@ export function CheerBillingManager({
                           }
                           placeholder="Team type"
                           className="min-w-40"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <textarea
+                          value={draft.teamDescription}
+                          onChange={(event) =>
+                            setDraft(team.teamId, {
+                              teamDescription: event.target.value,
+                            })
+                          }
+                          rows={1}
+                          placeholder="Team description"
+                          className="h-8 min-h-8 min-w-64 resize-y rounded-lg border border-input bg-background px-3 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                         />
                       </TableCell>
                       <TableCell>
@@ -440,6 +472,21 @@ export function CheerBillingManager({
                     }))
                   }
                   placeholder="Level, division, or team type"
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Description</span>
+                <textarea
+                  value={newTeamDraft.teamDescription}
+                  onChange={(event) =>
+                    setNewTeamDraft((current) => ({
+                      ...current,
+                      teamDescription: event.target.value,
+                    }))
+                  }
+                  rows={4}
+                  placeholder="Describe this team"
+                  className="min-h-24 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
               </label>
               <label className="grid gap-1 text-sm">

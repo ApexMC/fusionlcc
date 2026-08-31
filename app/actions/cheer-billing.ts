@@ -14,6 +14,7 @@ export async function updateCheerTeamBillingConfig({
   teamId,
   teamName,
   teamType,
+  teamDescription,
   billingDay,
   tuitionPriceId,
   feePriceId,
@@ -21,6 +22,7 @@ export async function updateCheerTeamBillingConfig({
   teamId?: string | null
   teamName: string
   teamType?: string | null
+  teamDescription?: string | null
   billingDay: string
   tuitionPriceId: string
   feePriceId: string
@@ -58,6 +60,7 @@ export async function updateCheerTeamBillingConfig({
   const payload = {
     team_name: teamName.trim(),
     type: teamType?.trim() || "competitive_cheer",
+    description: teamDescription?.trim() || null,
     program_type: "competitive_cheer",
     billing_day: billingDay,
     tuition_price_id: normalizedTuitionPriceId || null,
@@ -83,6 +86,7 @@ export async function updateCheerTeamBillingConfig({
 
   revalidatePath("/account")
   revalidatePath("/account/admin/billing")
+  revalidatePath("/competitive-cheer")
 
   return {
     ok: true,

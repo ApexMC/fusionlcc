@@ -17,12 +17,12 @@ export const team: TeamMember[] = [
     bio: "Hi everyone! My name is Kelsey, and I am the owner and coach at Limitless Cheer Co. I have over 10 years of experience in cheerleading and 3 years of coaching experience working with athletes of all ages and skill levels. I am a positive, high-energy coach who is passionate about helping athletes grow both on and off the mat. I truely care about each athlete and strive to create a supportive, motivating, and fun environment where every child can build confidence, skills, and love for the sport!",
   },
   {
-    name: "Wynne Curtsinger",
+    name: "Hannah Myler",
     team: "Coaching Staff",
     title: "Assistant Cheer Director & Coach",
-    img: "/images/headshots/wynne_headshot.jpg",
-    slug: "wynne",
-    bio: "",
+    img: "/images/headshots/hannah_headshot.png",
+    slug: "hannah",
+    bio: "With 17 years of competitive cheer experience and 12 years of coaching and instruction, I am dedicated to my career developing athletes of all ages and skill levels. I have coached teams ranging from tiny athletes through senior divisions; focusing on building strong technique, confidence, discipline, and teamwork. Passionate about athlete growth, I bring energy, leadership, and experience to every practice and performance.",
   },
   {
     name: "Kayla Parker",
@@ -33,12 +33,12 @@ export const team: TeamMember[] = [
     bio: "With over 14 years of cheerleading experience, I bring passion, leadership, and dedication to every athlete I coach. My background includes 3 years of coaching experience during high school and began to coach 2 years ago after graduating from college. My passion is helping athletes grow both on and off the mat. My goal is to create a positive and encouraging environment. I strive to build confidence, teamwork, and resilience. I believe strong athletes are built through support, communication, discipline, and encouragement.",
   },
   {
-    name: "Hannah Myler",
+    name: "Wynne Curtsinger",
     team: "Coaching Staff",
     title: "Assistant Cheer Director & Coach",
-    img: "/images/headshots/hannah_headshot.png",
-    slug: "hannah",
-    bio: "With 17 years of competitive cheer experience and 12 years of coaching and instruction, I am dedicated to my career developing athletes of all ages and skill levels. I have coached teams ranging from tiny athletes through senior divisions; focusing on building strong technique, confidence, discipline, and teamwork. Passionate about athlete growth, I bring energy, leadership, and experience to every practice and performance.",
+    img: "/images/headshots/wynne_headshot.jpg",
+    slug: "wynne",
+    bio: "",
   },
   {
     name: "Cami Boling",

@@ -3,6 +3,7 @@ import {
   AccountSectionHeader,
 } from "@/components/account/dashboard_navigation"
 import { EnrollmentManagement } from "@/components/account/admin/enrollment_management"
+import { CheerEnrollmentManagement } from "@/components/account/admin/cheer_enrollment_management"
 import { getAdminDashboardData } from "@/lib/account/data"
 import { requireAdminOwnerAccountSession } from "@/app/account/_lib/route-guards"
 import { adminDashboardRoutes } from "@/components/account/dashboard_routes"
@@ -25,6 +26,11 @@ export default async function AdminEnrollmentsPage() {
         enrollments={dashboardData.allEnrollments}
         athletes={dashboardData.enrollmentAthletes}
         schedules={dashboardData.classSchedules}
+      />
+      <CheerEnrollmentManagement
+        enrollments={dashboardData.cheerEnrollments}
+        athletes={dashboardData.enrollmentAthletes}
+        teams={dashboardData.cheerBilling}
       />
     </AccountDashboardFrame>
   )
