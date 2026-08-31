@@ -5,6 +5,7 @@ import type Stripe from "stripe"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
 import { sendContactEmail } from "@/lib/contact/email"
+import { ACTIVE_ENROLLMENT_MESSAGE } from "@/lib/enrollments"
 import { formatLocalTime } from "@/lib/local_time"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getStripe, getSubscriptionPeriod } from "@/lib/stripe/server"
@@ -1141,13 +1142,11 @@ export async function requestEnrollment({
     }
   }
 
-  const { data: existingEnrollment, error: existingError } = await supabase
+  const { data: existingEnrollments, error: existingError } = await supabase
     .from("Enrollments")
-    .select("enrollment_id,status")
+    .select("enrollment_id,schedule_id,status")
     .eq("athlete_id", athleteId)
-    .eq("schedule_id", normalizedScheduleId)
     .in("status", ["pending", "approved", "active"])
-    .maybeSingle()
 
   if (existingError) {
     return {
@@ -1156,10 +1155,12 @@ export async function requestEnrollment({
     }
   }
 
-  if (existingEnrollment) {
+  if (
+    existingEnrollments
+  ) {
     return {
       ok: false,
-      message: `This athlete already has a ${existingEnrollment.status} enrollment for that class schedule.`,
+      message: ACTIVE_ENROLLMENT_MESSAGE,
     }
   }
 

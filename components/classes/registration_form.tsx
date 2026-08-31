@@ -6,6 +6,7 @@ import createClient from "@/lib/supabase/client";
 import { requestEnrollment } from "@/app/actions/enrollments";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
 import { SmartSelect } from "@/components/ui/smart-select";
+import { ACTIVE_ENROLLMENT_MESSAGE } from "@/lib/enrollments";
 
 const ADD_ATHLETE_VALUE = "__add_athlete__";
 
@@ -36,9 +37,11 @@ type ClassOption = {
 export default function RegistrationForm({
   classId,
   classes,
+  blockedEnrollmentAthleteIds,
 }: {
   classId?: string;
   classes: ClassOption[];
+  blockedEnrollmentAthleteIds: string[];
 }) {
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -52,6 +55,12 @@ export default function RegistrationForm({
     classId ?? classes[0]?.classId ?? ""
   );
   const [selectedScheduleId, setSelectedScheduleId] = useState("");
+  const selectedAthleteHasBlockedEnrollment =
+    blockedEnrollmentAthleteIds.includes(selectedAthleteId);
+  const displayedMessage = selectedAthleteHasBlockedEnrollment
+    ? ACTIVE_ENROLLMENT_MESSAGE
+    : message;
+  const displayedStatus = selectedAthleteHasBlockedEnrollment ? "error" : status;
 
   const selectedClassSchedules = scheduleOptions.filter(
     (option) => option.classId === String(selectedClassId)
@@ -127,6 +136,11 @@ export default function RegistrationForm({
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (selectedAthleteHasBlockedEnrollment) {
+      return;
+    }
+
     setStatus("sending");
     setMessage("");
 
@@ -292,23 +306,24 @@ export default function RegistrationForm({
         <div className="flex flex-col gap-3 items-center justify-center">
             <button
                 type="submit"
-                disabled={status === "sending"}
+                disabled={status === "sending" || selectedAthleteHasBlockedEnrollment}
                 className="mt-4 inline-flex items-center justify-center mx-auto rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-60 dark:text-white dark:hover:bg-purple-700"
                 >
                 {status === "sending" ? "Sending..." : "Request Enrollment"}
             </button>
 
-            {message ? (
+            {displayedMessage ? (
             <p
+                aria-live="polite"
                 className={`text-sm ${
-                status === "success"
+                displayedStatus === "success"
                     ? "text-emerald-600 dark:text-emerald-400"
-                    : status === "error"
+                    : displayedStatus === "error"
                     ? "text-red-600 dark:text-red-400"
                     : "text-zinc-600 dark:text-zinc-400"
                 }`}
             >
-                {message}
+                {displayedMessage}
             </p>
             ) : null}
         </div>

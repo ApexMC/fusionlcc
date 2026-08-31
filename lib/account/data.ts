@@ -508,6 +508,52 @@ async function fetchParentEnrollments(athleteIds: string[]) {
   return (fallbackData ?? []) as EnrollmentRecord[]
 }
 
+async function fetchBlockedClassEnrollmentAthleteIds(athleteIds: string[]) {
+  if (!athleteIds.length) {
+    return []
+  }
+
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("Enrollments")
+    .select("athlete_id")
+    .in("athlete_id", athleteIds)
+    .in("status", ["approved", "active"])
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return Array.from(
+    new Set(
+      (data ?? []).flatMap((enrollment) =>
+        enrollment.athlete_id === null || enrollment.athlete_id === undefined
+          ? []
+          : [String(enrollment.athlete_id)]
+      )
+    )
+  )
+}
+
+async function fetchActiveCheerEnrollments(athleteIds: string[]) {
+  if (!athleteIds.length) {
+    return []
+  }
+
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("CheerEnrollments")
+    .select("athlete_id,team_id")
+    .in("athlete_id", athleteIds)
+    .eq("status", "active")
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return data ?? []
+}
+
 async function fetchParentCheerEnrollments(athleteIds: string[]) {
   if (!athleteIds.length) {
     return []
@@ -1885,6 +1931,29 @@ export async function getCheerTryoutRequestData(userId: string) {
     fetchParentAthletes(userId),
     fetchCheerTeams(),
   ])
+  const activeCheerEnrollments = await fetchActiveCheerEnrollments(
+    athletes.map((athlete) => String(athlete.athlete_id))
+  )
+  const activeTeamIdsByAthleteId = activeCheerEnrollments.reduce(
+    (teamIdsByAthleteId, enrollment) => {
+      if (
+        enrollment.athlete_id === null ||
+        enrollment.athlete_id === undefined ||
+        enrollment.team_id === null ||
+        enrollment.team_id === undefined
+      ) {
+        return teamIdsByAthleteId
+      }
+
+      const athleteId = String(enrollment.athlete_id)
+      const teamIds = teamIdsByAthleteId.get(athleteId) ?? new Set<string>()
+      teamIds.add(String(enrollment.team_id))
+      teamIdsByAthleteId.set(athleteId, teamIds)
+
+      return teamIdsByAthleteId
+    },
+    new Map<string, Set<string>>()
+  )
 
   return {
     athletes: athletes.map((athlete) => ({
@@ -1892,11 +1961,24 @@ export async function getCheerTryoutRequestData(userId: string) {
       athleteName:
         [athlete.first_name, athlete.last_name].filter(Boolean).join(" ") ||
         `Athlete #${athlete.athlete_id}`,
+      activeCheerTeamIds: Array.from(
+        activeTeamIdsByAthleteId.get(String(athlete.athlete_id)) ?? []
+      ),
     })),
     teams: teams.map((team) => ({
       teamId: String(team.team_id),
       teamName: team.team_name?.trim() || `Team #${team.team_id}`,
     })),
+  }
+}
+
+export async function getClassRegistrationRequestData(userId: string) {
+  const athletes = await fetchParentAthletes(userId)
+
+  return {
+    blockedEnrollmentAthleteIds: await fetchBlockedClassEnrollmentAthleteIds(
+      athletes.map((athlete) => String(athlete.athlete_id))
+    ),
   }
 }
 

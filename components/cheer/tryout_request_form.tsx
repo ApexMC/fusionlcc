@@ -6,12 +6,14 @@ import { useState } from "react"
 import { requestCheerTryout } from "@/app/actions/cheer-enrollments"
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete"
 import { SmartSelect } from "@/components/ui/smart-select"
+import { ACTIVE_ENROLLMENT_MESSAGE } from "@/lib/enrollments"
 
 const ADD_ATHLETE_VALUE = "__add_athlete__"
 
 type AthleteOption = {
   athleteId: string
   athleteName: string
+  activeCheerTeamIds: string[]
 }
 
 type TeamOption = {
@@ -50,20 +52,40 @@ export function TryoutRequestForm({
   const [athleteId, setAthleteId] = useState(athletes[0]?.athleteId ?? "")
   const [teamId, setTeamId] = useState(teams[0]?.teamId ?? "")
   const [addAthleteOpen, setAddAthleteOpen] = useState(false)
-  const canSubmit = Boolean(athleteId && teamId && status !== "sending")
+  const selectedAthlete = athletes.find(
+    (athlete) => athlete.athleteId === athleteId
+  )
+  const selectedAthleteHasActiveEnrollment = Boolean(
+    teamId && selectedAthlete?.activeCheerTeamIds.includes(teamId)
+  )
+  const displayedMessage = selectedAthleteHasActiveEnrollment
+    ? ACTIVE_ENROLLMENT_MESSAGE
+    : message
+  const displayedStatus = selectedAthleteHasActiveEnrollment ? "error" : status
+  const canSubmit = Boolean(
+    athleteId &&
+      teamId &&
+      status !== "sending" &&
+      !selectedAthleteHasActiveEnrollment
+  )
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    if (selectedAthleteHasActiveEnrollment) {
+      return
+    }
+
     setStatus("sending")
     setMessage("")
 
     try {
-      const selectedAthlete = athletes.find(
+      const submittedAthlete = athletes.find(
         (athlete) => athlete.athleteId === athleteId
       )
       const selectedTeam = teams.find((team) => team.teamId === teamId)
 
-      if (!selectedAthlete || !selectedTeam) {
+      if (!submittedAthlete || !selectedTeam) {
         throw new Error("Please choose an athlete and cheer team.")
       }
 
@@ -75,12 +97,12 @@ export function TryoutRequestForm({
 
       const emailPayload = {
         email: parent?.email || "",
-        subject: `LCC Competitive Cheer Tryout Request: ${selectedAthlete.athleteName}`,
+        subject: `LCC Competitive Cheer Tryout Request: ${submittedAthlete.athleteName}`,
         message: [
           `Parent Name: ${[parent?.firstName, parent?.lastName]
             .filter(Boolean)
             .join(" ")}`,
-          `Athlete Name: ${selectedAthlete.athleteName}`,
+          `Athlete Name: ${submittedAthlete.athleteName}`,
           `Requested Team: ${selectedTeam.teamName}`,
           "",
           `Address: ${parent?.address ?? ""}, ${parent?.city ?? ""}, ${parent?.state ?? ""} ${parent?.zipCode ?? ""}`,
@@ -194,14 +216,14 @@ export function TryoutRequestForm({
           <p
             aria-live="polite"
             className={`min-h-5 text-center text-sm ${
-              status === "success"
+              displayedStatus === "success"
                 ? "text-emerald-600 dark:text-emerald-400"
-                : status === "error"
+                : displayedStatus === "error"
                   ? "text-red-600 dark:text-red-400"
                   : "text-zinc-600 dark:text-zinc-400"
             }`}
           >
-            {message}
+            {displayedMessage}
           </p>
         </div>
       </form>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
+import { ACTIVE_ENROLLMENT_MESSAGE } from "@/lib/enrollments"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 type ActionResult = {
@@ -89,19 +90,30 @@ async function createCheerEnrollment({
     }
   }
 
-  const { data: existingEnrollment, error: existingError } = await supabase
+  const { data: existingEnrollments, error: existingError } = await supabase
     .from("CheerEnrollments")
     .select("enrollment_id,status")
     .eq("athlete_id", normalizedAthleteId)
     .eq("team_id", normalizedTeamId)
     .in("status", ["pending", "approved", "active"])
-    .limit(1)
-    .maybeSingle()
 
   if (existingError) {
     return {
       ok: false,
       message: existingError.message,
+    }
+  }
+
+  const existingEnrollment =
+    existingEnrollments?.find((enrollment) =>
+      ["approved", "active", "pending"].includes(enrollment.status)
+    ) ??
+    existingEnrollments?.[0]
+
+  if (["approved", "active"].includes(existingEnrollment?.status ?? "")) {
+    return {
+      ok: false,
+      message: ACTIVE_ENROLLMENT_MESSAGE,
     }
   }
 

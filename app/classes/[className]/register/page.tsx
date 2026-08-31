@@ -2,6 +2,7 @@ import RegistrationForm from "@/components/classes/registration_form";
 import { notFound } from "next/navigation";
 import createClient from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { getClassRegistrationRequestData } from "@/lib/account/data";
 import { getPublicClassBySlug } from "@/lib/classes/data";
 
 export default async function Register({
@@ -16,7 +17,10 @@ export default async function Register({
   }
 
   const { className } = await params;
-  const classData = await getPublicClassBySlug(className);
+  const [classData, requestData] = await Promise.all([
+    getPublicClassBySlug(className),
+    getClassRegistrationRequestData(claims.claims.sub),
+  ]);
   if (!classData) return notFound();
 
   return (
@@ -31,6 +35,7 @@ export default async function Register({
             classId: classRecord.classId,
             className: classRecord.className,
           }))}
+          blockedEnrollmentAthleteIds={requestData.blockedEnrollmentAthleteIds}
         />
       </main>
     </div>
