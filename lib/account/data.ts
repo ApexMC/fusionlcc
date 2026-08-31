@@ -518,7 +518,7 @@ async function fetchBlockedClassEnrollmentAthleteIds(athleteIds: string[]) {
     .from("Enrollments")
     .select("athlete_id")
     .in("athlete_id", athleteIds)
-    .in("status", ["approved", "active"])
+    .in("status", ["pending", "approved", "active"])
 
   if (error) {
     throw new Error(error.message)
@@ -535,7 +535,7 @@ async function fetchBlockedClassEnrollmentAthleteIds(athleteIds: string[]) {
   )
 }
 
-async function fetchActiveCheerEnrollments(athleteIds: string[]) {
+async function fetchBlockedCheerEnrollments(athleteIds: string[]) {
   if (!athleteIds.length) {
     return []
   }
@@ -545,7 +545,7 @@ async function fetchActiveCheerEnrollments(athleteIds: string[]) {
     .from("CheerEnrollments")
     .select("athlete_id,team_id")
     .in("athlete_id", athleteIds)
-    .eq("status", "active")
+    .in("status", ["pending", "approved", "active"])
 
   if (error) {
     throw new Error(error.message)
@@ -1931,10 +1931,10 @@ export async function getCheerTryoutRequestData(userId: string) {
     fetchParentAthletes(userId),
     fetchCheerTeams(),
   ])
-  const activeCheerEnrollments = await fetchActiveCheerEnrollments(
+  const blockedCheerEnrollments = await fetchBlockedCheerEnrollments(
     athletes.map((athlete) => String(athlete.athlete_id))
   )
-  const activeTeamIdsByAthleteId = activeCheerEnrollments.reduce(
+  const blockedTeamIdsByAthleteId = blockedCheerEnrollments.reduce(
     (teamIdsByAthleteId, enrollment) => {
       if (
         enrollment.athlete_id === null ||
@@ -1961,8 +1961,8 @@ export async function getCheerTryoutRequestData(userId: string) {
       athleteName:
         [athlete.first_name, athlete.last_name].filter(Boolean).join(" ") ||
         `Athlete #${athlete.athlete_id}`,
-      activeCheerTeamIds: Array.from(
-        activeTeamIdsByAthleteId.get(String(athlete.athlete_id)) ?? []
+      blockedCheerTeamIds: Array.from(
+        blockedTeamIdsByAthleteId.get(String(athlete.athlete_id)) ?? []
       ),
     })),
     teams: teams.map((team) => ({

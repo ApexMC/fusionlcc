@@ -5,7 +5,7 @@ import type Stripe from "stripe"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
 import { sendContactEmail } from "@/lib/contact/email"
-import { ACTIVE_ENROLLMENT_MESSAGE } from "@/lib/enrollments"
+import { BLOCKED_ENROLLMENT_MESSAGE } from "@/lib/enrollments"
 import { formatLocalTime } from "@/lib/local_time"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getStripe, getSubscriptionPeriod } from "@/lib/stripe/server"
@@ -1142,11 +1142,13 @@ export async function requestEnrollment({
     }
   }
 
-  const { data: existingEnrollments, error: existingError } = await supabase
+  const { data: existingEnrollment, error: existingError } = await supabase
     .from("Enrollments")
-    .select("enrollment_id,schedule_id,status")
+    .select("enrollment_id,status")
     .eq("athlete_id", athleteId)
     .in("status", ["pending", "approved", "active"])
+    .limit(1)
+    .maybeSingle()
 
   if (existingError) {
     return {
@@ -1155,12 +1157,10 @@ export async function requestEnrollment({
     }
   }
 
-  if (
-    existingEnrollments
-  ) {
+  if (existingEnrollment) {
     return {
       ok: false,
-      message: ACTIVE_ENROLLMENT_MESSAGE,
+      message: BLOCKED_ENROLLMENT_MESSAGE,
     }
   }
 

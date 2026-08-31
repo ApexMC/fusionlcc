@@ -6,14 +6,14 @@ import { useState } from "react"
 import { requestCheerTryout } from "@/app/actions/cheer-enrollments"
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete"
 import { SmartSelect } from "@/components/ui/smart-select"
-import { ACTIVE_ENROLLMENT_MESSAGE } from "@/lib/enrollments"
+import { BLOCKED_ENROLLMENT_MESSAGE } from "@/lib/enrollments"
 
 const ADD_ATHLETE_VALUE = "__add_athlete__"
 
 type AthleteOption = {
   athleteId: string
   athleteName: string
-  activeCheerTeamIds: string[]
+  blockedCheerTeamIds: string[]
 }
 
 type TeamOption = {
@@ -55,24 +55,24 @@ export function TryoutRequestForm({
   const selectedAthlete = athletes.find(
     (athlete) => athlete.athleteId === athleteId
   )
-  const selectedAthleteHasActiveEnrollment = Boolean(
-    teamId && selectedAthlete?.activeCheerTeamIds.includes(teamId)
+  const selectedAthleteHasBlockedEnrollment = Boolean(
+    teamId && selectedAthlete?.blockedCheerTeamIds.includes(teamId)
   )
-  const displayedMessage = selectedAthleteHasActiveEnrollment
-    ? ACTIVE_ENROLLMENT_MESSAGE
+  const displayedMessage = selectedAthleteHasBlockedEnrollment
+    ? BLOCKED_ENROLLMENT_MESSAGE
     : message
-  const displayedStatus = selectedAthleteHasActiveEnrollment ? "error" : status
+  const displayedStatus = selectedAthleteHasBlockedEnrollment ? "error" : status
   const canSubmit = Boolean(
     athleteId &&
       teamId &&
       status !== "sending" &&
-      !selectedAthleteHasActiveEnrollment
+      !selectedAthleteHasBlockedEnrollment
   )
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (selectedAthleteHasActiveEnrollment) {
+    if (selectedAthleteHasBlockedEnrollment) {
       return
     }
 

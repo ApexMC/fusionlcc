@@ -6,7 +6,7 @@ import createClient from "@/lib/supabase/client";
 import { requestEnrollment } from "@/app/actions/enrollments";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
 import { SmartSelect } from "@/components/ui/smart-select";
-import { ACTIVE_ENROLLMENT_MESSAGE } from "@/lib/enrollments";
+import { BLOCKED_ENROLLMENT_MESSAGE } from "@/lib/enrollments";
 
 const ADD_ATHLETE_VALUE = "__add_athlete__";
 
@@ -58,7 +58,7 @@ export default function RegistrationForm({
   const selectedAthleteHasBlockedEnrollment =
     blockedEnrollmentAthleteIds.includes(selectedAthleteId);
   const displayedMessage = selectedAthleteHasBlockedEnrollment
-    ? ACTIVE_ENROLLMENT_MESSAGE
+    ? BLOCKED_ENROLLMENT_MESSAGE
     : message;
   const displayedStatus = selectedAthleteHasBlockedEnrollment ? "error" : status;
 
@@ -315,7 +315,7 @@ export default function RegistrationForm({
             {displayedMessage ? (
             <p
                 aria-live="polite"
-                className={`text-sm ${
+                className={`text-center text-sm ${
                 displayedStatus === "success"
                     ? "text-emerald-600 dark:text-emerald-400"
                     : displayedStatus === "error"
