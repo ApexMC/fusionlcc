@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
 import { sendContactEmail } from "@/lib/contact/email"
+import {
+  addMinutesToLocalTime,
+  formatLocalTime,
+  normalizeLocalTime,
+} from "@/lib/local_time"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { formatDay } from "@/lib/scheduling"
 
@@ -33,7 +38,7 @@ type ClassSessionRow = {
   session_id: string | number
   class_id?: string | number | null
   schedule_id?: string | number | null
-  session_date?: string | null
+  date?: string | null
   starts_at?: string | null
   ends_at?: string | null
   status?: string | null
@@ -73,17 +78,11 @@ type EnrollmentRow = {
 }
 
 const rosterEnrollmentStatuses = ["approved", "active"] as const
-const classSessionTimeZone = "America/Indiana/Tell_City"
 
 type DateParts = {
   year: number
   month: number
   day: number
-}
-
-type DateTimeParts = DateParts & {
-  hour: number
-  minute: number
 }
 
 function firstRelation<T>(value: T | T[] | null | undefined) {
@@ -128,109 +127,6 @@ function normalizeDateInput(value: string) {
   return parseDateParts(normalized) ? normalized : null
 }
 
-function normalizeTimeInput(value: string) {
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)
-
-  if (!match) {
-    return null
-  }
-
-  const hour = Number(match[1])
-  const minute = Number(match[2])
-
-  if (
-    !Number.isInteger(hour) ||
-    !Number.isInteger(minute) ||
-    hour < 0 ||
-    hour > 23 ||
-    minute < 0 ||
-    minute > 59
-  ) {
-    return null
-  }
-
-  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
-}
-
-function getDateTimeParts(dateKey: string, timeKey: string): DateTimeParts | null {
-  const dateParts = parseDateParts(dateKey)
-  const normalizedTime = normalizeTimeInput(timeKey)
-
-  if (!dateParts || !normalizedTime) {
-    return null
-  }
-
-  const [hour, minute] = normalizedTime.split(":").map(Number)
-
-  return {
-    ...dateParts,
-    hour,
-    minute,
-  }
-}
-
-function getTimeZoneOffsetMinutes(date: Date, timeZone: string) {
-  const timeZoneName = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    timeZoneName: "shortOffset",
-  })
-    .formatToParts(date)
-    .find((part) => part.type === "timeZoneName")?.value
-
-  if (!timeZoneName || timeZoneName === "GMT") {
-    return 0
-  }
-
-  const match = timeZoneName.match(/^GMT([+-])(\d{1,2})(?::?(\d{2}))?$/)
-
-  if (!match) {
-    throw new Error(`Unable to determine timezone offset for ${timeZone}.`)
-  }
-
-  const sign = match[1] === "-" ? -1 : 1
-  const hours = Number(match[2])
-  const minutes = Number(match[3] ?? "0")
-
-  return sign * (hours * 60 + minutes)
-}
-
-function toZonedTimestampIso(
-  dateKey: string,
-  timeKey: string,
-  timeZone = classSessionTimeZone
-) {
-  const parts = getDateTimeParts(dateKey, timeKey)
-
-  if (!parts) {
-    return null
-  }
-
-  const localTimeAsUtc = Date.UTC(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-    parts.hour,
-    parts.minute
-  )
-  let utcMilliseconds = localTimeAsUtc
-
-  for (let index = 0; index < 3; index += 1) {
-    const offsetMinutes = getTimeZoneOffsetMinutes(
-      new Date(utcMilliseconds),
-      timeZone
-    )
-    const nextUtcMilliseconds = localTimeAsUtc - offsetMinutes * 60_000
-
-    if (nextUtcMilliseconds === utcMilliseconds) {
-      break
-    }
-
-    utcMilliseconds = nextUtcMilliseconds
-  }
-
-  return new Date(utcMilliseconds).toISOString()
-}
-
 function formatDate(value: string | null | undefined) {
   if (!value) {
     return "Date TBD"
@@ -250,54 +146,23 @@ function formatDate(value: string | null | undefined) {
   }).format(date)
 }
 
-function formatTime(value: string | null | undefined) {
-  if (!value) {
-    return "Time TBD"
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    const date = new Date(value)
-
-    if (!Number.isNaN(date.getTime())) {
-      return new Intl.DateTimeFormat("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        timeZone: classSessionTimeZone,
-      }).format(date)
-    }
-  }
-
-  const timeMatch = value.match(/(\d{1,2}):(\d{2})(?::\d{2})?/)
-  const hour = Number(timeMatch?.[1])
-  const minute = Number(timeMatch?.[2] ?? "00")
-
-  if (Number.isNaN(hour) || Number.isNaN(minute)) {
-    return value
-  }
-
-  const period = hour >= 12 ? "PM" : "AM"
-  const displayHour = hour % 12 || 12
-
-  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`
-}
-
 function formatScheduleLabel(schedule: ClassScheduleRow | null) {
   if (!schedule) {
     return "Unscheduled"
   }
 
-  return `${formatDay(schedule.day_of_week)} ${formatTime(
+  return `${formatDay(schedule.day_of_week)} ${formatLocalTime(
     schedule.start_time
-  )} - ${formatTime(schedule.end_time)}`
+  )} - ${formatLocalTime(schedule.end_time)}`
 }
 
 function formatSessionTime(
   session: ClassSessionRow,
   schedule: ClassScheduleRow | null
 ) {
-  return `${formatTime(session.starts_at ?? schedule?.start_time)} - ${formatTime(
-    session.ends_at ?? schedule?.end_time
-  )}`
+  return `${formatLocalTime(
+    session.starts_at ?? schedule?.start_time
+  )} - ${formatLocalTime(session.ends_at ?? schedule?.end_time)}`
 }
 
 function getDisplayName(firstName?: string | null, lastName?: string | null) {
@@ -327,7 +192,7 @@ function buildCancellationMessage({
     "The following Limitless Cheer and Gymnastics class session has been canceled:",
     "",
     `Class: ${className}`,
-    `Date: ${formatDate(session.session_date)}`,
+    `Date: ${formatDate(session.date)}`,
     `Time: ${formatSessionTime(session, schedule)}`,
     `Schedule: ${formatScheduleLabel(schedule)}`,
     "",
@@ -338,7 +203,7 @@ function buildCancellationMessage({
       "A makeup session has been scheduled:",
       "",
       `Makeup Class: ${className}`,
-      `Makeup Date: ${formatDate(makeupSession.session_date)}`,
+      `Makeup Date: ${formatDate(makeupSession.date)}`,
       `Makeup Time: ${formatSessionTime(makeupSession, null)}`,
       ""
     )
@@ -364,7 +229,7 @@ async function getCancellationNoticeContext(
   const supabase = createAdminClient()
   const { data: sessionData, error: sessionError } = await supabase
     .from("ClassSessions")
-    .select("session_id,class_id,schedule_id,session_date,starts_at,ends_at,status,type")
+    .select("session_id,class_id,schedule_id,date,starts_at,ends_at,status,type")
     .eq("session_id", sessionId)
     .maybeSingle()
 
@@ -519,7 +384,7 @@ async function sendCancellationDecisionEmail({
   const subject = makeupSession
     ? `LCC Session Canceled / Makeup Scheduled: ${className}`
     : `LCC Session Canceled: ${className} on ${formatDate(
-        classSession.session_date
+        classSession.date
       )}`
 
   try {
@@ -571,7 +436,7 @@ export async function cancelClassSession(
   const supabase = createAdminClient()
   const { data: sessionData, error: sessionError } = await supabase
     .from("ClassSessions")
-    .select("session_id,class_id,schedule_id,session_date,starts_at,ends_at,status")
+    .select("session_id,class_id,schedule_id,date,starts_at,ends_at,status")
     .eq("session_id", sessionId)
     .maybeSingle()
 
@@ -665,7 +530,7 @@ export async function createMakeupClassSession({
   requireAdminSession(await getAccountSession())
 
   const normalizedDate = normalizeDateInput(sessionDate)
-  const normalizedStartTime = normalizeTimeInput(startTime)
+  const normalizedStartTime = normalizeLocalTime(startTime)
   const normalizedDuration = Number(durationMinutes)
 
   if (!sourceSessionId.trim()) {
@@ -700,18 +565,15 @@ export async function createMakeupClassSession({
     }
   }
 
-  const startsAt = toZonedTimestampIso(normalizedDate, normalizedStartTime)
+  const startsAt = normalizedStartTime
+  const endsAt = addMinutesToLocalTime(startsAt, normalizedDuration)
 
-  if (!startsAt) {
+  if (!endsAt) {
     return {
       ok: false,
-      message: "Choose a valid makeup session date and start time.",
+      message: "Unable to calculate the makeup session end time.",
     }
   }
-
-  const endsAt = new Date(
-    new Date(startsAt).getTime() + normalizedDuration * 60_000
-  ).toISOString()
 
   const supabase = createAdminClient()
   const { data: sourceSessionData, error: sourceSessionError } = await supabase
@@ -748,13 +610,13 @@ export async function createMakeupClassSession({
     .insert({
       class_id: sourceSession.class_id ?? null,
       schedule_id: sourceSession.schedule_id ?? null,
-      session_date: normalizedDate,
+      date: normalizedDate,
       starts_at: startsAt,
       ends_at: endsAt,
       status: "scheduled",
       type: "makeup",
     })
-    .select("session_id,class_id,schedule_id,session_date,starts_at,ends_at,status,type")
+    .select("session_id,class_id,schedule_id,date,starts_at,ends_at,status,type")
     .single()
 
   if (error) {

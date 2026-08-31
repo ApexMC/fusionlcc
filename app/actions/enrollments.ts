@@ -5,6 +5,7 @@ import type Stripe from "stripe"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
 import { sendContactEmail } from "@/lib/contact/email"
+import { formatLocalTime } from "@/lib/local_time"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getStripe, getSubscriptionPeriod } from "@/lib/stripe/server"
 
@@ -171,25 +172,6 @@ function formatEnrollmentDay(value: string | number | null | undefined) {
     : "Unscheduled"
 }
 
-function formatEnrollmentTime(value: string | null | undefined) {
-  if (!value) {
-    return "Time TBD"
-  }
-
-  const timeMatch = value.match(/(\d{1,2}):(\d{2})(?::\d{2})?/)
-  const hour = Number(timeMatch?.[1])
-  const minute = Number(timeMatch?.[2] ?? "00")
-
-  if (Number.isNaN(hour) || Number.isNaN(minute)) {
-    return value
-  }
-
-  const period = hour >= 12 ? "PM" : "AM"
-  const displayHour = hour % 12 || 12
-
-  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`
-}
-
 function formatEnrollmentScheduleLabel(
   schedule: EnrollmentDecisionSchedule | null
 ) {
@@ -197,9 +179,9 @@ function formatEnrollmentScheduleLabel(
     return null
   }
 
-  return `${formatEnrollmentDay(schedule.day_of_week)} ${formatEnrollmentTime(
+  return `${formatEnrollmentDay(schedule.day_of_week)} ${formatLocalTime(
     schedule.start_time
-  )} - ${formatEnrollmentTime(schedule.end_time)}`
+  )} - ${formatLocalTime(schedule.end_time)}`
 }
 
 function getErrorMessage(error: unknown) {

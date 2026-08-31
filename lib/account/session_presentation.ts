@@ -1,8 +1,8 @@
 import {
   dateKeyToLocalDate,
   getDateKey,
-  organizationTimeZone,
 } from "@/lib/date_keys"
+import { formatLocalTime } from "@/lib/local_time"
 
 type SessionSchedule = {
   scheduleId: string | null
@@ -29,34 +29,7 @@ export function formatSessionDate(value: string | null) {
 }
 
 export function formatSessionTime(value: string | null) {
-  if (!value) {
-    return "Time TBD"
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    const date = new Date(value)
-
-    if (!Number.isNaN(date.getTime())) {
-      return new Intl.DateTimeFormat("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        timeZone: organizationTimeZone,
-      }).format(date)
-    }
-  }
-
-  const timeMatch = value.match(/(\d{1,2}):(\d{2})(?::\d{2})?/)
-  const hour = Number(timeMatch?.[1])
-  const minute = Number(timeMatch?.[2] ?? "00")
-
-  if (Number.isNaN(hour) || Number.isNaN(minute)) {
-    return value
-  }
-
-  const period = hour >= 12 ? "PM" : "AM"
-  const displayHour = hour % 12 || 12
-
-  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`
+  return formatLocalTime(value)
 }
 
 export function getSessionScheduleDisplay(session: SessionSchedule) {

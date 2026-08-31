@@ -7,6 +7,7 @@ import {
   getWeekdaySortIndex,
   normalizeDay,
 } from "@/lib/scheduling"
+import { formatLocalTime } from "@/lib/local_time"
 import type {
   AdminCoachTimeClockGroup,
   AdminDashboardData,
@@ -150,7 +151,7 @@ type ClassSessionRow = {
   session_id: string | number
   class_id?: string | number | null
   schedule_id?: string | number | null
-  session_date?: string | null
+  date?: string | null
   starts_at?: string | null
   ends_at?: string | null
   status?: string | null
@@ -161,7 +162,7 @@ type CheerSessionRow = {
   session_id: string | number
   team_id?: string | number | null
   schedule_id?: string | number | null
-  session_date?: string | null
+  date?: string | null
   starts_at?: string | null
   ends_at?: string | null
   status?: string | null
@@ -231,31 +232,14 @@ function formatSeason(value: string | null | undefined) {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 
-function formatTime(value: string | null | undefined) {
-  if (!value) {
-    return "Time TBD"
-  }
-
-  const [hourText, minuteText = "00"] = value.split(":")
-  const hour = Number(hourText)
-  const minute = Number(minuteText)
-
-  if (Number.isNaN(hour) || Number.isNaN(minute)) {
-    return value
-  }
-
-  const period = hour >= 12 ? "PM" : "AM"
-  const displayHour = hour % 12 || 12
-
-  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`
-}
-
 function formatScheduleLabel(
   dayOfWeek: string | number | null | undefined,
   startTime: string | null | undefined,
   endTime: string | null | undefined
 ) {
-  return `${formatDay(dayOfWeek)} ${formatTime(startTime)} - ${formatTime(endTime)}`
+  return `${formatDay(dayOfWeek)} ${formatLocalTime(
+    startTime
+  )} - ${formatLocalTime(endTime)}`
 }
 
 function getClassFallbackName(
@@ -715,9 +699,9 @@ async function fetchClassSessionRows() {
   const { data, error } = await supabase
     .from("ClassSessions")
     .select(
-      "session_id,class_id,schedule_id,session_date,starts_at,ends_at,status,type"
+      "session_id,class_id,schedule_id,date,starts_at,ends_at,status,type"
     )
-    .order("session_date", { ascending: false })
+    .order("date", { ascending: false })
     .order("starts_at", { ascending: true })
 
   if (error) {
@@ -732,9 +716,9 @@ async function fetchCheerSessionRows() {
   const { data, error } = await supabase
     .from("CheerSessions")
     .select(
-      "session_id,team_id,schedule_id,session_date,starts_at,ends_at,status,type"
+      "session_id,team_id,schedule_id,date,starts_at,ends_at,status,type"
     )
-    .order("session_date", { ascending: false })
+    .order("date", { ascending: false })
     .order("starts_at", { ascending: true })
 
   if (error) {
@@ -1515,7 +1499,7 @@ function buildClassSessionRows({
         getClassFallbackName(classId),
       scheduleId,
       scheduleLabel: classSchedule?.scheduleLabel ?? null,
-      sessionDate: row.session_date ?? null,
+      sessionDate: row.date ?? null,
       startsAt: row.starts_at ?? null,
       endsAt: row.ends_at ?? null,
       status: row.status ?? "scheduled",
@@ -1556,7 +1540,7 @@ function buildCheerSessionRows({
         (teamId ? `Team #${teamId}` : "Unassigned team"),
       scheduleId,
       scheduleLabel: cheerSchedule?.scheduleLabel ?? null,
-      sessionDate: row.session_date ?? null,
+      sessionDate: row.date ?? null,
       startsAt: row.starts_at ?? cheerSchedule?.startTime ?? null,
       endsAt: row.ends_at ?? cheerSchedule?.endTime ?? null,
       status: row.status ?? "scheduled",

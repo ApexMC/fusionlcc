@@ -3,9 +3,9 @@ import "server-only"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   getDateKey,
-  organizationTimeZone,
   shiftDateKey,
 } from "@/lib/date_keys"
+import { formatLocalTime } from "@/lib/local_time"
 import {
   formatDay,
   getWeekdaySortIndex,
@@ -94,7 +94,7 @@ type PublicClassSessionRow = {
   session_id: string | number
   class_id?: string | number | null
   schedule_id?: string | number | null
-  session_date?: string | null
+  date?: string | null
   starts_at?: string | null
   ends_at?: string | null
   status?: string | null
@@ -123,56 +123,19 @@ function normalizeProgramType(value: string | null | undefined) {
   return normalized
 }
 
-function formatTime(value: string | null | undefined) {
-  if (!value) {
-    return "Time TBD"
-  }
-
-  const [hourText, minuteText = "00"] = value.split(":")
-  const hour = Number(hourText)
-  const minute = Number(minuteText)
-
-  if (Number.isNaN(hour) || Number.isNaN(minute)) {
-    return value
-  }
-
-  const period = hour >= 12 ? "PM" : "AM"
-  const displayHour = hour % 12 || 12
-
-  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`
-}
-
 function formatTimeLabel(
   startTime: string | null | undefined,
   endTime: string | null | undefined
 ) {
-  return `${formatTime(startTime)} - ${formatTime(endTime)}`
-}
-
-function formatTimestampTime(value: string | null | undefined) {
-  if (!value) {
-    return null
-  }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return null
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: organizationTimeZone,
-  }).format(date)
+  return `${formatLocalTime(startTime)} - ${formatLocalTime(endTime)}`
 }
 
 function formatSessionTimeLabel(
   startsAt: string | null | undefined,
   endsAt: string | null | undefined
 ) {
-  const startTime = formatTimestampTime(startsAt)
-  const endTime = formatTimestampTime(endsAt)
+  const startTime = startsAt ? formatLocalTime(startsAt) : null
+  const endTime = endsAt ? formatLocalTime(endsAt) : null
 
   if (startTime && endTime) {
     return `${startTime} - ${endTime}`
@@ -371,11 +334,11 @@ async function fetchPublicClassSessionRows(
   const { data, error } = await supabase
     .from("ClassSessions")
     .select(
-      "session_id,class_id,schedule_id,session_date,starts_at,ends_at,status,type"
+      "session_id,class_id,schedule_id,date,starts_at,ends_at,status,type"
     )
-    .gte("session_date", startsOn)
-    .lte("session_date", endsOn)
-    .order("session_date", { ascending: true })
+    .gte("date", startsOn)
+    .lte("date", endsOn)
+    .order("date", { ascending: true })
     .order("starts_at", { ascending: true })
 
   if (error) {
@@ -567,7 +530,7 @@ export async function getPublicClassCalendarData(todayDateKey: string) {
     const scheduleId = toId(row.schedule_id)
     const schedule = scheduleId ? scheduleById.get(scheduleId) : null
     const classId = toId(row.class_id) ?? schedule?.classId ?? null
-    const sessionDate = getDateKey(row.session_date)
+    const sessionDate = getDateKey(row.date)
 
     if (!classId || !publicClassIds.has(classId) || !sessionDate) {
       return []

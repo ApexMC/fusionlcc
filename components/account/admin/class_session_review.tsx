@@ -39,9 +39,9 @@ import {
   dateKeyToLocalDate,
   getDateKey,
   getDateKeyInTimeZone as getLocalDateKey,
-  organizationTimeZone as classSessionTimeZone,
   shiftDateKey,
 } from "@/lib/date_keys"
+import { normalizeLocalTime } from "@/lib/local_time"
 import {
   formatSessionDate as formatDate,
   formatSessionStatus,
@@ -125,39 +125,7 @@ function getSessionTime(session: ClassSessionDisplayRecord) {
 }
 
 function getTimeSortKey(value: string | null) {
-  if (!value) {
-    return ""
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    const date = new Date(value)
-
-    if (!Number.isNaN(date.getTime())) {
-      const parts = new Intl.DateTimeFormat("en-US", {
-        hour: "2-digit",
-        hour12: false,
-        hourCycle: "h23",
-        minute: "2-digit",
-        timeZone: classSessionTimeZone,
-      }).formatToParts(date)
-      const hour = parts.find((part) => part.type === "hour")?.value
-      const minute = parts.find((part) => part.type === "minute")?.value
-
-      if (hour && minute) {
-        return `${hour}:${minute}`
-      }
-    }
-  }
-
-  const timeMatch = value.match(/(\d{1,2}):(\d{2})(?::\d{2})?/)
-  const hour = Number(timeMatch?.[1])
-  const minute = Number(timeMatch?.[2] ?? "00")
-
-  if (Number.isNaN(hour) || Number.isNaN(minute)) {
-    return ""
-  }
-
-  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+  return normalizeLocalTime(value) ?? ""
 }
 
 function getTimeInputValue(value: string | null) {

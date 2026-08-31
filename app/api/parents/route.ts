@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { formatPhoneNumber } from "@/functions/shared_functions";
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth";
+import { formatLocalTime } from "@/lib/local_time";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type ParentRow = {
@@ -109,31 +110,12 @@ function formatDay(value: string | number | null | undefined) {
     : "Unscheduled";
 }
 
-function formatTime(value: string | null | undefined) {
-  if (!value) {
-    return "Time TBD";
-  }
-
-  const [hourText, minuteText = "00"] = value.split(":");
-  const hour = Number(hourText);
-  const minute = Number(minuteText);
-
-  if (Number.isNaN(hour) || Number.isNaN(minute)) {
-    return value;
-  }
-
-  const period = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour % 12 || 12;
-
-  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`;
-}
-
 function formatScheduleLabel(schedule: ClassScheduleRelation | null | undefined) {
   if (!schedule) {
     return null;
   }
 
-  return `${formatDay(schedule.day_of_week)} ${formatTime(schedule.start_time)} - ${formatTime(schedule.end_time)}`;
+  return `${formatDay(schedule.day_of_week)} ${formatLocalTime(schedule.start_time)} - ${formatLocalTime(schedule.end_time)}`;
 }
 
 function getParentPaymentStatus(enrollments: EnrollmentPaymentRow[]) {

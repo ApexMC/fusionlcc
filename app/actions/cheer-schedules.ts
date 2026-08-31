@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
+import { normalizeLocalTime } from "@/lib/local_time"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 type ActionResult = {
@@ -51,22 +52,6 @@ async function getDayStorageSample(scheduleId: string | null | undefined) {
   return data?.day_of_week ?? null
 }
 
-function normalizeTime(value: string) {
-  const trimmed = value.trim()
-
-  if (!trimmed) {
-    return ""
-  }
-
-  const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)
-
-  if (!match) {
-    return trimmed
-  }
-
-  return `${match[1].padStart(2, "0")}:${match[2]}`
-}
-
 export async function saveCheerSchedule({
   scheduleId,
   teamId,
@@ -85,8 +70,8 @@ export async function saveCheerSchedule({
   requireAdminSession(await getAccountSession())
 
   const normalizedDay = dayOfWeek.trim().toLowerCase()
-  const normalizedStartTime = normalizeTime(startTime)
-  const normalizedEndTime = normalizeTime(endTime)
+  const normalizedStartTime = normalizeLocalTime(startTime)
+  const normalizedEndTime = normalizeLocalTime(endTime)
 
   if (!teamId) {
     return {
