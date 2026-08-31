@@ -16,6 +16,7 @@ const teamAccents = [
   "from-purple-500 to-fuchsia-500",
   "from-sky-400 to-purple-500",
   "from-orange-400 to-pink-500",
+  "from-yellow-300 to-orange-500"
 ];
 
 const programHighlights = [
