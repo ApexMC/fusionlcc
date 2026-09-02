@@ -53,7 +53,6 @@ const statuses = ["all", "pending", "approved", "active", "denied", "canceled"] 
 type CreateEnrollmentDraft = {
   athleteId: string
   parentId: string | null
-  classId: string
   scheduleId: string
   status: string
 }
@@ -153,7 +152,6 @@ function getCreateDraft(
   return {
     athleteId: athletes[0]?.athleteId ?? "",
     parentId: athletes[0]?.parentId ?? "",
-    classId: schedules[0]?.classId ?? "",
     scheduleId: schedules[0]?.scheduleId ?? "",
     status: "active",
   }
@@ -681,7 +679,7 @@ export function EnrollmentManagement({
       })
       setLocalStatuses((current) => ({
         ...current,
-        [enrollmentId]: nextStatus,
+        [enrollmentId]: result.status ?? nextStatus,
       }))
       router.refresh()
     } catch (error) {

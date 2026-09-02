@@ -82,6 +82,7 @@ export type EnrollmentRecord = {
   class_id?: string | number | null
   schedule_id?: string | number | null
   athlete_id?: string | number | null
+  parent_id?: string | number | null
   status?: EnrollmentStatus | null
   selection_required?: boolean | null
   created_at?: string | null

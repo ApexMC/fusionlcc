@@ -5,6 +5,7 @@ import {
   ensureApprovedEnrollment,
   ensureNoActiveSubscription,
   getClassBillingConfig,
+  getMultiAthleteCouponId,
   getParentEnrollmentPaymentContext,
   saveStripeCustomerId,
 } from "@/lib/account/payments"
@@ -44,6 +45,10 @@ export async function POST(
     const { stripePriceId, billingDay, programType } = getClassBillingConfig(
       context.classRecord
     )
+    const stripeCouponId = await getMultiAthleteCouponId({
+      parentId: context.parent.parent_id,
+      classId: context.enrollment.class_id ?? context.classRecord.class_id,
+    })
     const stripe = getStripe()
     let stripeCustomerId =
       context.parent.stripe_customer_id ??
@@ -89,6 +94,7 @@ export async function POST(
           quantity: 1,
         },
       ],
+      discounts: stripeCouponId ? [{ coupon: stripeCouponId }] : undefined,
       success_url: `${origin}/account?checkout=success&enrollment=${context.enrollment.enrollment_id}`,
       cancel_url: `${origin}/account?checkout=canceled&enrollment=${context.enrollment.enrollment_id}`,
       client_reference_id: String(context.enrollment.enrollment_id),

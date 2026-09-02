@@ -19,6 +19,10 @@ type ActionResult = {
 const adminStatuses = ["pending", "approved", "active", "denied", "canceled"] as const
 type AdminEnrollmentStatus = (typeof adminStatuses)[number]
 
+type EnrollmentStatusActionResult = ActionResult & {
+  status?: AdminEnrollmentStatus
+}
+
 type AvailableClassSchedule = {
   scheduleId: string
   classId: string | null
@@ -97,6 +101,7 @@ type EnrollmentDecisionSchedule = {
 
 type EnrollmentDecisionRecord = {
   enrollment_id: string | number
+  athlete_id?: string | number | null
   class_id?: string | number | null
   schedule_id?: string | number | null
   status?: string | null
@@ -109,6 +114,7 @@ type EnrollmentDecisionRecord = {
 
 type EnrollmentDecisionContext = {
   enrollmentId: string
+  athleteId: string | null
   previousStatus: string
   athleteName: string
   parentName: string
@@ -357,6 +363,7 @@ async function getEnrollmentDecisionContext(
     .select(
       `
         enrollment_id,
+        athlete_id,
         class_id,
         schedule_id,
         status,
@@ -405,6 +412,7 @@ async function getEnrollmentDecisionContext(
     ok: true,
     context: {
       enrollmentId: String(enrollment.enrollment_id),
+      athleteId: toId(enrollment.athlete_id),
       previousStatus: enrollment.status?.trim().toLowerCase() || "unknown",
       athleteName: getDisplayName(
         athlete?.first_name,
@@ -428,9 +436,11 @@ async function getEnrollmentDecisionContext(
 function buildEnrollmentDecisionMessage({
   context,
   status,
+  hasCheerEnrollment,
 }: {
   context: EnrollmentDecisionContext
   status: EnrollmentDecisionStatus
+  hasCheerEnrollment: boolean
 }) {
   const decisionLine =
     status === "approved"
@@ -452,7 +462,9 @@ function buildEnrollmentDecisionMessage({
 
   if (status === "approved") {
     lines.push(
-      "Please sign in to your account to review the enrollment and complete any payment setup if requested."
+      hasCheerEnrollment
+        ? `No payment is required for this class enrollment because ${context.athleteName} already has a cheer enrollment.`
+        : "Please sign in and visit your account dashboard to complete payment setup for this enrollment."
     )
   } else {
     lines.push(
@@ -468,9 +480,11 @@ function buildEnrollmentDecisionMessage({
 async function sendEnrollmentDecisionEmail({
   context,
   status,
+  hasCheerEnrollment,
 }: {
   context: EnrollmentDecisionContext
   status: EnrollmentDecisionStatus
+  hasCheerEnrollment: boolean
 }) {
   if (!context.parentEmail) {
     return {
@@ -489,7 +503,11 @@ async function sendEnrollmentDecisionEmail({
       email: process.env.CONTACT_FROM_EMAIL,
       to: context.parentEmail,
       subject,
-      message: buildEnrollmentDecisionMessage({ context, status }),
+      message: buildEnrollmentDecisionMessage({
+        context,
+        status,
+        hasCheerEnrollment,
+      }),
     })
   } catch (error) {
     return {
@@ -507,7 +525,7 @@ async function sendEnrollmentDecisionEmail({
 async function updateEnrollmentStatus(
   enrollmentId: string,
   status: AdminEnrollmentStatus
-): Promise<ActionResult> {
+): Promise<EnrollmentStatusActionResult> {
   const session = requireAdminSession(await getAccountSession())
   const normalizedEnrollmentId = enrollmentId.trim()
 
@@ -528,9 +546,37 @@ async function updateEnrollmentStatus(
   }
 
   const supabase = createAdminClient()
+  let nextStatus = status
+  let hasCheerEnrollment = false
+
+  if (
+    status === "approved" &&
+    contextResult.context.previousStatus === "pending" &&
+    contextResult.context.athleteId
+  ) {
+    const { data: cheerEnrollments, error: cheerEnrollmentError } =
+      await supabase
+        .from("CheerEnrollments")
+        .select("enrollment_id")
+        .eq("athlete_id", contextResult.context.athleteId)
+        .limit(1)
+
+    if (cheerEnrollmentError) {
+      return {
+        ok: false,
+        message: cheerEnrollmentError.message,
+      }
+    }
+
+    if (cheerEnrollments?.length) {
+      hasCheerEnrollment = true
+      nextStatus = "active"
+    }
+  }
+
   const { error } = await supabase
     .from("Enrollments")
-    .update({ status })
+    .update({ status: nextStatus })
     .eq("enrollment_id", normalizedEnrollmentId)
 
   if (error) {
@@ -541,7 +587,7 @@ async function updateEnrollmentStatus(
   }
 
   const actor = session.roles.includes("owner") ? "owner" : "admin"
-  const baseMessage = `Enrollment ${status} by ${actor}.`
+  const baseMessage = `Enrollment ${nextStatus} by ${actor}.`
   let emailMessage: string | null = null
   let warning: string | undefined
 
@@ -554,6 +600,7 @@ async function updateEnrollmentStatus(
     const emailResult = await sendEnrollmentDecisionEmail({
       context: contextResult.context,
       status,
+      hasCheerEnrollment,
     })
 
     if (emailResult.ok) {
@@ -569,6 +616,7 @@ async function updateEnrollmentStatus(
     ok: true,
     message: emailMessage ? `${baseMessage} ${emailMessage}` : baseMessage,
     warning,
+    status: nextStatus,
   }
 }
 
@@ -600,13 +648,11 @@ export async function updateEnrollmentAdminStatus({
 export async function createAdminEnrollment({
   athleteId,
   parentId,
-  classId,
   scheduleId,
   status,
 }: {
   athleteId: string
   parentId?: string | null
-  classId: string
   scheduleId: string
   status: string
 }): Promise<ActionResult & { enrollmentId?: string }> {
@@ -614,14 +660,13 @@ export async function createAdminEnrollment({
 
   const normalizedAthleteId = athleteId.trim()
   const normalizedScheduleId = scheduleId.trim()
-  const normalizedClassId = classId.toString().trim()
   const normalizedParentId = parentId?.trim() || null
   const normalizedStatus = status.trim().toLowerCase()
 
-  if (!normalizedAthleteId || !normalizedScheduleId || !normalizedClassId) {
+  if (!normalizedAthleteId || !normalizedScheduleId) {
     return {
       ok: false,
-      message: "Choose an athlete, class, and class schedule before creating an enrollment.",
+      message: "Choose an athlete and class schedule before creating an enrollment.",
     }
   }
 
@@ -655,12 +700,14 @@ export async function createAdminEnrollment({
     }
   }
 
-  if (scheduleRecord.classId !== normalizedClassId) {
+  if (!scheduleRecord.classId) {
     return {
       ok: false,
-      message: "Choose a schedule that belongs to the selected class.",
+      message: "Choose a schedule assigned to a class.",
     }
   }
+
+  const normalizedClassId = scheduleRecord.classId
 
   const resolvedParentId =
     normalizedParentId ??

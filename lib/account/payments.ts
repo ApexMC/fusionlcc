@@ -15,8 +15,10 @@ import { getPeriodDate } from "@/lib/stripe/server"
 
 const paymentEnrollmentSelect = `
   enrollment_id,
+  class_id,
   schedule_id,
   athlete_id,
+  parent_id,
   status,
   stripe_customer_id,
   stripe_subscription_id,
@@ -188,6 +190,78 @@ export function getClassBillingConfig(classRecord: ClassRecord) {
     billingDay: monthlyBillingDay,
     programType,
   }
+}
+
+type MultiAthleteDiscountTier = "2" | "3+"
+
+export function getMultiAthleteDiscountTier(
+  activeEnrollmentCount: number
+): MultiAthleteDiscountTier | null {
+  if (activeEnrollmentCount < 1) {
+    return null
+  }
+
+  return activeEnrollmentCount === 1 ? "2" : "3+"
+}
+
+export async function getMultiAthleteCouponId({
+  parentId,
+  classId,
+}: {
+  parentId: string | number
+  classId: string | number
+}): Promise<string | null> {
+  const supabase = createAdminClient()
+  const { count, error: enrollmentError } = await supabase
+    .from("Enrollments")
+    .select("enrollment_id", { count: "exact", head: true })
+    .eq("parent_id", parentId)
+    .eq("status", "active")
+
+  if (enrollmentError) {
+    throw new Error(
+      `Unable to determine the multi-athlete discount: ${enrollmentError.message}`
+    )
+  }
+
+  const athleteCount = getMultiAthleteDiscountTier(count ?? 0)
+
+  if (!athleteCount) {
+    return null
+  }
+
+  let couponQuery = supabase
+    .from("Coupons")
+    .select("stripe_coupon_id")
+    .eq("athlete_count", athleteCount)
+
+  if (athleteCount === "3+") {
+    couponQuery = couponQuery.eq("class_id", classId)
+  }
+
+  const { data: coupon, error: couponError } =
+    await couponQuery.maybeSingle()
+
+  if (couponError) {
+    throw new Error(
+      `Unable to find the multi-athlete coupon: ${couponError.message}`
+    )
+  }
+
+  const stripeCouponId =
+    typeof coupon?.stripe_coupon_id === "string"
+      ? coupon.stripe_coupon_id.trim()
+      : ""
+
+  if (!stripeCouponId) {
+    throw new Error(
+      athleteCount === "3+"
+        ? "No 3+-athlete coupon is configured for this class."
+        : "No 2-athlete coupon is configured."
+    )
+  }
+
+  return stripeCouponId
 }
 
 export async function saveStripeCustomerId({
