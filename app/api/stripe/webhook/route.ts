@@ -65,7 +65,7 @@ async function updateParentBalance(customer: Stripe.Customer) {
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("Parents")
-    .update({ balance: customer.balance / 100 })
+    .update({ balance: (customer.balance * -1) / 100 })
     .eq("stripe_customer_id", customer.id)
 
   if (error) {

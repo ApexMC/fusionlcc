@@ -456,9 +456,9 @@ function getParentDashboardStats({
                       ? "Outstanding balance"
                       : "No balance due",
             tone:
-                typeof balance === "number" && balance > 0
+                typeof balance === "number" && balance < 0
                     ? "warning"
-                    : typeof balance === "number"
+                    : typeof balance === "number" && balance > 0
                       ? "success"
                       : "default",
         },
@@ -579,7 +579,7 @@ export default async function AccountPage() {
                             </div>
                             <div className={cn(
                                     "flex items-center gap-2 rounded-lg border bg-background p-3 sm:col-span-2",
-                                    typeof parent?.balance === "number" && parent.balance > 0
+                                    typeof parent?.balance === "number" && parent.balance < 0
                                         ? "border-amber-300/60 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/20"
                                         : "border-emerald-300/60 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/50"
                                 )}>
