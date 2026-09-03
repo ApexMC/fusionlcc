@@ -2,14 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, FormEvent, useEffect } from "react";
+import { useState, FormEvent, useEffect, useRef } from "react";
 import createClient from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes"
 import US_STATES from "@/utils/us_states";
-import { useToast } from "@/components/ui/toast";
 import { SmartSelect } from "@/components/ui/smart-select";
 import { TriangleAlert } from "lucide-react";
+
+const REGISTRATION_COOLDOWN_MS = 3 * 60 * 1000;
+const REGISTRATION_COOLDOWN_KEY = "fusionlcc:registration-cooldown-until";
+
+function formatCooldown(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  return `Retry in ${minutes}m ${seconds % 60}s`;
+}
 
 function formatPhoneInput(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -35,8 +41,48 @@ export default function SignInPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState<number | null>(null);
+  const cooldownEndsAt = useRef(0);
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    try {
+      const storedCooldown = Number(
+        window.localStorage.getItem(REGISTRATION_COOLDOWN_KEY)
+      );
+      if (Number.isFinite(storedCooldown)) {
+        cooldownEndsAt.current = storedCooldown;
+      }
+    } catch {
+      // Continue with an in-memory cooldown if storage is unavailable.
+    }
+
+    const updateCooldown = () => {
+      const remaining = Math.max(
+        0,
+        Math.ceil((cooldownEndsAt.current - Date.now()) / 1000)
+      );
+      setCooldownSeconds(remaining);
+
+      if (remaining === 0 && cooldownEndsAt.current !== 0) {
+        cooldownEndsAt.current = 0;
+        try {
+          window.localStorage.removeItem(REGISTRATION_COOLDOWN_KEY);
+        } catch {
+          // Storage is optional; the in-memory cooldown still works.
+        }
+      }
+    };
+
+    const initialUpdate = window.setTimeout(updateCooldown, 0);
+    const countdown = window.setInterval(updateCooldown, 1000);
+
+    return () => {
+      window.clearTimeout(initialUpdate);
+      window.clearInterval(countdown);
+    };
+  }, []);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhone(formatPhoneInput(e.target.value));
@@ -48,7 +94,7 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -56,20 +102,17 @@ export default function SignInPage() {
 
       router.push("/");
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {
       setLoading(false);
     }
   };
 
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const { toast } = useToast()
-
   const handleSignUp = async (e: FormEvent) => {
     e.preventDefault();
+    if (cooldownSeconds === null || cooldownSeconds > 0) return;
+
     setError("");
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -81,7 +124,7 @@ export default function SignInPage() {
       const callbackUrl = new URL("/auth/callback", window.location.origin);
       callbackUrl.searchParams.set("next", "/login");
 
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -101,9 +144,21 @@ export default function SignInPage() {
 
       if (error) throw error;
 
-      setError("Check your email to confirm your account!");
-    } catch (err: any) {
-      setError(err.message || "Failed to sign up");
+      const cooldownUntil = Date.now() + REGISTRATION_COOLDOWN_MS;
+      cooldownEndsAt.current = cooldownUntil;
+      setCooldownSeconds(Math.ceil(REGISTRATION_COOLDOWN_MS / 1000));
+      try {
+        window.localStorage.setItem(
+          REGISTRATION_COOLDOWN_KEY,
+          String(cooldownUntil)
+        );
+      } catch {
+        // Storage is optional; the in-memory cooldown still works.
+      }
+
+      setError("Check your email to confirm your account! Be sure to check your spam folder.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to sign up");
     } finally {
       setLoading(false);
     }
@@ -232,16 +287,6 @@ export default function SignInPage() {
             <p className="mt-3 text-center text-zinc-600 dark:text-zinc-400">
               Join Limitless Cheer Co. today!
             </p>
-
-            {error && (
-              <div className={`rounded-lg p-3 text-sm ${
-                error.includes("Check your email") 
-                  ? "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400"
-                  : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
-              }`}>
-                {error}
-              </div>
-            )}
 
             <div className="space-y-5">
               <div className="flex flex-col md:flex-row gap-4">
@@ -405,11 +450,27 @@ export default function SignInPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={
+                  loading || cooldownSeconds === null || cooldownSeconds > 0
+                }
                 className="w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? "Signing Up..." : "Sign Up"}
+                {loading
+                  ? "Signing Up..."
+                  : cooldownSeconds && cooldownSeconds > 0
+                    ? formatCooldown(cooldownSeconds)
+                    : "Sign Up"}
               </button>
+
+              {error && (
+                <div className={`rounded-lg p-3 text-sm ${
+                  error.includes("Check your email") 
+                    ? "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400"
+                    : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+                }`}>
+                  {error}
+                </div>
+              )}
             </div>
           </form>
         )}

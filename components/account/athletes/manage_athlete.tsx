@@ -62,6 +62,7 @@ export default function ManageAthleteCard({
 
     const dialogOpen = open ?? internalOpen
     const handleOpenChange = (nextOpen: boolean) => {
+      setError(null)
       if (open === undefined) {
         setInternalOpen(nextOpen)
       }
@@ -74,14 +75,20 @@ export default function ManageAthleteCard({
     setError(null)
 
     const form = new FormData(e.currentTarget)
-    const first_name = form.get("first_name")?.toString() ?? ""
-    const last_name = form.get("last_name")?.toString() ?? ""
+    const first_name = form.get("first_name")?.toString().trim() ?? ""
+    const last_name = form.get("last_name")?.toString().trim() ?? ""
     const phone = form.get("phone")?.toString() ?? ""
     const dob = form.get("dob")?.toString() ?? ""
     const shirt_size = shirtSize ?? ""
     const user_id = userId
     const parent_id = parentId
     const gender = genderSelection ?? ""
+
+    if (!first_name || !last_name) {
+        setLoading(false)
+        setError("First and last name are required.")
+        return
+    }
 
     const { error } = athleteId ? await supabase
       .from("Athletes")
@@ -133,13 +140,13 @@ export default function ManageAthleteCard({
                         {athleteId ? "Edit Athlete" : "Add Athlete"}
                     </DialogTitle>
                     <DialogDescription>
-                    {athleteId ? null : "Add a new athlete to your account. You are only billed for athletes currently enrolled in classes or cheer."}
+                    {athleteId ? null : "You are only billed for athletes with active enrollments in gymnastics or cheer"}
                     </DialogDescription>
                 </DialogHeader>
                 <FieldGroup className="mb-6 no-scrollbar max-h-[70vh] overflow-y-auto mt-6">
                     <Field>
                         <Label htmlFor="first-name-1">First Name</Label>
-                        <Input id="first-name-1" name="first_name" defaultValue={first_name ?? ""} placeholder="Jane"/>
+                        <Input id="first-name-1" name="first_name" defaultValue={first_name ?? ""} placeholder="Jane" required/>
                     </Field>
                     <Field>
                         <Label htmlFor="last-name-1">Last Name</Label>

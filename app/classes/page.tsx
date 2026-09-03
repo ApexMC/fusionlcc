@@ -1,7 +1,8 @@
-import { CalendarDays } from "lucide-react"
+import { BadgeDollarSign, CalendarDays } from "lucide-react"
 import Link from "next/link"
 
 import ClassCard from "@/components/classes/class_card"
+import MultiAthleteDiscountTable from "@/components/classes/multi_athlete_discount_table"
 import { getPublicClasses } from "@/lib/classes/data"
 
 export default async function ClassSchedules() {
@@ -13,13 +14,22 @@ export default async function ClassSchedules() {
         <h1 className="mx-auto text-center text-4xl font-bold text-zinc-800 dark:text-zinc-200">
           Classes
         </h1>
-        <Link
-          href="/classes/calendar"
-          className="mt-6 inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-purple-600/20 transition-all hover:-translate-y-0.5 hover:bg-purple-700 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:outline-none dark:bg-purple-500 dark:hover:bg-purple-400"
-        >
-          <CalendarDays className="size-4" aria-hidden="true" />
-          View Calendar
-        </Link>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Link
+            href="/classes/calendar"
+            className="inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-purple-600/20 transition-all hover:-translate-y-0.5 hover:bg-purple-700 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:outline-none dark:bg-purple-500 dark:hover:bg-purple-400"
+          >
+            <CalendarDays className="size-4" aria-hidden="true" />
+            View Calendar
+          </Link>
+          <a
+            href="#multi-athlete-discounts"
+            className="inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-purple-600/20 transition-all hover:-translate-y-0.5 hover:bg-purple-700 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:outline-none dark:bg-purple-500 dark:hover:bg-purple-400"
+          >
+            <BadgeDollarSign className="size-4" aria-hidden="true" />
+            Discounts
+          </a>
+        </div>
         <p className="mt-6 mb-12 max-w-2xl text-center text-zinc-600 dark:text-zinc-400">
           <span className="text-orange-400">Placement Note:</span> Athletes may
           be evaluated by our coaching staff to ensure placement in the class
@@ -49,6 +59,10 @@ export default async function ClassSchedules() {
             No classes are available right now.
           </div>
         )}
+
+        {classes.length ? (
+          <MultiAthleteDiscountTable classes={classes} />
+        ) : null}
       </main>
     </div>
   )

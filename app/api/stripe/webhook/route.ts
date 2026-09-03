@@ -2,7 +2,10 @@ import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
 import { createAdminClient } from "@/lib/supabase/admin"
-import { updateEnrollmentFromSubscription } from "@/lib/account/payments"
+import {
+  normalizeEnrollmentPaymentStatus,
+  updateEnrollmentFromSubscription,
+} from "@/lib/account/payments"
 import { getStripe } from "@/lib/stripe/server"
 
 export const runtime = "nodejs"
@@ -48,7 +51,9 @@ async function updatePaymentStatusBySubscription({
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("Enrollments")
-    .update({ payment_status: paymentStatus })
+    .update({
+      payment_status: normalizeEnrollmentPaymentStatus(paymentStatus),
+    })
     .eq("stripe_subscription_id", subscriptionId)
 
   if (error) {

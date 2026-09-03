@@ -66,6 +66,14 @@ function normalizeProgramType(value: string | null | undefined) {
   return normalized
 }
 
+export function normalizeEnrollmentPaymentStatus(
+  paymentStatus: string | null | undefined
+) {
+  return paymentStatus === "no_payment_required"
+    ? "upcoming"
+    : paymentStatus ?? null
+}
+
 export type ParentEnrollmentPaymentContext = {
   userId: string
   enrollment: EnrollmentRecord
@@ -410,7 +418,7 @@ export async function updateEnrollmentFromSubscription({
       subscription_status: subscription.status,
       current_period_start: period.currentPeriodStart,
       current_period_end: period.currentPeriodEnd,
-      payment_status: paymentStatus ?? null,
+      payment_status: normalizeEnrollmentPaymentStatus(paymentStatus),
     })
     .eq("enrollment_id", enrollmentId)
 

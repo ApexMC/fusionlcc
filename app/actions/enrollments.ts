@@ -576,7 +576,10 @@ async function updateEnrollmentStatus(
 
   const { error } = await supabase
     .from("Enrollments")
-    .update({ status: nextStatus })
+    .update({
+      status: nextStatus,
+      ...(hasCheerEnrollment ? { payment_status: "not required" } : {}),
+    })
     .eq("enrollment_id", normalizedEnrollmentId)
 
   if (error) {
