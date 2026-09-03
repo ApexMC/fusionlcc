@@ -452,9 +452,9 @@ function getParentDashboardStats({
             detail:
                 typeof balance !== "number"
                     ? "Balance not available"
-                    : balance > 0
+                    : balance < 0
                       ? "Outstanding balance"
-                      : "No balance due",
+                      : "Automatically applied to next payment",
             tone:
                 typeof balance === "number" && balance < 0
                     ? "warning"
@@ -586,7 +586,7 @@ export default async function AccountPage() {
                                 <CircleDollarSign className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                                 <div className="min-w-0">
                                     <div className="text-xs text-muted-foreground">
-                                        Outstanding Balance
+                                        Account Balance
                                     </div>
                                     <div className="text-sm font-medium">
                                         {typeof parent?.balance === "number" ? formatCurrency(parent.balance) : "Not provided"}
