@@ -446,7 +446,7 @@ function getParentDashboardStats({
             tone: counts.pending ? "warning" : "success",
         },
         {
-            label: "Account balance",
+            label: typeof balance === "number" && balance < 0 ? "Account Balance" : "Account Credit",
             value: formatCurrency(balance),
             href: "#family-profile",
             detail:
