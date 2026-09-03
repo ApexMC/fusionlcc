@@ -61,6 +61,18 @@ async function updatePaymentStatusBySubscription({
   }
 }
 
+async function updateParentBalance(customer: Stripe.Customer) {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from("Parents")
+    .update({ balance: customer.balance / 100 })
+    .eq("stripe_customer_id", customer.id)
+
+  if (error) {
+    throw new Error(error.message)
+  }
+}
+
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const enrollmentId =
     session.metadata?.enrollment_id ?? session.client_reference_id
@@ -168,6 +180,9 @@ export async function POST(request: Request) {
 
   try {
     switch (event.type) {
+      case "customer.updated":
+        await updateParentBalance(event.data.object as Stripe.Customer)
+        break
       case "checkout.session.completed":
         await handleCheckoutCompleted(
           event.data.object as Stripe.Checkout.Session
