@@ -6,6 +6,11 @@ import {
   normalizeEnrollmentPaymentStatus,
   updateEnrollmentFromSubscription,
 } from "@/lib/account/payments"
+import {
+  findCheerEnrollmentIdBySubscription,
+  splitAndFinalizeCheerCheckout,
+  updateCheerEnrollmentFromSubscription,
+} from "@/lib/account/cheer-payments"
 import { getStripe } from "@/lib/stripe/server"
 
 export const runtime = "nodejs"
@@ -74,6 +79,27 @@ async function updateParentBalance(customer: Stripe.Customer) {
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  if (session.metadata?.enrollment_kind === "cheer") {
+    const enrollmentId =
+      session.metadata.cheer_enrollment_id ?? session.client_reference_id
+    const tuitionPriceId = session.metadata.tuition_price_id
+    const feePriceId = session.metadata.fee_price_id
+
+    if (!enrollmentId || !tuitionPriceId || !feePriceId) {
+      throw new Error(
+        "Completed cheer Checkout session is missing billing metadata."
+      )
+    }
+
+    await splitAndFinalizeCheerCheckout({
+      session,
+      enrollmentId,
+      tuitionPriceId,
+      feePriceId,
+    })
+    return
+  }
+
   const enrollmentId =
     session.metadata?.enrollment_id ?? session.client_reference_id
   const subscriptionId = getStripeId(session.subscription)
@@ -105,6 +131,19 @@ async function handleSubscriptionEvent(
   subscription: Stripe.Subscription,
   type: Stripe.Event.Type
 ) {
+  const cheerEnrollmentId =
+    subscription.metadata?.cheer_enrollment_id ??
+    (await findCheerEnrollmentIdBySubscription(subscription.id))
+
+  if (cheerEnrollmentId) {
+    await updateCheerEnrollmentFromSubscription({
+      enrollmentId: cheerEnrollmentId,
+      customerId: getStripeId(subscription.customer),
+      subscription,
+    })
+    return
+  }
+
   const enrollmentId =
     subscription.metadata?.enrollment_id ??
     (await findEnrollmentIdBySubscription(subscription.id))
@@ -134,6 +173,20 @@ async function handleInvoiceEvent(
 
   const stripe = getStripe()
   const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+  const cheerEnrollmentId =
+    subscription.metadata?.cheer_enrollment_id ??
+    (await findCheerEnrollmentIdBySubscription(subscription.id))
+
+  if (cheerEnrollmentId) {
+    await updateCheerEnrollmentFromSubscription({
+      enrollmentId: cheerEnrollmentId,
+      customerId: getStripeId(invoice.customer),
+      subscription,
+      paymentStatus,
+    })
+    return
+  }
+
   const enrollmentId =
     subscription.metadata?.enrollment_id ??
     (await findEnrollmentIdBySubscription(subscription.id))

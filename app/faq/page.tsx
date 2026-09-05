@@ -16,17 +16,17 @@ export default function FAQ() {
         <FAQCard
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I pay for gymnastics classes?"
-          answer={<span>Once an enrollment request has been approved by our staff, you can then begin payment for the enrollment on your <Link className="text-purple-400" href="/account">account dashboard</Link>. Payments for gymnastics classes are now structured as monthly subscriptions. This allows for consistent scheduling and replaces the need for manual monthly invoicing. Classes are billed monthly on the 1st, so starting payment for a new enrollment will present as $0.00 today, then the full monthly amount on the 1st of the following month. Once you've subscribed to your class plan, your enrollment becomes active and your athlete is placed on the roster for the session time you selected.</span>}
+          answer={<span>Once an enrollment request has been approved by our staff, you can then begin payment for the enrollment on your <Link className="text-purple-400" href="/account">account dashboard</Link>. Payments for gymnastics classes are now structured as monthly subscriptions. This allows for consistent scheduling and replaces the need for manual monthly invoicing. Classes are billed monthly on the 1st, so starting payment for a new enrollment will present as $0.00 today, then the full monthly amount on the 1st of the following month. Once you&apos;ve subscribed to your class plan, your enrollment becomes active and your athlete is placed on the roster for the session time you selected.</span>}
         />
         <FAQCard 
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I pay for competitive cheer?"
-          answer={<span>Currently, cheer payments are still processed through <Link className="text-purple-400" href="https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310">JackRabbit</Link>. Cheer will be transitioned to our new in-house payment platform in the near future, however until that time, continue to access their platform to process payments.</span>}
+          answer={<span>Once a cheer enrollment is approved, select Pay on your <Link className="text-purple-400" href="/account">account dashboard</Link> to complete Stripe Checkout. Checkout includes both the monthly tuition and cheer fee. Tuition renews on the 1st and cheer fees renew on the 15th, with no prorated charge when billing starts.</span>}
         />
         <FAQCard 
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I manage my subscriptions?"
-          answer={<span>Managing your subscriptions is done through your <Link className="text-purple-400" href="/account">account dashboard</Link>. Scroll to the enrollments section and select the "Manage" button on any active enrollment. This will direct you to our payment portal where you can cancel active subscriptions or update on file payment methods.</span>}
+          answer={<span>Managing your subscriptions is done through your <Link className="text-purple-400" href="/account">account dashboard</Link>. Scroll to the enrollments section and select the &quot;Manage&quot; button on any active enrollment. This will direct you to our payment portal where you can cancel active subscriptions or update on file payment methods.</span>}
         />
         <FAQCard
           icon={<Minus className="w-5 h-5 text-black dark:text-white" />}

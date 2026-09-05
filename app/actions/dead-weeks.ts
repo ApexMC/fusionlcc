@@ -15,7 +15,7 @@ type ActionResult = {
   message: string
 }
 
-const deadPeriodLeadTimeDays = 31
+const deadPeriodLeadTimeDays = 1
 
 function normalizeDateInput(value: string) {
   const normalized = value.trim()
@@ -49,7 +49,7 @@ export async function saveDeadPeriod({
   if (normalizedStartsAt < getMinimumDeadPeriodStartDate()) {
     return {
       ok: false,
-      message: "Start date must be at least 31 days from today.",
+      message: "Start date must be after today.",
     }
   }
 

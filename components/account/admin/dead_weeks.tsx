@@ -48,7 +48,7 @@ type DeadWeekDraft = {
   endsAt: string
 }
 
-const deadPeriodLeadTimeDays = 31
+const deadPeriodLeadTimeDays = 1
 
 function getBlankDraft(): DeadWeekDraft {
   return {

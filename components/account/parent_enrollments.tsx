@@ -153,6 +153,35 @@ export function ParentEnrollments({
     }
   }
 
+  async function openCheerStripeCheckout(
+    enrollment: CheerEnrollmentDisplayRecord
+  ) {
+    const busyId = `cheer-checkout-${enrollment.enrollmentId}`
+    setBusyKey(busyId)
+
+    try {
+      const response = await fetch(
+        `/api/cheer-enrollments/${enrollment.enrollmentId}/checkout`,
+        { method: "POST" }
+      )
+      const data = (await response.json().catch(() => ({}))) as StripeResponse
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error ?? "Stripe session could not be created.")
+      }
+
+      window.location.assign(data.url)
+    } catch (error) {
+      toast({
+        title: "Unable to start payment",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "error",
+      })
+      setBusyKey(null)
+    }
+  }
+
   async function cancelRequest(enrollment: EnrollmentDisplayRecord) {
     setBusyKey(`cancel-${enrollment.enrollmentId}`)
 
@@ -489,56 +518,88 @@ export function ParentEnrollments({
                 </h3>
                 {athlete.cheerEnrollments.length ? (
                   <div className="space-y-3">
-                    {athlete.cheerEnrollments.map((enrollment) => (
-                      <div
-                        key={enrollment.enrollmentId}
-                        className="rounded-lg border p-3"
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0">
-                            <div className="mb-3 font-medium text-zinc-900 dark:text-zinc-50">
-                              {enrollment.teamName}
-                              {enrollment.scheduleLabel ? (
-                                <span className="ml-2 text-sm font-normal text-zinc-600 dark:text-zinc-400">
-                                  {enrollment.scheduleLabel}
-                                </span>
-                              ) : null}
-                            </div>
-                            <div className="mt-1 flex flex-col gap-2">
-                              <div className="flex flex-row gap-2">
-                                <p className="text-sm text-zinc-900 dark:text-zinc-50">
-                                  Enrollment:
-                                </p>
-                                <EnrollmentStatusBadge
-                                  status={enrollment.status}
-                                />
+                    {athlete.cheerEnrollments.map((enrollment) => {
+                      const canStartSubscription =
+                        enrollment.status === "approved" &&
+                        !enrollment.tuitionSubscriptionId &&
+                        !enrollment.feeSubscriptionId
+
+                      return (
+                        <div
+                          key={enrollment.enrollmentId}
+                          className="rounded-lg border p-3"
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <div className="mb-3 font-medium text-zinc-900 dark:text-zinc-50">
+                                {enrollment.teamName}
+                                {enrollment.scheduleLabel ? (
+                                  <span className="ml-2 text-sm font-normal text-zinc-600 dark:text-zinc-400">
+                                    {enrollment.scheduleLabel}
+                                  </span>
+                                ) : null}
                               </div>
-                              {enrollment.subscriptionStatus ? (
+                              <div className="mt-1 flex flex-col gap-2">
                                 <div className="flex flex-row gap-2">
                                   <p className="text-sm text-zinc-900 dark:text-zinc-50">
-                                    Subscription:
+                                    Enrollment:
                                   </p>
                                   <EnrollmentStatusBadge
-                                    status={enrollment.subscriptionStatus}
+                                    status={enrollment.status}
                                   />
                                 </div>
+                                {enrollment.subscriptionStatus ? (
+                                  <div className="flex flex-row gap-2">
+                                    <p className="text-sm text-zinc-900 dark:text-zinc-50">
+                                      Subscriptions:
+                                    </p>
+                                    <EnrollmentStatusBadge
+                                      status={enrollment.subscriptionStatus}
+                                    />
+                                  </div>
+                                ) : enrollment.status === "approved" ? (
+                                  <div className="flex flex-row gap-2">
+                                    <p className="text-sm text-zinc-900 dark:text-zinc-50">
+                                      Subscriptions:
+                                    </p>
+                                    <EnrollmentStatusBadge status="ready_to_pay" />
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 sm:justify-end">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setSelectedCheerEnrollment(enrollment)
+                                }
+                              >
+                                <Eye />
+                                View
+                              </Button>
+                              {canStartSubscription ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={Boolean(busyKey)}
+                                  onClick={() =>
+                                    openCheerStripeCheckout(enrollment)
+                                  }
+                                >
+                                  <CreditCard />
+                                  {busyKey ===
+                                  `cheer-checkout-${enrollment.enrollmentId}`
+                                    ? "Opening"
+                                    : "Pay"}
+                                </Button>
                               ) : null}
                             </div>
                           </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              setSelectedCheerEnrollment(enrollment)
-                            }
-                          >
-                            <Eye />
-                            View
-                          </Button>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
