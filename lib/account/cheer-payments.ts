@@ -136,7 +136,7 @@ export async function getParentCheerEnrollmentPaymentContext(
   const { data, error } = await supabase
     .from("CheerEnrollments")
     .select(
-      "enrollment_id,athlete_id,team_id,parent_id,status,stripe_customer_id,tuition_subscription_id,fee_subscription_id,subscription_status,current_period_start,current_period_end,payment_status"
+      "enrollment_id,athlete_id,team_id,parent_id,status,contract_signed,stripe_customer_id,tuition_subscription_id,fee_subscription_id,subscription_status,current_period_start,current_period_end,payment_status"
     )
     .eq("enrollment_id", enrollmentId)
     .maybeSingle()
@@ -217,6 +217,14 @@ export function ensureApprovedCheerEnrollment(
 ) {
   if (enrollment.status !== "approved") {
     throw new Error("Only approved cheer enrollments can start subscriptions.")
+  }
+}
+
+export function ensureSignedCheerContract(enrollment: CheerEnrollmentRecord) {
+  if (enrollment.contract_signed !== true) {
+    throw new Error(
+      "Review and sign the cheer contract on your account dashboard before starting payment."
+    )
   }
 }
 

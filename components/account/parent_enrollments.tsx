@@ -6,6 +6,7 @@ import {
   CalendarClock,
   CreditCard,
   Eye,
+  FileSignature,
   Settings,
   X,
 } from "lucide-react"
@@ -15,6 +16,7 @@ import {
   cancelEnrollmentRequest,
   selectEnrollmentScheduleSlot,
 } from "@/app/actions/enrollments"
+import { CheerContractDialog } from "@/components/account/cheer_contract_dialog"
 import { EnrollmentStatusBadge } from "@/components/account/enrollment_status_badge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -99,6 +101,11 @@ export function ParentEnrollments({
     React.useState<EnrollmentDisplayRecord | null>(null)
   const [selectedCheerEnrollment, setSelectedCheerEnrollment] =
     React.useState<CheerEnrollmentDisplayRecord | null>(null)
+  const [selectedContractEnrollment, setSelectedContractEnrollment] =
+    React.useState<CheerEnrollmentDisplayRecord | null>(null)
+  const [signedContractIds, setSignedContractIds] = React.useState<
+    Record<string, boolean>
+  >({})
   const [scheduleSelections, setScheduleSelections] = React.useState<
     Record<string, string>
   >({})
@@ -117,6 +124,14 @@ export function ParentEnrollments({
       ).length,
     0
   )
+  const contractEnrollment = selectedContractEnrollment
+    ? {
+        ...selectedContractEnrollment,
+        contractSigned:
+          selectedContractEnrollment.contractSigned ||
+          Boolean(signedContractIds[selectedContractEnrollment.enrollmentId]),
+      }
+    : null
 
   async function openStripeSession(
     enrollment: EnrollmentDisplayRecord,
@@ -519,10 +534,17 @@ export function ParentEnrollments({
                 {athlete.cheerEnrollments.length ? (
                   <div className="space-y-3">
                     {athlete.cheerEnrollments.map((enrollment) => {
+                      const contractSigned =
+                        enrollment.contractSigned ||
+                        Boolean(signedContractIds[enrollment.enrollmentId])
                       const canStartSubscription =
                         enrollment.status === "approved" &&
+                        contractSigned &&
                         !enrollment.tuitionSubscriptionId &&
                         !enrollment.feeSubscriptionId
+                      const canReviewContract = ["approved", "active"].includes(
+                        enrollment.status
+                      )
 
                       return (
                         <div
@@ -562,9 +584,25 @@ export function ParentEnrollments({
                                     <p className="text-sm text-zinc-900 dark:text-zinc-50">
                                       Subscriptions:
                                     </p>
-                                    <EnrollmentStatusBadge status="ready_to_pay" />
+                                    {contractSigned ? (
+                                      <EnrollmentStatusBadge status="ready_to_pay" />
+                                    ) : (
+                                      <Badge variant="warning">
+                                        contract required
+                                      </Badge>
+                                    )}
                                   </div>
                                 ) : null}
+                                <div className="flex flex-row gap-2">
+                                  <p className="text-sm text-zinc-900 dark:text-zinc-50">
+                                    Contract:
+                                  </p>
+                                  <Badge
+                                    variant={contractSigned ? "success" : "warning"}
+                                  >
+                                    {contractSigned ? "signed" : "signature required"}
+                                  </Badge>
+                                </div>
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -579,6 +617,19 @@ export function ParentEnrollments({
                                 <Eye />
                                 View
                               </Button>
+                              {canReviewContract ? (
+                                <Button
+                                  type="button"
+                                  variant={contractSigned ? "outline" : "default"}
+                                  size="sm"
+                                  onClick={() =>
+                                    setSelectedContractEnrollment(enrollment)
+                                  }
+                                >
+                                  <FileSignature />
+                                  {contractSigned ? "View contract" : "Review & sign"}
+                                </Button>
+                              ) : null}
                               {canStartSubscription ? (
                                 <Button
                                   type="button"
@@ -734,6 +785,24 @@ export function ParentEnrollments({
                   </dd>
                 </div>
                 <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Cheer contract</dt>
+                  <dd>
+                    <Badge
+                      variant={
+                        selectedCheerEnrollment.contractSigned ||
+                        signedContractIds[selectedCheerEnrollment.enrollmentId]
+                          ? "success"
+                          : "warning"
+                      }
+                    >
+                      {selectedCheerEnrollment.contractSigned ||
+                      signedContractIds[selectedCheerEnrollment.enrollmentId]
+                        ? "Signed"
+                        : "Signature required"}
+                    </Badge>
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
                   <dt className="text-muted-foreground">Current period</dt>
                   <dd className="text-right">
                     {formatDate(selectedCheerEnrollment.currentPeriodStart)} to{" "}
@@ -745,6 +814,25 @@ export function ParentEnrollments({
           ) : null}
         </DialogContent>
       </Dialog>
+
+      {contractEnrollment ? (
+        <CheerContractDialog
+          enrollment={contractEnrollment}
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedContractEnrollment(null)
+            }
+          }}
+          onSigned={(enrollmentId) => {
+            setSignedContractIds((current) => ({
+              ...current,
+              [enrollmentId]: true,
+            }))
+            router.refresh()
+          }}
+        />
+      ) : null}
     </section>
   )
 }

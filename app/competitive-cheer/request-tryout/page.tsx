@@ -26,7 +26,7 @@ export default async function RequestTryoutPage() {
           Select an athlete from your account and the team they are interested
           in. Our staff will review your request and notify you soon.
           Cheer contract including all pricing information and terms and 
-          conditions will be provided for your review and signature.
+          conditions will be provided for your review and signature upon approval.
         </p>
         <p className="mt-4 max-w-2xl text-center leading-7 text-zinc-600 dark:text-zinc-300">
           

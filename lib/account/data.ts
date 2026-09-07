@@ -105,6 +105,7 @@ const cheerEnrollmentSelect = `
   athlete_id,
   team_id,
   status,
+  contract_signed,
   enrolled_at,
   created_at,
   parent_id,
@@ -416,6 +417,7 @@ function toDisplayCheerEnrollment(
     scheduleId,
     scheduleLabel: schedule?.scheduleLabel ?? null,
     status: enrollment.status ?? "unknown",
+    contractSigned: enrollment.contract_signed === true,
     createdAt: enrollment.created_at ?? enrollment.enrolled_at ?? null,
     stripeCustomerId: enrollment.stripe_customer_id ?? null,
     tuitionSubscriptionId: enrollment.tuition_subscription_id ?? null,
@@ -468,7 +470,9 @@ async function fetchParentAthletes(userId: string) {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("Athletes")
-    .select("athlete_id,user_id,parent_id,first_name,last_name,dob,phone,shirt_size")
+    .select(
+      "athlete_id,user_id,parent_id,first_name,last_name,dob,phone,shirt_size,Parents(parent_id,user_id,first_name,last_name,phone,email)"
+    )
     .eq("user_id", userId)
     .order("last_name", { ascending: true })
 

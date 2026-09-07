@@ -101,6 +101,7 @@ export type CheerEnrollmentRecord = {
   athlete_id?: string | number | null
   team_id?: string | number | null
   status?: EnrollmentStatus | null
+  contract_signed?: boolean | null
   enrolled_at?: string | null
   created_at?: string | null
   parent_id?: string | number | null
@@ -154,6 +155,7 @@ export type CheerEnrollmentDisplayRecord = {
   scheduleId: string | null
   scheduleLabel: string | null
   status: string
+  contractSigned: boolean
   createdAt: string | null
   stripeCustomerId: string | null
   tuitionSubscriptionId: string | null

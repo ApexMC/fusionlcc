@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 
 import {
   ensureApprovedCheerEnrollment,
+  ensureSignedCheerContract,
   ensureNoCheerSubscriptions,
   getCheerBillingConfig,
   getParentCheerEnrollmentPaymentContext,
@@ -38,6 +39,7 @@ export async function POST(
     const { enrollmentId } = await params
     const context = await getParentCheerEnrollmentPaymentContext(enrollmentId)
     ensureApprovedCheerEnrollment(context.enrollment)
+    ensureSignedCheerContract(context.enrollment)
 
     const { tuitionPriceId, feePriceId } = getCheerBillingConfig(context.team)
     const stripe = getStripe()

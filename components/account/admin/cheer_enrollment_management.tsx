@@ -297,9 +297,11 @@ export function CheerEnrollmentManagement({
         [enrollmentId]: nextStatus,
       }))
       toast({
-        title: "Cheer enrollment updated",
-        description: result.message,
-        variant: "success",
+        title: result.warning
+          ? "Cheer enrollment updated; email notice issue"
+          : "Cheer enrollment updated",
+        description: result.warning ?? result.message,
+        variant: result.warning ? "error" : "success",
       })
       router.refresh()
     } catch (caughtError) {
