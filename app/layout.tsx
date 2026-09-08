@@ -8,6 +8,7 @@ import Banner from "@/components/banner/banner";
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ToastProvider } from "@/components/ui/toast";
+import { getAnnouncements } from "@/lib/announcements";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 const inter = Inter({ subsets: ["latin"] });
@@ -28,11 +29,13 @@ export const metadata = {
   manifest: "/manifest.json",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const announcements = await getAnnouncements().catch(() => []);
+
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
       <body className={inter.className}>
@@ -42,7 +45,7 @@ export default function RootLayout({
           enableSystem
         >
           <ToastProvider>
-            <Banner />
+            <Banner announcements={announcements} />
             <Navigation />
             {children}
             <Footer />

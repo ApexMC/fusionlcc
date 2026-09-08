@@ -61,6 +61,7 @@ const adminDashboardSections = [
     adminDashboardRoutes.sessions,
     adminDashboardRoutes.timeClock,
     adminDashboardRoutes.charts,
+    adminDashboardRoutes.announcements,
 ] satisfies DashboardNavItem[];
 
 const coachDashboardSections = [

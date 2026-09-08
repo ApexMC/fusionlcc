@@ -3,6 +3,7 @@ import {
   CalendarDays,
   ClipboardCheck,
   Clock,
+  Megaphone,
   UserRound,
   Users,
 } from "lucide-react"
@@ -46,6 +47,12 @@ export const adminDashboardRoutes = {
     description: "See enrollment status and request trends at a glance.",
     href: "/account/admin/charts",
     icon: BarChart3,
+  },
+  announcements: {
+    title: "Announcements",
+    description: "Create and manage messages shown in the site-wide banner.",
+    href: "/account/admin/announcements",
+    icon: Megaphone,
   },
 } satisfies Record<string, DashboardNavItem>
 
