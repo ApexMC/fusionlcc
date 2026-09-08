@@ -21,7 +21,7 @@ export default function FAQ() {
         <FAQCard 
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I pay for competitive cheer?"
-          answer={<span>Once a cheer enrollment is approved, select Pay on your <Link className="text-purple-400" href="/account">account dashboard</Link> to complete Stripe Checkout. Checkout includes both the monthly tuition and cheer fee. Tuition renews on the 1st and cheer fees renew on the 15th, with no prorated charge when billing starts.</span>}
+          answer={<span>Once a cheer enrollment is approved, navigate to your <Link className="text-purple-400" href="/account">account dashboard</Link> to sign the cheer contract. Once signed you can then select Pay on the enrollment to complete Stripe Checkout. Checkout includes both the monthly tuition and cheer fee. Tuition renews on the 1st and cheer fees renew on the 15th, with no prorated charge when billing starts.<br></br><br></br><span className="text-orange-300">Important Note:</span> During checkout, it may appear that both tuition and cheer fee payments are being billed on the 1st. However, this is a visual inconsistency due to creating multiple subscriptions at once. All items must initially be created with the same billing day, but as soon as the checkout completes, the cheer fee subscription is immediately updated to withdraw on the 15th.</span>}
         />
         <FAQCard 
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
