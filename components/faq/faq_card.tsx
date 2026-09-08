@@ -44,7 +44,7 @@ export default function FAQCard({ icon, question, answer }: FAQCardProps) {
       
       <div
         className={`transition-all duration-300 ease-in-out ${
-          isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+          isOpen ? "max-h-125 opacity-100" : "max-h-0 opacity-0"
         } overflow-hidden`}
       >
         <div className="px-6 pb-4 text-gray-700 dark:text-gray-300 leading-relaxed">
