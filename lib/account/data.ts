@@ -1677,26 +1677,63 @@ function formatCurrencyAmount(cents: number) {
   }).format(cents / 100)
 }
 
+const STRIPE_PROCESSING_RATE = 0.029
+const STRIPE_PROCESSING_FIXED_FEE_CENTS = 30
+const STRIPE_SUBSCRIPTION_RATE = 0.007
+const PLATFORM_FEE_RATE = 0.015
+
+function deductEstimatedRecurringRevenueFees(
+  grossCents: number,
+  monthlyChargeCount: number
+) {
+  const stripeProcessingFeeCents =
+    Math.round(grossCents * STRIPE_PROCESSING_RATE) +
+    monthlyChargeCount * STRIPE_PROCESSING_FIXED_FEE_CENTS
+  const stripeSubscriptionFeeCents = Math.round(
+    grossCents * STRIPE_SUBSCRIPTION_RATE
+  )
+  const platformFeeCents = Math.round(grossCents * PLATFORM_FEE_RATE)
+
+  return Math.max(
+    0,
+    grossCents -
+      stripeProcessingFeeCents -
+      stripeSubscriptionFeeCents -
+      platformFeeCents
+  )
+}
+
 async function estimateMonthlyRecurringRevenue(
-  enrollments: EnrollmentDisplayRecord[]
+  enrollments: EnrollmentDisplayRecord[],
+  cheerEnrollments: CheerEnrollmentDisplayRecord[],
+  cheerBilling: CheerBillingRecord[]
 ) {
   const activeEnrollments = enrollments.filter((enrollment) =>
     ["active", "trialing"].includes(enrollment.subscriptionStatus ?? "")
   )
-  const priceIds = Array.from(
-    new Set(
-      activeEnrollments
-        .map((enrollment) => enrollment.stripePriceId)
-        .filter((priceId): priceId is string => Boolean(priceId))
-    )
+  const activeCheerEnrollments = cheerEnrollments.filter((enrollment) =>
+    ["active", "trialing"].includes(enrollment.subscriptionStatus ?? "")
   )
+  const cheerBillingByTeamId = new Map(
+    cheerBilling.map((team) => [team.teamId, team])
+  )
+  const recurringPriceIds = [
+    ...activeEnrollments.map((enrollment) => enrollment.stripePriceId),
+    ...activeCheerEnrollments.flatMap((enrollment) => {
+      const team = enrollment.teamId
+        ? cheerBillingByTeamId.get(enrollment.teamId)
+        : null
 
-  if (!activeEnrollments.length) {
+      return [team?.tuitionPriceId ?? null, team?.feePriceId ?? null]
+    }),
+  ]
+
+  if (!recurringPriceIds.length) {
     return 0
   }
 
   if (
-    activeEnrollments.some((enrollment) => !enrollment.stripePriceId) ||
+    recurringPriceIds.some((priceId) => !priceId) ||
     !process.env.STRIPE_SECRET_KEY
   ) {
     return null
@@ -1704,6 +1741,10 @@ async function estimateMonthlyRecurringRevenue(
 
   try {
     const stripe = getStripe()
+    const validRecurringPriceIds = recurringPriceIds.filter(
+      (priceId): priceId is string => Boolean(priceId)
+    )
+    const priceIds = Array.from(new Set(validRecurringPriceIds))
     const prices = await Promise.all(
       priceIds.map((priceId) => stripe.prices.retrieve(priceId))
     )
@@ -1713,12 +1754,17 @@ async function estimateMonthlyRecurringRevenue(
         price.recurring?.interval === "month" ? price.unit_amount ?? 0 : 0,
       ])
     )
-
-    return activeEnrollments.reduce(
-      (total, enrollment) =>
-        total +
-        (monthlyAmountByPriceId.get(enrollment.stripePriceId ?? "") ?? 0),
+    const monthlyChargeAmounts = validRecurringPriceIds
+      .map((priceId) => monthlyAmountByPriceId.get(priceId) ?? 0)
+      .filter((amount) => amount > 0)
+    const grossCents = monthlyChargeAmounts.reduce(
+      (total, amount) => total + amount,
       0
+    )
+
+    return deductEstimatedRecurringRevenueFees(
+      grossCents,
+      monthlyChargeAmounts.length
     )
   } catch (error) {
     console.error("Unable to estimate Stripe monthly recurring revenue.", error)
@@ -1757,7 +1803,7 @@ function buildMetrics(
       detail:
         mrrCents === null
           ? "Stripe monthly revenue is currently unavailable"
-          : "Estimated from active monthly Stripe prices",
+          : "After 3.6% Stripe, 1.5% platform, and $0.30/charge fees",
     },
   } satisfies AdminDashboardMetrics
 }
@@ -1905,7 +1951,11 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     schedules: cheerSchedules,
     teamNameById: cheerTeamNameById,
   })
-  const mrrCents = await estimateMonthlyRecurringRevenue(enrollments)
+  const mrrCents = await estimateMonthlyRecurringRevenue(
+    enrollments,
+    cheerEnrollments,
+    cheerBilling
+  )
 
   return {
     metrics: buildMetrics(parents, enrollments, mrrCents),
