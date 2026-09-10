@@ -14,11 +14,6 @@ export const navigationItems = [
     label: "Competitive Cheer",
     showInFooter: true,
   },
-  {
-    href: "https://app.jackrabbitclass.com/portal/pplogin.asp?id=522310",
-    label: "JackRabbit",
-    showInFooter: true,
-  },
 ] satisfies NavigationItem[]
 
 export const footerNavigationItems = navigationItems.filter(
