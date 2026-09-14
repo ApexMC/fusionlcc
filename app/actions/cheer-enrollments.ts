@@ -1,14 +1,17 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import type Stripe from "stripe"
 
 import {
   getAccountSession,
   getParentForUser,
   requireAdminSession,
 } from "@/lib/account/auth"
+import { getCombinedSubscriptionStatus } from "@/lib/account/cheer-payments"
 import { sendContactEmail } from "@/lib/contact/email"
 import { BLOCKED_ENROLLMENT_MESSAGE } from "@/lib/enrollments"
+import { getStripe, getSubscriptionPeriod } from "@/lib/stripe/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 type ActionResult = {
@@ -33,6 +36,26 @@ type CheerEnrollmentDecisionContext = {
   parentName: string
   parentEmail: string | null
   teamName: string
+}
+
+type AvailableCheerSchedule = {
+  scheduleId: string
+  teamId: string | null
+}
+
+type ReassignmentCheerTeamRecord = {
+  team_id: string | number
+  tuition_price_id?: string | null
+  fee_price_id?: string | null
+}
+
+type ReassignmentCheerEnrollmentRecord = {
+  enrollment_id: string | number
+  athlete_id?: string | number | null
+  team_id?: string | number | null
+  schedule_id?: string | number | null
+  tuition_subscription_id?: string | null
+  fee_subscription_id?: string | null
 }
 
 function isAdminEnrollmentStatus(
@@ -69,6 +92,220 @@ function getAccountUrl() {
   }
 
   return "https://fusionlcc.com/account"
+}
+
+async function getAvailableCheerSchedule(
+  scheduleId: string
+): Promise<
+  | (ActionResult & { ok: false })
+  | ({ ok: true; message: string } & AvailableCheerSchedule)
+> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("CheerSchedules")
+    .select("schedule_id,team_id,is_active")
+    .eq("schedule_id", scheduleId)
+    .maybeSingle()
+
+  if (error || !data) {
+    return {
+      ok: false,
+      message: error?.message ?? "Cheer schedule was not found.",
+    }
+  }
+
+  if (data.is_active !== true) {
+    return {
+      ok: false,
+      message: "Choose an active cheer schedule.",
+    }
+  }
+
+  return {
+    ok: true,
+    message: "",
+    scheduleId: String(data.schedule_id),
+    teamId:
+      data.team_id === null || data.team_id === undefined
+        ? null
+        : String(data.team_id),
+  }
+}
+
+function getStripeCustomerId(
+  value: string | { id: string } | null | undefined
+) {
+  if (!value) {
+    return null
+  }
+
+  return typeof value === "string" ? value : value.id
+}
+
+function getCheerReassignmentPriceIds(team: ReassignmentCheerTeamRecord) {
+  const tuitionPriceId = team.tuition_price_id?.trim()
+  const feePriceId = team.fee_price_id?.trim()
+
+  if (!tuitionPriceId || !feePriceId) {
+    throw new Error(
+      "The new cheer team needs both tuition and cheer fee Stripe price IDs before a subscribed enrollment can be reassigned."
+    )
+  }
+
+  if (tuitionPriceId === feePriceId) {
+    throw new Error(
+      "The new cheer team's tuition and cheer fee must use different Stripe price IDs."
+    )
+  }
+
+  return { tuitionPriceId, feePriceId }
+}
+
+function getCheerReassignmentMetadata({
+  subscription,
+  enrollment,
+  team,
+  scheduleId,
+  tuitionPriceId,
+  feePriceId,
+  role,
+}: {
+  subscription: Stripe.Subscription
+  enrollment: ReassignmentCheerEnrollmentRecord
+  team: ReassignmentCheerTeamRecord
+  scheduleId: string
+  tuitionPriceId: string
+  feePriceId: string
+  role: "tuition" | "fee"
+}) {
+  const metadata: Record<string, string> = {
+    ...subscription.metadata,
+    enrollment_kind: "cheer",
+    cheer_enrollment_id: String(enrollment.enrollment_id),
+    team_id: String(team.team_id),
+    schedule_id: scheduleId,
+    subscription_role: role,
+    tuition_price_id: tuitionPriceId,
+    fee_price_id: feePriceId,
+  }
+
+  if (enrollment.athlete_id !== null && enrollment.athlete_id !== undefined) {
+    metadata.athlete_id = String(enrollment.athlete_id)
+  }
+
+  return metadata
+}
+
+async function updateCheerSubscriptionPrice({
+  stripe,
+  subscription,
+  priceId,
+  metadata,
+}: {
+  stripe: Stripe
+  subscription: Stripe.Subscription
+  priceId: string
+  metadata: Record<string, string>
+}) {
+  const subscriptionItems = subscription.items.data
+
+  if (subscriptionItems.length !== 1) {
+    throw new Error(
+      "A cheer Stripe subscription has more than one item. Reassign it in Stripe manually, then update the enrollment."
+    )
+  }
+
+  const subscriptionItem = subscriptionItems[0]
+
+  if (subscriptionItem.price.id === priceId) {
+    return stripe.subscriptions.update(subscription.id, { metadata })
+  }
+
+  return stripe.subscriptions.update(subscription.id, {
+    items: [
+      {
+        id: subscriptionItem.id,
+        price: priceId,
+        quantity: subscriptionItem.quantity ?? 1,
+      },
+    ],
+    metadata,
+    payment_behavior: "allow_incomplete",
+    proration_behavior: "create_prorations",
+  })
+}
+
+async function updateStripeSubscriptionsForCheerReassignment({
+  enrollment,
+  team,
+  scheduleId,
+}: {
+  enrollment: ReassignmentCheerEnrollmentRecord
+  team: ReassignmentCheerTeamRecord
+  scheduleId: string
+}) {
+  const tuitionSubscriptionId = enrollment.tuition_subscription_id?.trim()
+  const feeSubscriptionId = enrollment.fee_subscription_id?.trim()
+
+  if (!tuitionSubscriptionId && !feeSubscriptionId) {
+    return null
+  }
+
+  if (!tuitionSubscriptionId || !feeSubscriptionId) {
+    throw new Error(
+      "This cheer enrollment does not have both Stripe subscriptions attached. Repair its billing records before reassigning it."
+    )
+  }
+
+  if (tuitionSubscriptionId === feeSubscriptionId) {
+    throw new Error(
+      "This cheer enrollment has the same Stripe subscription recorded for tuition and fees. Repair its billing records before reassigning it."
+    )
+  }
+
+  const { tuitionPriceId, feePriceId } = getCheerReassignmentPriceIds(team)
+  const stripe = getStripe()
+  const [tuitionSubscription, feeSubscription] = await Promise.all([
+    stripe.subscriptions.retrieve(tuitionSubscriptionId),
+    stripe.subscriptions.retrieve(feeSubscriptionId),
+  ])
+
+  const [updatedTuitionSubscription, updatedFeeSubscription] =
+    await Promise.all([
+      updateCheerSubscriptionPrice({
+        stripe,
+        subscription: tuitionSubscription,
+        priceId: tuitionPriceId,
+        metadata: getCheerReassignmentMetadata({
+          subscription: tuitionSubscription,
+          enrollment,
+          team,
+          scheduleId,
+          tuitionPriceId,
+          feePriceId,
+          role: "tuition",
+        }),
+      }),
+      updateCheerSubscriptionPrice({
+        stripe,
+        subscription: feeSubscription,
+        priceId: feePriceId,
+        metadata: getCheerReassignmentMetadata({
+          subscription: feeSubscription,
+          enrollment,
+          team,
+          scheduleId,
+          tuitionPriceId,
+          feePriceId,
+          role: "fee",
+        }),
+      }),
+    ])
+
+  return {
+    tuitionSubscription: updatedTuitionSubscription,
+    feeSubscription: updatedFeeSubscription,
+  }
 }
 
 async function getCheerEnrollmentDecisionContext(
@@ -536,6 +773,200 @@ export async function createAdminCheerEnrollment({
     teamId,
     status: normalizedStatus,
   })
+}
+
+export async function reassignCheerEnrollment({
+  enrollmentId,
+  teamId,
+  scheduleId,
+  confirmed,
+}: {
+  enrollmentId: string
+  teamId: string
+  scheduleId: string
+  confirmed: boolean
+}): Promise<ActionResult> {
+  requireAdminSession(await getAccountSession())
+
+  const normalizedEnrollmentId = enrollmentId.trim()
+  const normalizedTeamId = teamId.trim()
+  const normalizedScheduleId = scheduleId.trim()
+
+  if (!confirmed) {
+    return {
+      ok: false,
+      message: "Confirm the Stripe subscription impact before reassigning.",
+    }
+  }
+
+  if (!normalizedEnrollmentId || !normalizedTeamId || !normalizedScheduleId) {
+    return {
+      ok: false,
+      message: "Choose a cheer enrollment, team, and cheer schedule.",
+    }
+  }
+
+  const supabase = createAdminClient()
+  const { data: enrollmentData, error: enrollmentError } = await supabase
+    .from("CheerEnrollments")
+    .select(
+      "enrollment_id,athlete_id,team_id,schedule_id,tuition_subscription_id,fee_subscription_id"
+    )
+    .eq("enrollment_id", normalizedEnrollmentId)
+    .maybeSingle()
+
+  if (enrollmentError || !enrollmentData) {
+    return {
+      ok: false,
+      message: enrollmentError?.message ?? "Cheer enrollment was not found.",
+    }
+  }
+
+  const enrollment = enrollmentData as ReassignmentCheerEnrollmentRecord
+  const scheduleRecord = await getAvailableCheerSchedule(normalizedScheduleId)
+
+  if (!scheduleRecord.ok) {
+    return {
+      ok: false,
+      message: scheduleRecord.message,
+    }
+  }
+
+  if (scheduleRecord.teamId !== normalizedTeamId) {
+    return {
+      ok: false,
+      message: "Choose a schedule that belongs to the selected cheer team.",
+    }
+  }
+
+  if (
+    String(enrollment.team_id ?? "") === normalizedTeamId &&
+    String(enrollment.schedule_id ?? "") === normalizedScheduleId
+  ) {
+    return {
+      ok: false,
+      message: "Choose a different cheer assignment before reassigning.",
+    }
+  }
+
+  const { data: teamData, error: teamError } = await supabase
+    .from("CheerTeams")
+    .select("team_id,tuition_price_id,fee_price_id")
+    .eq("team_id", normalizedTeamId)
+    .maybeSingle()
+
+  if (teamError || !teamData) {
+    return {
+      ok: false,
+      message: teamError?.message ?? "Cheer team was not found.",
+    }
+  }
+
+  const team = teamData as ReassignmentCheerTeamRecord
+
+  if (enrollment.athlete_id !== null && enrollment.athlete_id !== undefined) {
+    const { data: existingEnrollment, error: existingError } = await supabase
+      .from("CheerEnrollments")
+      .select("enrollment_id,status")
+      .eq("athlete_id", String(enrollment.athlete_id))
+      .eq("team_id", normalizedTeamId)
+      .neq("enrollment_id", normalizedEnrollmentId)
+      .in("status", ["pending", "approved", "active"])
+      .limit(1)
+      .maybeSingle()
+
+    if (existingError) {
+      return {
+        ok: false,
+        message: existingError.message,
+      }
+    }
+
+    if (existingEnrollment) {
+      return {
+        ok: false,
+        message: `This athlete already has a ${existingEnrollment.status} enrollment for that cheer team.`,
+      }
+    }
+  }
+
+  let stripeUpdated = false
+  let updatedSubscriptions: Awaited<
+    ReturnType<typeof updateStripeSubscriptionsForCheerReassignment>
+  > = null
+
+  try {
+    updatedSubscriptions =
+      await updateStripeSubscriptionsForCheerReassignment({
+        enrollment,
+        team,
+        scheduleId: normalizedScheduleId,
+      })
+    stripeUpdated = Boolean(updatedSubscriptions)
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Cheer Stripe subscriptions could not be updated.",
+    }
+  }
+
+  const updatePayload: {
+    team_id: string
+    schedule_id: string
+    selection_required: boolean
+    stripe_customer_id?: string | null
+    tuition_subscription_id?: string
+    fee_subscription_id?: string
+    subscription_status?: string
+    current_period_start?: string | null
+    current_period_end?: string | null
+  } = {
+    team_id: normalizedTeamId,
+    schedule_id: normalizedScheduleId,
+    selection_required: false,
+  }
+
+  if (updatedSubscriptions) {
+    const { tuitionSubscription, feeSubscription } = updatedSubscriptions
+    const period = getSubscriptionPeriod(tuitionSubscription)
+    updatePayload.stripe_customer_id =
+      getStripeCustomerId(tuitionSubscription.customer) ??
+      getStripeCustomerId(feeSubscription.customer)
+    updatePayload.tuition_subscription_id = tuitionSubscription.id
+    updatePayload.fee_subscription_id = feeSubscription.id
+    updatePayload.subscription_status = getCombinedSubscriptionStatus(
+      tuitionSubscription,
+      feeSubscription
+    )
+    updatePayload.current_period_start = period.currentPeriodStart
+    updatePayload.current_period_end = period.currentPeriodEnd
+  }
+
+  const { error: updateError } = await supabase
+    .from("CheerEnrollments")
+    .update(updatePayload)
+    .eq("enrollment_id", normalizedEnrollmentId)
+
+  if (updateError) {
+    return {
+      ok: false,
+      message: stripeUpdated
+        ? `Stripe was updated, but the cheer enrollment could not be saved locally: ${updateError.message}`
+        : updateError.message,
+    }
+  }
+
+  revalidateEnrollmentPages()
+
+  return {
+    ok: true,
+    message: stripeUpdated
+      ? "Cheer enrollment reassigned and tuition and cheer fee Stripe subscriptions updated."
+      : "Cheer enrollment reassigned.",
+  }
 }
 
 export async function updateCheerEnrollmentAdminStatus({

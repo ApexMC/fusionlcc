@@ -67,7 +67,7 @@ function getSubscriptionPeriod(subscription: Stripe.Subscription) {
   }
 }
 
-function getCombinedSubscriptionStatus(
+export function getCombinedSubscriptionStatus(
   tuitionSubscription: Stripe.Subscription,
   feeSubscription: Stripe.Subscription
 ) {

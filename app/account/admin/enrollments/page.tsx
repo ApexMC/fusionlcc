@@ -31,6 +31,7 @@ export default async function AdminEnrollmentsPage() {
         enrollments={dashboardData.cheerEnrollments}
         athletes={dashboardData.enrollmentAthletes}
         teams={dashboardData.cheerBilling}
+        schedules={dashboardData.cheerSchedules}
       />
     </AccountDashboardFrame>
   )

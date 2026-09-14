@@ -1,11 +1,20 @@
 "use client"
 
 import * as React from "react"
-import { Check, ChevronDown, Search, SlidersHorizontal, UserPlus, X } from "lucide-react"
+import {
+  ArrowLeftRight,
+  Check,
+  ChevronDown,
+  Search,
+  SlidersHorizontal,
+  UserPlus,
+  X,
+} from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import {
   createAdminCheerEnrollment,
+  reassignCheerEnrollment,
   updateCheerEnrollmentAdminStatus,
 } from "@/app/actions/cheer-enrollments"
 import { EnrollmentStatusBadge } from "@/components/account/enrollment_status_badge"
@@ -37,6 +46,7 @@ import type {
   AdminEnrollmentAthleteOption,
   CheerBillingRecord,
   CheerEnrollmentDisplayRecord,
+  CheerScheduleDisplayRecord,
 } from "@/lib/account/types"
 
 const statuses = [
@@ -47,6 +57,17 @@ const statuses = [
   "denied",
   "canceled",
 ] as const
+
+type CheerReassignmentDraft = {
+  teamId: string
+  scheduleId: string
+  confirmed: boolean
+}
+
+type CheerReassignmentTeamOption = {
+  teamId: string
+  teamName: string
+}
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -82,6 +103,55 @@ function matchesSearch(
   ]
     .filter(Boolean)
     .some((value) => String(value).toLowerCase().includes(normalizedQuery))
+}
+
+function getActiveCheerSchedules(schedules: CheerScheduleDisplayRecord[]) {
+  return schedules.filter((schedule) => schedule.isActive && schedule.teamId)
+}
+
+function getCheerReassignmentTeamOptions(
+  teams: CheerBillingRecord[]
+): CheerReassignmentTeamOption[] {
+  return teams
+    .map((team) => ({ teamId: team.teamId, teamName: team.teamName }))
+    .sort((first, second) => first.teamName.localeCompare(second.teamName))
+}
+
+function getFirstScheduleForCheerTeam(
+  schedules: CheerScheduleDisplayRecord[],
+  teamId: string,
+  currentScheduleId?: string | null
+) {
+  return (
+    schedules.find(
+      (schedule) =>
+        schedule.teamId === teamId &&
+        schedule.scheduleId !== currentScheduleId
+    ) ?? schedules.find((schedule) => schedule.teamId === teamId)
+  )
+}
+
+function getInitialCheerReassignmentDraft(
+  enrollment: CheerEnrollmentDisplayRecord,
+  schedules: CheerScheduleDisplayRecord[],
+  teams: CheerBillingRecord[]
+): CheerReassignmentDraft {
+  const currentTeamId = enrollment.teamId ?? ""
+  const selectedTeamId =
+    teams.find((team) => team.teamId === currentTeamId)?.teamId ??
+    teams[0]?.teamId ??
+    ""
+  const selectedSchedule = getFirstScheduleForCheerTeam(
+    schedules,
+    selectedTeamId,
+    enrollment.scheduleId
+  )
+
+  return {
+    teamId: selectedTeamId,
+    scheduleId: selectedSchedule?.scheduleId ?? "",
+    confirmed: false,
+  }
 }
 
 function CreateCheerEnrollmentDialog({
@@ -230,14 +300,269 @@ function CreateCheerEnrollmentDialog({
   )
 }
 
+function ReassignCheerEnrollmentDialog({
+  enrollment,
+  teams,
+  schedules,
+  disabled,
+  onReassigned,
+}: {
+  enrollment: CheerEnrollmentDisplayRecord
+  teams: CheerBillingRecord[]
+  schedules: CheerScheduleDisplayRecord[]
+  disabled?: boolean
+  onReassigned: () => void
+}) {
+  const activeSchedules = React.useMemo(
+    () => getActiveCheerSchedules(schedules),
+    [schedules]
+  )
+  const teamOptions = React.useMemo(
+    () => getCheerReassignmentTeamOptions(teams),
+    [teams]
+  )
+  const [open, setOpen] = React.useState(false)
+  const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [draft, setDraft] = React.useState<CheerReassignmentDraft>(() =>
+    getInitialCheerReassignmentDraft(enrollment, activeSchedules, teams)
+  )
+  const { toast } = useToast()
+  const selectedTeamSchedules = activeSchedules.filter(
+    (schedule) => schedule.teamId === draft.teamId
+  )
+  const selectedSchedule = activeSchedules.find(
+    (schedule) => schedule.scheduleId === draft.scheduleId
+  )
+  const selectedTeam = teams.find((team) => team.teamId === draft.teamId)
+  const changed = Boolean(
+    selectedSchedule &&
+      (selectedSchedule.teamId !== enrollment.teamId ||
+        selectedSchedule.scheduleId !== enrollment.scheduleId)
+  )
+  const canSubmit = Boolean(
+    selectedSchedule && changed && draft.confirmed && !loading
+  )
+
+  function resetDraft() {
+    setDraft(
+      getInitialCheerReassignmentDraft(enrollment, activeSchedules, teams)
+    )
+    setError(null)
+  }
+
+  function setTeamId(teamId: string) {
+    const nextSchedule = getFirstScheduleForCheerTeam(
+      activeSchedules,
+      teamId,
+      enrollment.scheduleId
+    )
+
+    setDraft({
+      teamId,
+      scheduleId: nextSchedule?.scheduleId ?? "",
+      confirmed: false,
+    })
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    try {
+      const result = await reassignCheerEnrollment({
+        enrollmentId: enrollment.enrollmentId,
+        teamId: draft.teamId,
+        scheduleId: draft.scheduleId,
+        confirmed: draft.confirmed,
+      })
+
+      if (!result.ok) {
+        setError(result.message)
+        toast({
+          title: "Cheer reassignment failed",
+          description: result.message,
+          variant: "error",
+        })
+        return
+      }
+
+      toast({
+        title: "Cheer enrollment reassigned",
+        description: result.message,
+        variant: "success",
+      })
+      setOpen(false)
+      resetDraft()
+      onReassigned()
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error ? caughtError.message : "Please try again."
+      setError(message)
+      toast({
+        title: "Cheer reassignment failed",
+        description: message,
+        variant: "error",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+
+        if (nextOpen) {
+          resetDraft()
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+        >
+          <ArrowLeftRight />
+          Re-Assign
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Re-Assign Cheer Enrollment</DialogTitle>
+            <DialogDescription>
+              Move {enrollment.athleteName} to a new cheer team schedule.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-6 grid gap-4">
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              <div className="text-xs font-medium text-muted-foreground">
+                Current assignment
+              </div>
+              <div className="mt-1 font-medium">{enrollment.teamName}</div>
+              {enrollment.scheduleLabel ? (
+                <div className="text-muted-foreground">
+                  {enrollment.scheduleLabel}
+                </div>
+              ) : null}
+            </div>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium">New Cheer Team</span>
+              <SmartSelect
+                value={draft.teamId}
+                onValueChange={setTeamId}
+                options={teamOptions.map((option) => ({
+                  value: option.teamId,
+                  label: option.teamName,
+                }))}
+                searchPlaceholder="Search cheer teams..."
+                className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+              />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium">New Cheer Schedule</span>
+              <SmartSelect
+                value={draft.scheduleId}
+                onValueChange={(value) =>
+                  setDraft((current) => ({
+                    ...current,
+                    scheduleId: value,
+                    confirmed: false,
+                  }))
+                }
+                options={
+                  selectedTeamSchedules.length
+                    ? selectedTeamSchedules.map((schedule) => ({
+                        value: schedule.scheduleId,
+                        label: schedule.scheduleLabel,
+                      }))
+                    : [{ value: "", label: "No active schedules" }]
+                }
+                searchPlaceholder="Search schedules..."
+                className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+                disabled={!selectedTeamSchedules.length}
+              />
+            </label>
+            {selectedSchedule ? (
+              <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                <div className="text-xs font-medium text-muted-foreground">
+                  New assignment
+                </div>
+                <div className="mt-1 font-medium">
+                  {selectedTeam?.teamName ?? selectedSchedule.teamName}
+                </div>
+                <div className="text-muted-foreground">
+                  {selectedSchedule.scheduleLabel}
+                </div>
+              </div>
+            ) : null}
+            {!teamOptions.length ? (
+              <p className="text-sm text-muted-foreground">
+                Add a cheer team before reassigning enrollments.
+              </p>
+            ) : null}
+            {draft.teamId && !selectedTeamSchedules.length ? (
+              <p className="text-sm text-muted-foreground">
+                This cheer team does not have an active schedule.
+              </p>
+            ) : null}
+            {selectedSchedule && !changed ? (
+              <p className="text-sm text-muted-foreground">
+                Choose a different cheer assignment before reassigning.
+              </p>
+            ) : null}
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={draft.confirmed}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    confirmed: event.target.checked,
+                  }))
+                }
+                className="mt-0.5 size-4"
+              />
+              <span>
+                I understand this will update the parent&apos;s tuition and cheer
+                fee Stripe subscriptions when this enrollment has them.
+              </span>
+            </label>
+            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={!canSubmit}>
+              <ArrowLeftRight />
+              {loading ? "Reassigning" : "Confirm Re-Assign"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function CheerEnrollmentManagement({
   enrollments,
   athletes,
   teams,
+  schedules,
 }: {
   enrollments: CheerEnrollmentDisplayRecord[]
   athletes: AdminEnrollmentAthleteOption[]
   teams: CheerBillingRecord[]
+  schedules: CheerScheduleDisplayRecord[]
 }) {
   const [query, setQuery] = React.useState("")
   const [status, setStatus] = React.useState<(typeof statuses)[number]>("all")
@@ -404,6 +729,13 @@ export function CheerEnrollmentManagement({
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-2">
+                            <ReassignCheerEnrollmentDialog
+                              enrollment={enrollment}
+                              teams={teams}
+                              schedules={schedules}
+                              disabled={Boolean(busyId)}
+                              onReassigned={() => router.refresh()}
+                            />
                             <Button
                               type="button"
                               size="sm"
@@ -516,6 +848,15 @@ export function CheerEnrollmentManagement({
                             className="h-10 rounded-lg border border-input bg-background px-2 text-base"
                           />
                         </label>
+                        <div>
+                          <ReassignCheerEnrollmentDialog
+                            enrollment={enrollment}
+                            teams={teams}
+                            schedules={schedules}
+                            disabled={Boolean(busyId)}
+                            onReassigned={() => router.refresh()}
+                          />
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -587,6 +928,13 @@ export function CheerEnrollmentManagement({
                       <TableCell>{formatDate(enrollment.createdAt)}</TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
+                          <ReassignCheerEnrollmentDialog
+                            enrollment={enrollment}
+                            teams={teams}
+                            schedules={schedules}
+                            disabled={Boolean(busyId)}
+                            onReassigned={() => router.refresh()}
+                          />
                           <SmartSelect
                             value={enrollment.status}
                             disabled={busyId === enrollment.enrollmentId}
