@@ -46,7 +46,6 @@ import type {
   AdminEnrollmentAthleteOption,
   CheerBillingRecord,
   CheerEnrollmentDisplayRecord,
-  CheerScheduleDisplayRecord,
 } from "@/lib/account/types"
 
 const statuses = [
@@ -60,7 +59,6 @@ const statuses = [
 
 type CheerReassignmentDraft = {
   teamId: string
-  scheduleId: string
   confirmed: boolean
 }
 
@@ -105,10 +103,6 @@ function matchesSearch(
     .some((value) => String(value).toLowerCase().includes(normalizedQuery))
 }
 
-function getActiveCheerSchedules(schedules: CheerScheduleDisplayRecord[]) {
-  return schedules.filter((schedule) => schedule.isActive && schedule.teamId)
-}
-
 function getCheerReassignmentTeamOptions(
   teams: CheerBillingRecord[]
 ): CheerReassignmentTeamOption[] {
@@ -117,39 +111,19 @@ function getCheerReassignmentTeamOptions(
     .sort((first, second) => first.teamName.localeCompare(second.teamName))
 }
 
-function getFirstScheduleForCheerTeam(
-  schedules: CheerScheduleDisplayRecord[],
-  teamId: string,
-  currentScheduleId?: string | null
-) {
-  return (
-    schedules.find(
-      (schedule) =>
-        schedule.teamId === teamId &&
-        schedule.scheduleId !== currentScheduleId
-    ) ?? schedules.find((schedule) => schedule.teamId === teamId)
-  )
-}
-
 function getInitialCheerReassignmentDraft(
   enrollment: CheerEnrollmentDisplayRecord,
-  schedules: CheerScheduleDisplayRecord[],
   teams: CheerBillingRecord[]
 ): CheerReassignmentDraft {
   const currentTeamId = enrollment.teamId ?? ""
   const selectedTeamId =
+    teams.find((team) => team.teamId !== currentTeamId)?.teamId ??
     teams.find((team) => team.teamId === currentTeamId)?.teamId ??
     teams[0]?.teamId ??
     ""
-  const selectedSchedule = getFirstScheduleForCheerTeam(
-    schedules,
-    selectedTeamId,
-    enrollment.scheduleId
-  )
 
   return {
     teamId: selectedTeamId,
-    scheduleId: selectedSchedule?.scheduleId ?? "",
     confirmed: false,
   }
 }
@@ -303,20 +277,14 @@ function CreateCheerEnrollmentDialog({
 function ReassignCheerEnrollmentDialog({
   enrollment,
   teams,
-  schedules,
   disabled,
   onReassigned,
 }: {
   enrollment: CheerEnrollmentDisplayRecord
   teams: CheerBillingRecord[]
-  schedules: CheerScheduleDisplayRecord[]
   disabled?: boolean
   onReassigned: () => void
 }) {
-  const activeSchedules = React.useMemo(
-    () => getActiveCheerSchedules(schedules),
-    [schedules]
-  )
   const teamOptions = React.useMemo(
     () => getCheerReassignmentTeamOptions(teams),
     [teams]
@@ -325,42 +293,21 @@ function ReassignCheerEnrollmentDialog({
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [draft, setDraft] = React.useState<CheerReassignmentDraft>(() =>
-    getInitialCheerReassignmentDraft(enrollment, activeSchedules, teams)
+    getInitialCheerReassignmentDraft(enrollment, teams)
   )
   const { toast } = useToast()
-  const selectedTeamSchedules = activeSchedules.filter(
-    (schedule) => schedule.teamId === draft.teamId
-  )
-  const selectedSchedule = activeSchedules.find(
-    (schedule) => schedule.scheduleId === draft.scheduleId
-  )
   const selectedTeam = teams.find((team) => team.teamId === draft.teamId)
-  const changed = Boolean(
-    selectedSchedule &&
-      (selectedSchedule.teamId !== enrollment.teamId ||
-        selectedSchedule.scheduleId !== enrollment.scheduleId)
-  )
-  const canSubmit = Boolean(
-    selectedSchedule && changed && draft.confirmed && !loading
-  )
+  const changed = Boolean(draft.teamId && draft.teamId !== enrollment.teamId)
+  const canSubmit = Boolean(changed && draft.confirmed && !loading)
 
   function resetDraft() {
-    setDraft(
-      getInitialCheerReassignmentDraft(enrollment, activeSchedules, teams)
-    )
+    setDraft(getInitialCheerReassignmentDraft(enrollment, teams))
     setError(null)
   }
 
   function setTeamId(teamId: string) {
-    const nextSchedule = getFirstScheduleForCheerTeam(
-      activeSchedules,
-      teamId,
-      enrollment.scheduleId
-    )
-
     setDraft({
       teamId,
-      scheduleId: nextSchedule?.scheduleId ?? "",
       confirmed: false,
     })
   }
@@ -374,7 +321,6 @@ function ReassignCheerEnrollmentDialog({
       const result = await reassignCheerEnrollment({
         enrollmentId: enrollment.enrollmentId,
         teamId: draft.teamId,
-        scheduleId: draft.scheduleId,
         confirmed: draft.confirmed,
       })
 
@@ -437,7 +383,7 @@ function ReassignCheerEnrollmentDialog({
           <DialogHeader>
             <DialogTitle>Re-Assign Cheer Enrollment</DialogTitle>
             <DialogDescription>
-              Move {enrollment.athleteName} to a new cheer team schedule.
+              Move {enrollment.athleteName} to a new cheer team.
             </DialogDescription>
           </DialogHeader>
           <div className="my-6 grid gap-4">
@@ -465,41 +411,12 @@ function ReassignCheerEnrollmentDialog({
                 className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
               />
             </label>
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium">New Cheer Schedule</span>
-              <SmartSelect
-                value={draft.scheduleId}
-                onValueChange={(value) =>
-                  setDraft((current) => ({
-                    ...current,
-                    scheduleId: value,
-                    confirmed: false,
-                  }))
-                }
-                options={
-                  selectedTeamSchedules.length
-                    ? selectedTeamSchedules.map((schedule) => ({
-                        value: schedule.scheduleId,
-                        label: schedule.scheduleLabel,
-                      }))
-                    : [{ value: "", label: "No active schedules" }]
-                }
-                searchPlaceholder="Search schedules..."
-                className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-                disabled={!selectedTeamSchedules.length}
-              />
-            </label>
-            {selectedSchedule ? (
+            {selectedTeam ? (
               <div className="rounded-lg border bg-muted/40 p-3 text-sm">
                 <div className="text-xs font-medium text-muted-foreground">
                   New assignment
                 </div>
-                <div className="mt-1 font-medium">
-                  {selectedTeam?.teamName ?? selectedSchedule.teamName}
-                </div>
-                <div className="text-muted-foreground">
-                  {selectedSchedule.scheduleLabel}
-                </div>
+                <div className="mt-1 font-medium">{selectedTeam.teamName}</div>
               </div>
             ) : null}
             {!teamOptions.length ? (
@@ -507,14 +424,9 @@ function ReassignCheerEnrollmentDialog({
                 Add a cheer team before reassigning enrollments.
               </p>
             ) : null}
-            {draft.teamId && !selectedTeamSchedules.length ? (
+            {draft.teamId && !changed ? (
               <p className="text-sm text-muted-foreground">
-                This cheer team does not have an active schedule.
-              </p>
-            ) : null}
-            {selectedSchedule && !changed ? (
-              <p className="text-sm text-muted-foreground">
-                Choose a different cheer assignment before reassigning.
+                Choose a different cheer team before reassigning.
               </p>
             ) : null}
             <label className="flex items-start gap-2 text-sm">
@@ -557,12 +469,10 @@ export function CheerEnrollmentManagement({
   enrollments,
   athletes,
   teams,
-  schedules,
 }: {
   enrollments: CheerEnrollmentDisplayRecord[]
   athletes: AdminEnrollmentAthleteOption[]
   teams: CheerBillingRecord[]
-  schedules: CheerScheduleDisplayRecord[]
 }) {
   const [query, setQuery] = React.useState("")
   const [status, setStatus] = React.useState<(typeof statuses)[number]>("all")
@@ -732,7 +642,6 @@ export function CheerEnrollmentManagement({
                             <ReassignCheerEnrollmentDialog
                               enrollment={enrollment}
                               teams={teams}
-                              schedules={schedules}
                               disabled={Boolean(busyId)}
                               onReassigned={() => router.refresh()}
                             />
@@ -852,7 +761,6 @@ export function CheerEnrollmentManagement({
                           <ReassignCheerEnrollmentDialog
                             enrollment={enrollment}
                             teams={teams}
-                            schedules={schedules}
                             disabled={Boolean(busyId)}
                             onReassigned={() => router.refresh()}
                           />
@@ -931,7 +839,6 @@ export function CheerEnrollmentManagement({
                           <ReassignCheerEnrollmentDialog
                             enrollment={enrollment}
                             teams={teams}
-                            schedules={schedules}
                             disabled={Boolean(busyId)}
                             onReassigned={() => router.refresh()}
                           />

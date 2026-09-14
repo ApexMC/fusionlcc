@@ -38,11 +38,6 @@ type CheerEnrollmentDecisionContext = {
   teamName: string
 }
 
-type AvailableCheerSchedule = {
-  scheduleId: string
-  teamId: string | null
-}
-
 type ReassignmentCheerTeamRecord = {
   team_id: string | number
   tuition_price_id?: string | null
@@ -53,7 +48,6 @@ type ReassignmentCheerEnrollmentRecord = {
   enrollment_id: string | number
   athlete_id?: string | number | null
   team_id?: string | number | null
-  schedule_id?: string | number | null
   tuition_subscription_id?: string | null
   fee_subscription_id?: string | null
 }
@@ -94,44 +88,6 @@ function getAccountUrl() {
   return "https://fusionlcc.com/account"
 }
 
-async function getAvailableCheerSchedule(
-  scheduleId: string
-): Promise<
-  | (ActionResult & { ok: false })
-  | ({ ok: true; message: string } & AvailableCheerSchedule)
-> {
-  const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("CheerSchedules")
-    .select("schedule_id,team_id,is_active")
-    .eq("schedule_id", scheduleId)
-    .maybeSingle()
-
-  if (error || !data) {
-    return {
-      ok: false,
-      message: error?.message ?? "Cheer schedule was not found.",
-    }
-  }
-
-  if (data.is_active !== true) {
-    return {
-      ok: false,
-      message: "Choose an active cheer schedule.",
-    }
-  }
-
-  return {
-    ok: true,
-    message: "",
-    scheduleId: String(data.schedule_id),
-    teamId:
-      data.team_id === null || data.team_id === undefined
-        ? null
-        : String(data.team_id),
-  }
-}
-
 function getStripeCustomerId(
   value: string | { id: string } | null | undefined
 ) {
@@ -165,7 +121,6 @@ function getCheerReassignmentMetadata({
   subscription,
   enrollment,
   team,
-  scheduleId,
   tuitionPriceId,
   feePriceId,
   role,
@@ -173,7 +128,6 @@ function getCheerReassignmentMetadata({
   subscription: Stripe.Subscription
   enrollment: ReassignmentCheerEnrollmentRecord
   team: ReassignmentCheerTeamRecord
-  scheduleId: string
   tuitionPriceId: string
   feePriceId: string
   role: "tuition" | "fee"
@@ -183,7 +137,7 @@ function getCheerReassignmentMetadata({
     enrollment_kind: "cheer",
     cheer_enrollment_id: String(enrollment.enrollment_id),
     team_id: String(team.team_id),
-    schedule_id: scheduleId,
+    schedule_id: "",
     subscription_role: role,
     tuition_price_id: tuitionPriceId,
     fee_price_id: feePriceId,
@@ -238,11 +192,9 @@ async function updateCheerSubscriptionPrice({
 async function updateStripeSubscriptionsForCheerReassignment({
   enrollment,
   team,
-  scheduleId,
 }: {
   enrollment: ReassignmentCheerEnrollmentRecord
   team: ReassignmentCheerTeamRecord
-  scheduleId: string
 }) {
   const tuitionSubscriptionId = enrollment.tuition_subscription_id?.trim()
   const feeSubscriptionId = enrollment.fee_subscription_id?.trim()
@@ -280,7 +232,6 @@ async function updateStripeSubscriptionsForCheerReassignment({
           subscription: tuitionSubscription,
           enrollment,
           team,
-          scheduleId,
           tuitionPriceId,
           feePriceId,
           role: "tuition",
@@ -294,7 +245,6 @@ async function updateStripeSubscriptionsForCheerReassignment({
           subscription: feeSubscription,
           enrollment,
           team,
-          scheduleId,
           tuitionPriceId,
           feePriceId,
           role: "fee",
@@ -778,19 +728,16 @@ export async function createAdminCheerEnrollment({
 export async function reassignCheerEnrollment({
   enrollmentId,
   teamId,
-  scheduleId,
   confirmed,
 }: {
   enrollmentId: string
   teamId: string
-  scheduleId: string
   confirmed: boolean
 }): Promise<ActionResult> {
   requireAdminSession(await getAccountSession())
 
   const normalizedEnrollmentId = enrollmentId.trim()
   const normalizedTeamId = teamId.trim()
-  const normalizedScheduleId = scheduleId.trim()
 
   if (!confirmed) {
     return {
@@ -799,10 +746,10 @@ export async function reassignCheerEnrollment({
     }
   }
 
-  if (!normalizedEnrollmentId || !normalizedTeamId || !normalizedScheduleId) {
+  if (!normalizedEnrollmentId || !normalizedTeamId) {
     return {
       ok: false,
-      message: "Choose a cheer enrollment, team, and cheer schedule.",
+      message: "Choose a cheer enrollment and team.",
     }
   }
 
@@ -810,7 +757,7 @@ export async function reassignCheerEnrollment({
   const { data: enrollmentData, error: enrollmentError } = await supabase
     .from("CheerEnrollments")
     .select(
-      "enrollment_id,athlete_id,team_id,schedule_id,tuition_subscription_id,fee_subscription_id"
+      "enrollment_id,athlete_id,team_id,tuition_subscription_id,fee_subscription_id"
     )
     .eq("enrollment_id", normalizedEnrollmentId)
     .maybeSingle()
@@ -823,29 +770,10 @@ export async function reassignCheerEnrollment({
   }
 
   const enrollment = enrollmentData as ReassignmentCheerEnrollmentRecord
-  const scheduleRecord = await getAvailableCheerSchedule(normalizedScheduleId)
-
-  if (!scheduleRecord.ok) {
+  if (String(enrollment.team_id ?? "") === normalizedTeamId) {
     return {
       ok: false,
-      message: scheduleRecord.message,
-    }
-  }
-
-  if (scheduleRecord.teamId !== normalizedTeamId) {
-    return {
-      ok: false,
-      message: "Choose a schedule that belongs to the selected cheer team.",
-    }
-  }
-
-  if (
-    String(enrollment.team_id ?? "") === normalizedTeamId &&
-    String(enrollment.schedule_id ?? "") === normalizedScheduleId
-  ) {
-    return {
-      ok: false,
-      message: "Choose a different cheer assignment before reassigning.",
+      message: "Choose a different cheer team before reassigning.",
     }
   }
 
@@ -900,7 +828,6 @@ export async function reassignCheerEnrollment({
       await updateStripeSubscriptionsForCheerReassignment({
         enrollment,
         team,
-        scheduleId: normalizedScheduleId,
       })
     stripeUpdated = Boolean(updatedSubscriptions)
   } catch (error) {
@@ -915,7 +842,7 @@ export async function reassignCheerEnrollment({
 
   const updatePayload: {
     team_id: string
-    schedule_id: string
+    schedule_id: null
     selection_required: boolean
     stripe_customer_id?: string | null
     tuition_subscription_id?: string
@@ -925,7 +852,7 @@ export async function reassignCheerEnrollment({
     current_period_end?: string | null
   } = {
     team_id: normalizedTeamId,
-    schedule_id: normalizedScheduleId,
+    schedule_id: null,
     selection_required: false,
   }
 
