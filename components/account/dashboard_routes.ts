@@ -44,7 +44,7 @@ export const adminDashboardRoutes = {
   },
   charts: {
     title: "Charts",
-    description: "See enrollment status and request trends at a glance.",
+    description: "Track enrollment activity, status health, and program demand.",
     href: "/account/admin/charts",
     icon: BarChart3,
   },

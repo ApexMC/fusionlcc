@@ -38,6 +38,7 @@ import type {
   OperationsActionItem,
   ParentAthleteEnrollment,
   ParentRecord,
+  ProgramEnrollmentDatum,
   ScheduleSeasonRecord,
   TrendDatum,
 } from "@/lib/account/types"
@@ -1604,14 +1605,14 @@ type EnrollmentStatusRecord = {
 }
 
 function buildStatusBreakdown(enrollments: EnrollmentStatusRecord[]) {
-  const colors = [
-    "#7c3aed",
-    "#f97316",
-    "#16a34a",
-    "#dc2626",
-    "#64748b",
-    "#0891b2",
-  ]
+  const statusOrder = ["pending", "approved", "active", "denied", "canceled"]
+  const statusColors: Record<string, string> = {
+    pending: "#f59e0b",
+    approved: "#7c3aed",
+    active: "#16a34a",
+    denied: "#dc2626",
+    canceled: "#64748b",
+  }
   const counts = new Map<string, number>()
 
   enrollments.forEach((enrollment) => {
@@ -1619,55 +1620,142 @@ function buildStatusBreakdown(enrollments: EnrollmentStatusRecord[]) {
     counts.set(status, (counts.get(status) ?? 0) + 1)
   })
 
-  return Array.from(counts.entries()).map<ChartDatum>(
-    ([status, value], index) => ({
+  return Array.from(counts.entries())
+    .sort(
+      ([left], [right]) =>
+        (statusOrder.indexOf(left) === -1
+          ? statusOrder.length
+          : statusOrder.indexOf(left)) -
+        (statusOrder.indexOf(right) === -1
+          ? statusOrder.length
+          : statusOrder.indexOf(right))
+    )
+    .map<ChartDatum>(([status, value]) => ({
       name: status,
-      label: status.replace(/_/g, " "),
+      label: status
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (character) => character.toUpperCase()),
       value,
-      fill: colors[index % colors.length],
-    })
-  )
+      fill: statusColors[status] ?? "#0891b2",
+    }))
 }
 
-function buildMonthlyTrend(enrollments: EnrollmentDisplayRecord[]) {
-  const monthCounts = new Map<string, number>()
+function buildEnrollmentTrend(
+  enrollments: EnrollmentDisplayRecord[],
+  cheerEnrollments: CheerEnrollmentDisplayRecord[]
+) {
+  const dailyCounts = new Map<
+    string,
+    Pick<TrendDatum, "classes" | "cheer">
+  >()
   const now = new Date()
+  const today = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  )
 
-  for (let index = 5; index >= 0; index -= 1) {
-    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - index, 1))
-    monthCounts.set(
-      date.toLocaleDateString("en-US", {
-        month: "short",
-        year: "2-digit",
-        timeZone: "UTC",
-      }),
-      0
-    )
+  for (let index = 89; index >= 0; index -= 1) {
+    const date = new Date(today)
+    date.setUTCDate(today.getUTCDate() - index)
+    dailyCounts.set(date.toISOString().slice(0, 10), {
+      classes: 0,
+      cheer: 0,
+    })
   }
 
-  enrollments.forEach((enrollment) => {
+  const addEnrollment = (
+    enrollment: Pick<EnrollmentDisplayRecord, "createdAt">,
+    series: "classes" | "cheer"
+  ) => {
     if (!enrollment.createdAt) {
       return
     }
 
     const date = new Date(enrollment.createdAt)
-    const key = date.toLocaleDateString("en-US", {
-      month: "short",
-      year: "2-digit",
-      timeZone: "UTC",
-    })
-
-    if (monthCounts.has(key)) {
-      monthCounts.set(key, (monthCounts.get(key) ?? 0) + 1)
+    if (Number.isNaN(date.getTime())) {
+      return
     }
-  })
 
-  return Array.from(monthCounts.entries()).map<TrendDatum>(
-    ([month, enrollments]) => ({
-      month,
-      enrollments,
+    const key = date.toISOString().slice(0, 10)
+    const current = dailyCounts.get(key)
+
+    if (current) {
+      dailyCounts.set(key, {
+        ...current,
+        [series]: current[series] + 1,
+      })
+    }
+  }
+
+  enrollments.forEach((enrollment) => addEnrollment(enrollment, "classes"))
+  cheerEnrollments.forEach((enrollment) =>
+    addEnrollment(enrollment, "cheer")
+  )
+
+  return Array.from(dailyCounts.entries()).map<TrendDatum>(
+    ([date, counts]) => ({
+      date,
+      ...counts,
     })
   )
+}
+
+function buildProgramBreakdown(
+  enrollments: EnrollmentDisplayRecord[],
+  cheerEnrollments: CheerEnrollmentDisplayRecord[]
+) {
+  const counts = new Map<string, ProgramEnrollmentDatum>()
+
+  const addEnrollment = (
+    key: string,
+    program: string,
+    programType: ProgramEnrollmentDatum["programType"],
+    statusValue: string
+  ) => {
+    const status = statusValue.toLowerCase()
+    if (!["active", "approved", "pending"].includes(status)) {
+      return
+    }
+
+    const current = counts.get(key) ?? {
+      program,
+      programType,
+      pending: 0,
+      approved: 0,
+      active: 0,
+    }
+
+    current[status as "pending" | "approved" | "active"] += 1
+
+    counts.set(key, current)
+  }
+
+  enrollments.forEach((enrollment) =>
+    addEnrollment(
+      `class:${enrollment.classId ?? enrollment.className}`,
+      enrollment.className,
+      "Class",
+      enrollment.status
+    )
+  )
+  cheerEnrollments.forEach((enrollment) =>
+    addEnrollment(
+      `cheer:${enrollment.teamId ?? enrollment.teamName}`,
+      enrollment.teamName,
+      "Cheer",
+      enrollment.status
+    )
+  )
+
+  return Array.from(counts.values())
+    .sort(
+      (left, right) =>
+        right.active +
+        right.approved +
+        right.pending -
+        (left.active + left.approved + left.pending) ||
+        left.program.localeCompare(right.program)
+    )
+    .slice(0, 8)
 }
 
 function formatCurrencyAmount(cents: number) {
@@ -1976,7 +2064,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     cheerSessions,
     timeClockReview,
     statusBreakdown: buildStatusBreakdown(enrollmentStatusRecords),
-    monthlyTrend: buildMonthlyTrend(enrollments),
+    enrollmentTrend: buildEnrollmentTrend(enrollments, cheerEnrollments),
+    programBreakdown: buildProgramBreakdown(enrollments, cheerEnrollments),
   }
 }
 

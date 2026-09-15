@@ -23,7 +23,8 @@ export default async function AdminChartsPage() {
       />
       <AdminCharts
         statusBreakdown={dashboardData.statusBreakdown}
-        monthlyTrend={dashboardData.monthlyTrend}
+        enrollmentTrend={dashboardData.enrollmentTrend}
+        programBreakdown={dashboardData.programBreakdown}
       />
     </AccountDashboardFrame>
   )

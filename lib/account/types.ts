@@ -187,8 +187,17 @@ export type ChartDatum = {
 }
 
 export type TrendDatum = {
-  month: string
-  enrollments: number
+  date: string
+  classes: number
+  cheer: number
+}
+
+export type ProgramEnrollmentDatum = {
+  program: string
+  programType: "Class" | "Cheer"
+  pending: number
+  approved: number
+  active: number
 }
 
 export type AdminDashboardData = {
@@ -208,7 +217,8 @@ export type AdminDashboardData = {
   cheerSessions: CheerSessionDisplayRecord[]
   timeClockReview: AdminTimeClockReviewData
   statusBreakdown: ChartDatum[]
-  monthlyTrend: TrendDatum[]
+  enrollmentTrend: TrendDatum[]
+  programBreakdown: ProgramEnrollmentDatum[]
 }
 
 export type CoachDashboardData = {

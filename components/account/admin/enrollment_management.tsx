@@ -366,11 +366,15 @@ function ReassignEnrollmentDialog({
   enrollment,
   schedules,
   disabled,
+  triggerClassName,
+  triggerSize = "sm",
   onReassigned,
 }: {
   enrollment: EnrollmentDisplayRecord
   schedules: ClassScheduleDisplayRecord[]
   disabled?: boolean
+  triggerClassName?: string
+  triggerSize?: React.ComponentProps<typeof Button>["size"]
   onReassigned: () => void
 }) {
   const enrollmentSchedules = React.useMemo(
@@ -478,7 +482,8 @@ function ReassignEnrollmentDialog({
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          size={triggerSize}
+          className={triggerClassName}
           disabled={disabled}
         >
           <ArrowLeftRight />
@@ -870,6 +875,8 @@ export function EnrollmentManagement({
                               enrollment={enrollment}
                               schedules={schedules}
                               disabled={Boolean(busyId)}
+                              triggerClassName="w-full"
+                              triggerSize="lg"
                               onReassigned={() => router.refresh()}
                             />
                           </div>
@@ -976,31 +983,33 @@ export function EnrollmentManagement({
                     key={enrollment.enrollmentId}
                     className="rounded-lg border p-3"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-medium">
-                          {enrollment.athleteName} — {enrollment.className}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          Enrollment #{enrollment.enrollmentId}
-                        </div>
+                    <div className="min-w-0">
+                      <div className="font-medium">
+                        {enrollment.athleteName} — {enrollment.className}
                       </div>
-                      <EnrollmentStatusBadge status={enrollment.status} />
+                      <div className="truncate text-xs text-muted-foreground">
+                        Enrollment #{enrollment.enrollmentId}
+                      </div>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {enrollment.paymentStatus ||
-                      enrollment.subscriptionStatus ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">
+                          Enrollment
+                        </span>
+                        <EnrollmentStatusBadge status={enrollment.status} />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">
+                          Payment
+                        </span>
                         <EnrollmentStatusBadge
                           status={
                             enrollment.paymentStatus ??
-                            enrollment.subscriptionStatus
+                            enrollment.subscriptionStatus ??
+                            "not_started"
                           }
                         />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          Payment not started
-                        </span>
-                      )}
+                      </div>
                     </div>
                     <Button
                       type="button"
