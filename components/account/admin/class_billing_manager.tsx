@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { SmartSelect } from "@/components/ui/smart-select"
+import { Switch } from "@/components/ui/switch"
 import {
   Table,
   TableBody,
@@ -79,6 +80,7 @@ export function ClassBillingManager({
     )
   )
   const [newClassDraft, setNewClassDraft] = React.useState<Draft>(getBlankDraft)
+  const [newClassIsFree, setNewClassIsFree] = React.useState(false)
   const [addDialogOpen, setAddDialogOpen] = React.useState(false)
   const [busyId, setBusyId] = React.useState<string | null>(null)
   const [expandedBillingCardId, setExpandedBillingCardId] =
@@ -121,7 +123,7 @@ export function ClassBillingManager({
         classDescription: draft.classDescription,
         programType: draft.programType,
         billingDay: draft.billingDay,
-        stripePriceId: draft.stripePriceId,
+        stripePriceId: !classRecord && newClassIsFree ? "" : draft.stripePriceId,
       })
 
       if (!result.ok) {
@@ -140,6 +142,7 @@ export function ClassBillingManager({
       })
       if (!classRecord) {
         setNewClassDraft(getBlankDraft())
+        setNewClassIsFree(false)
         setAddDialogOpen(false)
       }
       router.refresh()
@@ -423,15 +426,18 @@ export function ClassBillingManager({
       </Card>
 
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <form onSubmit={handleAddSubmit}>
-            <DialogHeader>
+        <DialogContent className="top-[calc(50%+2.5rem)] flex max-h-[calc(100svh-10rem)] flex-col overflow-hidden sm:max-w-lg">
+          <form
+            className="flex min-h-0 flex-1 flex-col"
+            onSubmit={handleAddSubmit}
+          >
+            <DialogHeader className="shrink-0">
               <DialogTitle>Add Class Billing</DialogTitle>
               <DialogDescription>
                 Create billing settings for a new class.
               </DialogDescription>
             </DialogHeader>
-            <div className="my-6 grid gap-4">
+            <div className="my-4 grid min-h-0 flex-1 gap-4 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]">
               <label className="grid gap-1 text-sm">
                 <span className="font-medium">Class</span>
                 <Input
@@ -474,38 +480,64 @@ export function ClassBillingManager({
                   className="min-h-24 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
               </label>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium">Bill Day</span>
-                <SmartSelect
-                  value={newClassDraft.billingDay}
-                  onValueChange={(value) =>
-                    setNewClassDraft((current) => ({
-                      ...current,
-                      billingDay: Number(value),
-                    }))
-                  }
-                  options={[
-                    { value: 1, label: "1st" },
-                    { value: 15, label: "15th" },
-                  ]}
-                  className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <label htmlFor="new-class-is-free" className="grid gap-1 text-sm">
+                  <span className="font-medium">Do not charge for this class</span>
+                  <span className="text-xs text-muted-foreground">
+                    No recurring billing will be configured.
+                  </span>
+                </label>
+                <Switch
+                  id="new-class-is-free"
+                  checked={newClassIsFree}
+                  onCheckedChange={(checked) => {
+                    setNewClassIsFree(checked)
+                    if (checked) {
+                      setNewClassDraft((current) => ({
+                        ...current,
+                        stripePriceId: "",
+                      }))
+                    }
+                  }}
+                  aria-label="Do not charge for this class"
                 />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="font-medium">Stripe Price</span>
-                <Input
-                  value={newClassDraft.stripePriceId}
-                  onChange={(event) =>
-                    setNewClassDraft((current) => ({
-                      ...current,
-                      stripePriceId: event.target.value,
-                    }))
-                  }
-                  placeholder="price_..."
-                />
-              </label>
+              </div>
+              {!newClassIsFree ? (
+                <>
+                  <label className="grid gap-1 text-sm">
+                    <span className="font-medium">Bill Day</span>
+                    <SmartSelect
+                      value={newClassDraft.billingDay}
+                      onValueChange={(value) =>
+                        setNewClassDraft((current) => ({
+                          ...current,
+                          billingDay: Number(value),
+                        }))
+                      }
+                      options={[
+                        { value: 1, label: "1st" },
+                        { value: 15, label: "15th" },
+                      ]}
+                      className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-sm">
+                    <span className="font-medium">Stripe Price</span>
+                    <Input
+                      value={newClassDraft.stripePriceId}
+                      onChange={(event) =>
+                        setNewClassDraft((current) => ({
+                          ...current,
+                          stripePriceId: event.target.value,
+                        }))
+                      }
+                      placeholder="price_..."
+                    />
+                  </label>
+                </>
+              ) : null}
             </div>
-            <DialogFooter>
+            <DialogFooter className="shrink-0">
               <DialogClose asChild>
                 <Button type="button" variant="outline">
                   Cancel
