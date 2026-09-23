@@ -43,7 +43,9 @@ type StripeResponse = {
   error?: string
 }
 
-function isActiveSubscription(enrollment: EnrollmentDisplayRecord) {
+function isActiveSubscription(enrollment: {
+  subscriptionStatus: string | null
+}) {
   return ["active", "trialing", "past_due"].includes(
     enrollment.subscriptionStatus ?? ""
   )
@@ -168,15 +170,16 @@ export function ParentEnrollments({
     }
   }
 
-  async function openCheerStripeCheckout(
-    enrollment: CheerEnrollmentDisplayRecord
+  async function openCheerStripeSession(
+    enrollment: CheerEnrollmentDisplayRecord,
+    route: "checkout" | "portal"
   ) {
-    const busyId = `cheer-checkout-${enrollment.enrollmentId}`
+    const busyId = `cheer-${route}-${enrollment.enrollmentId}`
     setBusyKey(busyId)
 
     try {
       const response = await fetch(
-        `/api/cheer-enrollments/${enrollment.enrollmentId}/checkout`,
+        `/api/cheer-enrollments/${enrollment.enrollmentId}/${route}`,
         { method: "POST" }
       )
       const data = (await response.json().catch(() => ({}))) as StripeResponse
@@ -188,7 +191,10 @@ export function ParentEnrollments({
       window.location.assign(data.url)
     } catch (error) {
       toast({
-        title: "Unable to start payment",
+        title:
+          route === "checkout"
+            ? "Unable to start payment"
+            : "Unable to open subscription",
         description:
           error instanceof Error ? error.message : "Please try again.",
         variant: "error",
@@ -542,6 +548,11 @@ export function ParentEnrollments({
                         contractSigned &&
                         !enrollment.tuitionSubscriptionId &&
                         !enrollment.feeSubscriptionId
+                      const canManageSubscription =
+                        Boolean(
+                          enrollment.tuitionSubscriptionId ||
+                            enrollment.feeSubscriptionId
+                        ) && isActiveSubscription(enrollment)
                       const canReviewContract = ["approved", "active"].includes(
                         enrollment.status
                       )
@@ -636,7 +647,7 @@ export function ParentEnrollments({
                                   size="sm"
                                   disabled={Boolean(busyKey)}
                                   onClick={() =>
-                                    openCheerStripeCheckout(enrollment)
+                                    openCheerStripeSession(enrollment, "checkout")
                                   }
                                 >
                                   <CreditCard />
@@ -644,6 +655,23 @@ export function ParentEnrollments({
                                   `cheer-checkout-${enrollment.enrollmentId}`
                                     ? "Opening"
                                     : "Pay"}
+                                </Button>
+                              ) : null}
+                              {canManageSubscription ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={Boolean(busyKey)}
+                                  onClick={() =>
+                                    openCheerStripeSession(enrollment, "portal")
+                                  }
+                                >
+                                  <Settings />
+                                  {busyKey ===
+                                  `cheer-portal-${enrollment.enrollmentId}`
+                                    ? "Opening"
+                                    : "Manage"}
                                 </Button>
                               ) : null}
                             </div>
