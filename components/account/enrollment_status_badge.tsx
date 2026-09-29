@@ -10,6 +10,7 @@ export function EnrollmentStatusBadge({
     normalized === "approved" ||
     normalized === "active" ||
     normalized === "paid" ||
+    normalized === "payment_not_required" ||
     normalized === "trialing"
       ? "success"
       : normalized === "pending" || normalized === "ready_to_pay"

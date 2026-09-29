@@ -5,25 +5,9 @@ import { ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ParentActions } from "@/components/account/parents/parent_actions"
 import { EnrollmentStatusBadge } from "@/components/account/enrollment_status_badge"
+import type { ParentAthleteSummary } from "@/lib/account/parent-enrollments"
 
-export type ParentAthleteEnrollment = {
-  enrollmentId: string;
-  scheduleId: string | null;
-  classId: string | null;
-  className: string;
-  classType: string | null;
-  scheduleLabel: string | null;
-  status: string;
-}
-
-export type ParentAthleteSummary = {
-  athleteId: string;
-  firstName: string | null;
-  lastName: string | null;
-  dob: string | null;
-  shirtSize: string | null;
-  enrollments: ParentAthleteEnrollment[];
-}
+export type { ParentAthleteEnrollment, ParentAthleteSummary } from "@/lib/account/parent-enrollments"
 
 export type Parent = {
   parent_id: string | number;

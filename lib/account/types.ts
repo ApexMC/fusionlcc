@@ -136,6 +136,7 @@ export type EnrollmentDisplayRecord = {
   stripePriceId: string | null
   stripeCustomerId: string | null
   stripeSubscriptionId: string | null
+  billingDataAvailable: boolean
   subscriptionStatus: string | null
   paymentStatus: string | null
   currentPeriodStart: string | null
@@ -156,10 +157,12 @@ export type CheerEnrollmentDisplayRecord = {
   scheduleLabel: string | null
   status: string
   contractSigned: boolean
+  selectionRequired: boolean
   createdAt: string | null
   stripeCustomerId: string | null
   tuitionSubscriptionId: string | null
   feeSubscriptionId: string | null
+  billingDataAvailable: boolean
   subscriptionStatus: string | null
   paymentStatus: string | null
   currentPeriodStart: string | null
@@ -176,7 +179,10 @@ export type AdminDashboardMetrics = {
   parentAccounts: EnrollmentMetric
   approvedActive: EnrollmentMetric
   deniedCanceled: EnrollmentMetric
-  monthlyRecurringRevenue: EnrollmentMetric
+  monthlyRecurringRevenue: EnrollmentMetric & {
+    amountCents: number | null
+    available: boolean
+  }
 }
 
 export type ChartDatum = {
@@ -200,7 +206,33 @@ export type ProgramEnrollmentDatum = {
   active: number
 }
 
+export type AdminReportingParent = {
+  parentId: string
+  parentName: string
+  email: string | null
+  phone: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  zipCode: string | null
+  balance: number | null
+  stripeCustomerId: string | null
+}
+
+export type AdminReportingAthlete = {
+  athleteId: string
+  athleteName: string
+  dateOfBirth: string | null
+  phone: string | null
+  shirtSize: string | null
+  parentId: string | null
+  parentName: string
+  parentEmail: string | null
+  parentPhone: string | null
+}
+
 export type AdminDashboardData = {
+  reportingGeneratedAt: string
   metrics: AdminDashboardMetrics
   reviewQueue: OperationsActionItem
   actionItems: OperationsActionItem[]
@@ -208,6 +240,8 @@ export type AdminDashboardData = {
   allEnrollments: EnrollmentDisplayRecord[]
   cheerEnrollments: CheerEnrollmentDisplayRecord[]
   enrollmentAthletes: AdminEnrollmentAthleteOption[]
+  reportingParents: AdminReportingParent[]
+  reportingAthletes: AdminReportingAthlete[]
   classBilling: ClassBillingRecord[]
   cheerBilling: CheerBillingRecord[]
   scheduleSeasons: ScheduleSeasonRecord[]
@@ -220,6 +254,26 @@ export type AdminDashboardData = {
   enrollmentTrend: TrendDatum[]
   programBreakdown: ProgramEnrollmentDatum[]
 }
+
+export type AdminReportingData = Pick<AdminDashboardData,
+  | "reportingGeneratedAt"
+  | "metrics"
+  | "allEnrollments"
+  | "cheerEnrollments"
+  | "reportingParents"
+  | "reportingAthletes"
+  | "classBilling"
+  | "cheerBilling"
+  | "scheduleSeasons"
+  | "classSchedules"
+  | "cheerSchedules"
+  | "classSessions"
+  | "cheerSessions"
+  | "timeClockReview"
+  | "statusBreakdown"
+  | "enrollmentTrend"
+  | "programBreakdown"
+>
 
 export type CoachDashboardData = {
   classSessions: ClassSessionDisplayRecord[]

@@ -60,7 +60,7 @@ const adminDashboardSections = [
     adminDashboardRoutes.schedules,
     adminDashboardRoutes.sessions,
     adminDashboardRoutes.timeClock,
-    adminDashboardRoutes.charts,
+    adminDashboardRoutes.reporting,
     adminDashboardRoutes.announcements,
 ] satisfies DashboardNavItem[];
 
@@ -163,7 +163,7 @@ function getAdminDashboardLinks(
     );
 
     return adminDashboardSections.map((section) => {
-        if (section.href.endsWith("/charts")) {
+        if (section.href.endsWith("/reporting")) {
             return {
                 ...section,
                 detail: countLabel(dashboardData.allEnrollments.length, "record"),
@@ -260,12 +260,15 @@ function getAdminDashboardStats(
         },
         {
             ...monthlyRecurringRevenue,
-            value: `$${monthlyRecurringRevenue.value}`,
+            value: monthlyRecurringRevenue.available
+                ? `$${monthlyRecurringRevenue.value}`
+                : "Unavailable",
             href: "https://dashboard.stripe.com/subscriptions",
             tone:
-                monthlyRecurringRevenue.value === "0"
-                    ? "default"
-                    : "success",
+                monthlyRecurringRevenue.available &&
+                (monthlyRecurringRevenue.amountCents ?? 0) > 0
+                    ? "success"
+                    : "default",
         },
         {
             ...parentAccounts,

@@ -87,11 +87,47 @@ function getCustomerAccountSearchText(parent: Parent) {
         enrollment.classType,
         enrollment.scheduleLabel,
         enrollment.status,
+        enrollment.paymentStatus,
+      ]),
+      ...athlete.cheerEnrollments.flatMap((enrollment) => [
+        enrollment.enrollmentId,
+        enrollment.teamId,
+        enrollment.teamName,
+        enrollment.scheduleId,
+        enrollment.scheduleLabel,
+        enrollment.status,
+        enrollment.paymentStatus,
       ]),
     ]),
   ]
     .filter((value) => value !== null && value !== undefined && value !== "")
     .join(" ")
+}
+
+function ParentEnrollmentDetails({
+  name,
+  scheduleLabel,
+  status,
+  paymentStatus,
+}: {
+  name: string
+  scheduleLabel: string | null
+  status: string
+  paymentStatus: string
+}) {
+  return (
+    <div className="rounded-lg border px-3 py-2 text-xs">
+      <div className="font-medium">{name}</div>
+      {scheduleLabel ? (
+        <div className="mt-1 text-muted-foreground">{scheduleLabel}</div>
+      ) : null}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <EnrollmentStatusBadge status={status} />
+        <span className="text-muted-foreground">Payment:</span>
+        <EnrollmentStatusBadge status={paymentStatus} />
+      </div>
+    </div>
+  )
 }
 
 function ParentAthleteActions({
@@ -244,28 +280,36 @@ function ParentAthleteDetails({
               }
             />
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 space-y-2">
+            <h4 className="text-sm font-medium">Class enrollments</h4>
             {athlete.enrollments.length ? (
               athlete.enrollments.map((enrollment) => (
-                <div
+                <ParentEnrollmentDetails
                   key={enrollment.enrollmentId}
-                  className="flex items-center gap-2 rounded-lg border px-2 py-1 text-xs"
-                >
-                  <span className="font-medium">
-                    {enrollment.className}
-                    {enrollment.scheduleLabel ? (
-                      <span className="ml-1 text-muted-foreground">
-                        {enrollment.scheduleLabel}
-                      </span>
-                    ) : null}
-                  </span>
-                  <EnrollmentStatusBadge status={enrollment.status} />
-                </div>
+                  name={enrollment.className}
+                  scheduleLabel={enrollment.scheduleLabel}
+                  status={enrollment.status}
+                  paymentStatus={enrollment.paymentStatus}
+                />
               ))
             ) : (
-              <span className="text-sm text-muted-foreground">
-                No current enrollments
-              </span>
+              <p className="text-sm text-muted-foreground">No current class enrollments</p>
+            )}
+          </div>
+          <div className="mt-3 space-y-2">
+            <h4 className="text-sm font-medium">Cheer enrollments</h4>
+            {athlete.cheerEnrollments.length ? (
+              athlete.cheerEnrollments.map((enrollment) => (
+                <ParentEnrollmentDetails
+                  key={enrollment.enrollmentId}
+                  name={enrollment.teamName}
+                  scheduleLabel={enrollment.scheduleLabel}
+                  status={enrollment.status}
+                  paymentStatus={enrollment.paymentStatus}
+                />
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No current cheer enrollments</p>
             )}
           </div>
         </div>

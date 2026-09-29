@@ -2,6 +2,14 @@ import "server-only"
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getStripe } from "@/lib/stripe/server"
+import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
+import { fetchAllRows, isSchemaCompatibilityError } from "@/lib/account/pagination"
+import {
+  buildCheerScheduleRosterCounts,
+  buildRecurringRevenueMetric,
+  getCoverageState,
+  hasBillingData,
+} from "@/lib/account/reporting"
 import {
   formatDay,
   getWeekdaySortIndex,
@@ -13,6 +21,9 @@ import type {
   AdminDashboardData,
   AdminDashboardMetrics,
   AdminEnrollmentAthleteOption,
+  AdminReportingAthlete,
+  AdminReportingData,
+  AdminReportingParent,
   AdminTimeClockReviewData,
   AthleteRecord,
   CheerBillingRecord,
@@ -368,6 +379,9 @@ export function toDisplayEnrollment(
     stripePriceId: classRecord?.stripe_price_id ?? null,
     stripeCustomerId: enrollment.stripe_customer_id ?? null,
     stripeSubscriptionId: enrollment.stripe_subscription_id ?? null,
+    billingDataAvailable: hasBillingData(enrollment, [
+      "stripe_subscription_id", "subscription_status", "payment_status",
+    ]),
     subscriptionStatus: enrollment.subscription_status ?? null,
     paymentStatus: enrollment.payment_status ?? null,
     currentPeriodStart: enrollment.current_period_start ?? null,
@@ -419,10 +433,14 @@ function toDisplayCheerEnrollment(
     scheduleLabel: schedule?.scheduleLabel ?? null,
     status: enrollment.status ?? "unknown",
     contractSigned: enrollment.contract_signed === true,
+    selectionRequired: enrollment.selection_required === true,
     createdAt: enrollment.created_at ?? enrollment.enrolled_at ?? null,
     stripeCustomerId: enrollment.stripe_customer_id ?? null,
     tuitionSubscriptionId: enrollment.tuition_subscription_id ?? null,
     feeSubscriptionId: enrollment.fee_subscription_id ?? null,
+    billingDataAvailable: hasBillingData(enrollment, [
+      "tuition_subscription_id", "fee_subscription_id", "subscription_status", "payment_status",
+    ]),
     subscriptionStatus: enrollment.subscription_status ?? null,
     paymentStatus: enrollment.payment_status ?? null,
     currentPeriodStart: enrollment.current_period_start ?? null,
@@ -432,39 +450,40 @@ function toDisplayCheerEnrollment(
 
 async function fetchEnrollments() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("Enrollments")
-    .select(enrollmentSelectWithPayments)
-    .order("enrollment_id", { ascending: false })
 
-  if (!error) {
-    return (data ?? []) as EnrollmentRecord[]
+  try {
+    return await fetchAllRows<EnrollmentRecord>((from, to) =>
+      supabase
+        .from("Enrollments")
+        .select(enrollmentSelectWithPayments, { count: from === 0 ? "exact" : undefined })
+        .order("enrollment_id", { ascending: false })
+        .range(from, to)
+    )
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) {
+      throw error
+    }
+
+    return fetchAllRows<EnrollmentRecord>((from, to) =>
+      supabase
+        .from("Enrollments")
+        .select(enrollmentSelectBase, { count: from === 0 ? "exact" : undefined })
+        .order("enrollment_id", { ascending: false })
+        .range(from, to)
+    )
   }
-
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from("Enrollments")
-    .select(enrollmentSelectBase)
-    .order("enrollment_id", { ascending: false })
-
-  if (fallbackError) {
-    throw new Error(fallbackError.message)
-  }
-
-  return (fallbackData ?? []) as EnrollmentRecord[]
 }
 
 async function fetchCheerEnrollments() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("CheerEnrollments")
-    .select(cheerEnrollmentSelect)
-    .order("created_at", { ascending: false })
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  return (data ?? []) as CheerEnrollmentRecord[]
+  return fetchAllRows<CheerEnrollmentRecord>((from, to) =>
+      supabase
+        .from("CheerEnrollments")
+        .select(cheerEnrollmentSelect, { count: from === 0 ? "exact" : undefined })
+        .order("created_at", { ascending: false })
+        .order("enrollment_id", { ascending: false })
+        .range(from, to)
+    )
 }
 
 async function fetchParentAthletes(userId: string) {
@@ -580,38 +599,116 @@ async function fetchParentCheerEnrollments(athleteIds: string[]) {
 
 async function fetchParents() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("Parents")
-    .select("parent_id,user_id,first_name,last_name,phone,email,balance")
 
-  if (error) {
-    throw new Error(error.message)
+  try {
+    return await fetchAllRows<ParentRecord>((from, to) =>
+      supabase
+        .from("Parents")
+        .select("parent_id,user_id,first_name,last_name,phone,email,address,city,state,zip_code,balance,stripe_customer_id", { count: from === 0 ? "exact" : undefined })
+        .order("parent_id", { ascending: true })
+        .range(from, to)
+    )
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) {
+      throw error
+    }
+
+    return fetchAllRows<ParentRecord>((from, to) =>
+      supabase
+        .from("Parents")
+        .select("parent_id,user_id,first_name,last_name,phone,email,balance", { count: from === 0 ? "exact" : undefined })
+        .order("parent_id", { ascending: true })
+        .range(from, to)
+    )
   }
-
-  return (data ?? []) as ParentRecord[]
 }
 
 async function fetchAthletes() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("Athletes")
-    .select(
-      "athlete_id,user_id,parent_id,first_name,last_name,Parents(parent_id,first_name,last_name,phone,email)"
+
+  try {
+    return await fetchAllRows<AthleteRecord>((from, to) =>
+      supabase
+        .from("Athletes")
+        .select("athlete_id,user_id,parent_id,first_name,last_name,dob,phone,shirt_size,Parents(parent_id,first_name,last_name,phone,email)", { count: from === 0 ? "exact" : undefined })
+        .order("athlete_id", { ascending: true })
+        .range(from, to)
     )
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) {
+      throw error
+    }
 
-  if (!error) {
-    return (data ?? []) as AthleteRecord[]
+    return fetchAllRows<AthleteRecord>((from, to) =>
+      supabase
+        .from("Athletes")
+        .select("athlete_id,user_id,parent_id,first_name,last_name", { count: from === 0 ? "exact" : undefined })
+        .order("athlete_id", { ascending: true })
+        .range(from, to)
+    )
   }
+}
 
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from("Athletes")
-    .select("athlete_id,user_id,parent_id,first_name,last_name")
+function buildReportingParents(
+  parents: ParentRecord[]
+): AdminReportingParent[] {
+  return parents
+    .map((parent) => {
+      const balance = Number(parent.balance)
 
-  if (fallbackError) {
-    throw new Error(fallbackError.message)
-  }
+      return {
+        parentId: String(parent.parent_id),
+        parentName:
+          [parent.first_name, parent.last_name].filter(Boolean).join(" ") ||
+          `Parent #${parent.parent_id}`,
+        email: parent.email ?? null,
+        phone: parent.phone ?? null,
+        address: parent.address ?? null,
+        city: parent.city ?? null,
+        state: parent.state ?? null,
+        zipCode: parent.zip_code ?? null,
+        balance:
+          parent.balance !== null &&
+          parent.balance !== undefined &&
+          Number.isFinite(balance)
+            ? balance
+            : null,
+        stripeCustomerId: parent.stripe_customer_id ?? null,
+      }
+    })
+    .sort((first, second) => first.parentName.localeCompare(second.parentName))
+}
 
-  return (fallbackData ?? []) as AthleteRecord[]
+function buildReportingAthletes(
+  athletes: AthleteRecord[],
+  parentById: Map<string, ParentRecord>
+): AdminReportingAthlete[] {
+  return athletes
+    .map((athlete) => {
+      const relatedParent = firstRelation(athlete.Parents)
+      const parentId = toId(athlete.parent_id ?? relatedParent?.parent_id)
+      const parent =
+        (parentId ? parentById.get(parentId) : null) ?? relatedParent ?? null
+
+      return {
+        athleteId: String(athlete.athlete_id),
+        athleteName:
+          [athlete.first_name, athlete.last_name]
+            .filter(Boolean)
+            .join(" ") || `Athlete #${athlete.athlete_id}`,
+        dateOfBirth: athlete.dob ?? null,
+        phone: athlete.phone ?? null,
+        shirtSize: athlete.shirt_size ?? null,
+        parentId,
+        parentName:
+          [parent?.first_name, parent?.last_name]
+            .filter(Boolean)
+            .join(" ") || "No parent linked",
+        parentEmail: parent?.email ?? null,
+        parentPhone: parent?.phone ?? null,
+      }
+    })
+    .sort((first, second) => first.athleteName.localeCompare(second.athleteName))
 }
 
 function buildAdminEnrollmentAthleteOptions(
@@ -642,141 +739,136 @@ function buildAdminEnrollmentAthleteOptions(
 
 async function fetchClasses() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("Classes")
-    .select("class_id,class_name,class_description,type,program_type,billing_day,stripe_price_id,created_at")
-    .order("class_id", { ascending: true })
 
-  if (!error) {
-    return (data ?? []) as ClassRecord[]
+  try {
+    return await fetchAllRows<ClassRecord>((from, to) =>
+      supabase
+        .from("Classes")
+        .select("class_id,class_name,class_description,type,program_type,billing_day,stripe_price_id,created_at", { count: from === 0 ? "exact" : undefined })
+        .order("class_id", { ascending: true })
+        .range(from, to)
+    )
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) {
+      throw error
+    }
+
+    return fetchAllRows<ClassRecord>((from, to) =>
+      supabase
+        .from("Classes")
+        .select("class_id,class_name,type,created_at", { count: from === 0 ? "exact" : undefined })
+        .order("class_id", { ascending: true })
+        .range(from, to)
+    )
   }
-
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from("Classes")
-    .select("class_id,class_name,type,created_at")
-    .order("class_id", { ascending: true })
-
-  if (fallbackError) {
-    throw new Error(fallbackError.message)
-  }
-
-  return (fallbackData ?? []) as ClassRecord[]
 }
 
 async function fetchCheerTeams() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("CheerTeams")
-    .select("team_id,team_name,type,description,program_type,billing_day,tuition_price_id,fee_price_id,created_at")
-    .order("team_id", { ascending: true })
 
-  if (!error) {
-    return (data ?? []) as CheerTeamRecord[]
+  try {
+    return await fetchAllRows<CheerTeamRecord>((from, to) =>
+      supabase
+        .from("CheerTeams")
+        .select("team_id,team_name,type,description,program_type,billing_day,tuition_price_id,fee_price_id,created_at", { count: from === 0 ? "exact" : undefined })
+        .order("team_id", { ascending: true })
+        .range(from, to)
+    )
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) {
+      throw error
+    }
+
+    return fetchAllRows<CheerTeamRecord>((from, to) =>
+      supabase
+        .from("CheerTeams")
+        .select("team_id,team_name,type,description,created_at", { count: from === 0 ? "exact" : undefined })
+        .order("team_id", { ascending: true })
+        .range(from, to)
+    )
   }
-
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from("CheerTeams")
-    .select("team_id,team_name,type,description,created_at")
-    .order("team_id", { ascending: true })
-
-  if (fallbackError) {
-    throw new Error(fallbackError.message)
-  }
-
-  return (fallbackData ?? []) as CheerTeamRecord[]
 }
 
 async function fetchClassScheduleRows() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("ClassSchedules")
-    .select(
-      "schedule_id,class_id,season_id,day_of_week,start_time,end_time,is_active,created_at"
+  return fetchAllRows<ClassScheduleRow>((from, to) =>
+      supabase
+        .from("ClassSchedules")
+        .select("schedule_id,class_id,season_id,day_of_week,start_time,end_time,is_active,created_at", { count: from === 0 ? "exact" : undefined })
+        .is("archived_at", null)
+        .order("day_of_week", { ascending: true })
+        .order("start_time", { ascending: true })
+        .order("schedule_id", { ascending: true })
+        .range(from, to)
     )
-    .is("archived_at", null)
-    .order("day_of_week", { ascending: true })
-    .order("start_time", { ascending: true })
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  return (data ?? []) as ClassScheduleRow[]
 }
 
 async function fetchScheduleSeasons() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("ScheduleSeasons")
-    .select("season_id,season,is_active")
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  return (data ?? []) as ScheduleSeasonRow[]
+  return fetchAllRows<ScheduleSeasonRow>((from, to) =>
+      supabase
+        .from("ScheduleSeasons")
+        .select("season_id,season,is_active", { count: from === 0 ? "exact" : undefined })
+        .order("season_id", { ascending: true })
+        .range(from, to)
+    )
 }
 
 async function fetchCheerScheduleRows() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("CheerSchedules")
-    .select(
-      "schedule_id,team_id,day_of_week,start_time,end_time,is_active,created_at,archived_at"
+
+  try {
+    return await fetchAllRows<CheerScheduleRow>((from, to) =>
+      supabase
+        .from("CheerSchedules")
+        .select("schedule_id,team_id,day_of_week,start_time,end_time,is_active,created_at,archived_at", { count: from === 0 ? "exact" : undefined })
+        .is("archived_at", null)
+        .order("day_of_week", { ascending: true })
+        .order("start_time", { ascending: true })
+        .order("schedule_id", { ascending: true })
+        .range(from, to)
     )
-    .is("archived_at", null)
-    .order("day_of_week", { ascending: true })
-    .order("start_time", { ascending: true })
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) {
+      throw error
+    }
 
-  if (!error) {
-    return (data ?? []) as CheerScheduleRow[]
+    return fetchAllRows<CheerScheduleRow>((from, to) =>
+      supabase
+        .from("CheerSchedules")
+        .select("schedule_id,team_id,day_of_week,start_time,end_time", { count: from === 0 ? "exact" : undefined })
+        .order("day_of_week", { ascending: true })
+        .order("start_time", { ascending: true })
+        .order("schedule_id", { ascending: true })
+        .range(from, to)
+    )
   }
-
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from("CheerSchedules")
-    .select("schedule_id,team_id,day_of_week,start_time,end_time")
-    .order("day_of_week", { ascending: true })
-    .order("start_time", { ascending: true })
-
-  if (fallbackError) {
-    throw new Error(fallbackError.message)
-  }
-
-  return (fallbackData ?? []) as CheerScheduleRow[]
 }
 
 async function fetchClassSessionRows() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("ClassSessions")
-    .select(
-      "session_id,class_id,schedule_id,date,starts_at,ends_at,status,type"
+  return fetchAllRows<ClassSessionRow>((from, to) =>
+      supabase
+        .from("ClassSessions")
+        .select("session_id,class_id,schedule_id,date,starts_at,ends_at,status,type", { count: from === 0 ? "exact" : undefined })
+        .order("date", { ascending: false })
+        .order("starts_at", { ascending: true })
+        .order("session_id", { ascending: true })
+        .range(from, to)
     )
-    .order("date", { ascending: false })
-    .order("starts_at", { ascending: true })
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  return (data ?? []) as ClassSessionRow[]
 }
 
 async function fetchCheerSessionRows() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("CheerSessions")
-    .select(
-      "session_id,team_id,schedule_id,date,starts_at,ends_at,status,type"
+  return fetchAllRows<CheerSessionRow>((from, to) =>
+      supabase
+        .from("CheerSessions")
+        .select("session_id,team_id,schedule_id,date,starts_at,ends_at,status,type", { count: from === 0 ? "exact" : undefined })
+        .order("date", { ascending: false })
+        .order("starts_at", { ascending: true })
+        .order("session_id", { ascending: true })
+        .range(from, to)
     )
-    .order("date", { ascending: false })
-    .order("starts_at", { ascending: true })
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  return (data ?? []) as CheerSessionRow[]
 }
 
 export async function getDeadPeriods(): Promise<DeadPeriodRecord[]> {
@@ -798,34 +890,28 @@ export async function getDeadPeriods(): Promise<DeadPeriodRecord[]> {
 }
 
 function isMissingAttendanceTableError(error: { code?: string; message?: string }) {
-  return (
-    error.code === "42P01" ||
-    error.code === "42703" ||
-    error.code === "PGRST205" ||
-    /ClassSessionAttendance|is_makeup|schema cache|does not exist/i.test(
-      error.message ?? ""
-    )
-  )
+  return ["42P01", "42703", "PGRST205", "PGRST204"].includes(error.code ?? "")
 }
 
 async function fetchClassSessionAttendanceRows() {
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("ClassSessionAttendance")
-    .select(
-      "attendance_id,session_id,enrollment_id,athlete_id,is_makeup,attendance_status,notes,reviewed_at,reviewed_by"
-    )
-    .order("reviewed_at", { ascending: false })
 
-  if (error) {
-    if (isMissingAttendanceTableError(error)) {
+  try {
+    return await fetchAllRows<ClassSessionAttendanceRow>((from, to) =>
+      supabase
+        .from("ClassSessionAttendance")
+        .select("attendance_id,session_id,enrollment_id,athlete_id,is_makeup,attendance_status,notes,reviewed_at,reviewed_by", { count: from === 0 ? "exact" : undefined })
+        .order("reviewed_at", { ascending: false })
+        .order("attendance_id", { ascending: true })
+        .range(from, to)
+    )
+  } catch (error) {
+    if (error instanceof Error && isMissingAttendanceTableError(error)) {
       return [] as ClassSessionAttendanceRow[]
     }
 
-    throw new Error(error.message)
+    throw error
   }
-
-  return (data ?? []) as ClassSessionAttendanceRow[]
 }
 
 function normalizeTimeClockStatus(status: string | null | undefined) {
@@ -949,24 +1035,28 @@ export async function getAdminTimeClockReviewData(): Promise<AdminTimeClockRevie
   const now = new Date()
   const { periodStart, periodEnd } = getCurrentPayPeriod(now)
   const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("CoachTimeClockEntries")
-    .select(timeClockSelectColumns)
-    .order("clock_in_at", { ascending: false })
+  let rows: CoachTimeClockRow[]
 
-  if (error) {
+  try {
+    rows = await fetchAllRows<CoachTimeClockRow>((from, to) =>
+      supabase
+        .from("CoachTimeClockEntries")
+        .select(timeClockSelectColumns, { count: from === 0 ? "exact" : undefined })
+        .order("clock_in_at", { ascending: false })
+        .order("time_clock_id", { ascending: true })
+        .range(from, to)
+    )
+  } catch (error) {
     return {
       periodStart,
       periodEnd,
       coaches: [],
       tableReady: false,
-      message: error.message,
+      message: error instanceof Error ? error.message : "Time entries are unavailable.",
     }
   }
 
-  const historyEntries = ((data ?? []) as CoachTimeClockRow[]).map(
-    toCoachTimeClockEntry
-  )
+  const historyEntries = rows.map(toCoachTimeClockEntry)
   const profiles = await fetchCoachProfiles(
     historyEntries.map((entry) => entry.coachUserId)
   )
@@ -1321,7 +1411,8 @@ function buildClassScheduleRows(
 
 function buildCheerScheduleRows(
   scheduleRows: CheerScheduleRow[],
-  teamNameById: Map<string, string>
+  teamNameById: Map<string, string>,
+  enrollmentCountBySchedule: Map<string, number> = new Map()
 ): CheerScheduleDisplayRecord[] {
   return scheduleRows
     .map((row) => {
@@ -1339,7 +1430,7 @@ function buildCheerScheduleRows(
         startTime: row.start_time ?? null,
         endTime: row.end_time ?? null,
         isActive: row.is_active ?? true,
-        enrollmentCount: 0,
+        enrollmentCount: enrollmentCountBySchedule.get(scheduleId) ?? 0,
         createdAt: row.created_at ?? null,
         scheduleLabel: formatScheduleLabel(
           dayOfWeek,
@@ -1758,13 +1849,6 @@ function buildProgramBreakdown(
     .slice(0, 8)
 }
 
-function formatCurrencyAmount(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(cents / 100)
-}
-
 const STRIPE_PROCESSING_RATE = 0.029
 const STRIPE_PROCESSING_FIXED_FEE_CENTS = 30
 const STRIPE_SUBSCRIPTION_RATE = 0.007
@@ -1796,11 +1880,33 @@ async function estimateMonthlyRecurringRevenue(
   cheerEnrollments: CheerEnrollmentDisplayRecord[],
   cheerBilling: CheerBillingRecord[]
 ) {
+  const coverage = [
+    ...enrollments.map((enrollment) => ({
+      ...enrollment,
+      subscriptionIds: [enrollment.stripeSubscriptionId],
+    })),
+    ...cheerEnrollments.map((enrollment) => ({
+      ...enrollment,
+      subscriptionIds: [enrollment.tuitionSubscriptionId, enrollment.feeSubscriptionId],
+    })),
+  ]
+
+  const coverageUnverified = coverage.some((enrollment) => {
+    const state = getCoverageState(enrollment)
+    const status = enrollment.subscriptionStatus?.trim().toLowerCase() ?? ""
+    return state === "unknown" ||
+      (["active", "trialing"].includes(status) && state !== "subscribed")
+  })
+
+  if (coverageUnverified) {
+    return null
+  }
+
   const activeEnrollments = enrollments.filter((enrollment) =>
-    ["active", "trialing"].includes(enrollment.subscriptionStatus ?? "")
+    ["active", "trialing"].includes(enrollment.subscriptionStatus?.trim().toLowerCase() ?? "")
   )
   const activeCheerEnrollments = cheerEnrollments.filter((enrollment) =>
-    ["active", "trialing"].includes(enrollment.subscriptionStatus ?? "")
+    ["active", "trialing"].includes(enrollment.subscriptionStatus?.trim().toLowerCase() ?? "")
   )
   const cheerBillingByTeamId = new Map(
     cheerBilling.map((team) => [team.teamId, team])
@@ -1885,14 +1991,7 @@ function buildMetrics(
       value: String(statusCount(["denied", "canceled"])),
       detail: "Not moving forward",
     },
-    monthlyRecurringRevenue: {
-      label: "Monthly recurring revenue",
-      value: mrrCents === null ? "0" : formatCurrencyAmount(mrrCents),
-      detail:
-        mrrCents === null
-          ? "Stripe monthly revenue is currently unavailable"
-          : "After 3.6% Stripe, 1.5% platform, and $0.30/charge fees",
-    },
+    monthlyRecurringRevenue: buildRecurringRevenueMetric(mrrCents),
   } satisfies AdminDashboardMetrics
 }
 
@@ -2004,7 +2103,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   )
   const cheerSchedules = buildCheerScheduleRows(
     cheerScheduleRows,
-    cheerTeamNameById
+    cheerTeamNameById,
+    buildCheerScheduleRosterCounts(cheerEnrollmentRows, cheerScheduleRows)
   )
   const athleteById = new Map(
     athletes.map((athlete) => [String(athlete.athlete_id), athlete])
@@ -2046,6 +2146,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   )
 
   return {
+    reportingGeneratedAt: new Date().toISOString(),
     metrics: buildMetrics(parents, enrollments, mrrCents),
     reviewQueue: buildReviewQueueAction(enrollmentStatusRecords),
     actionItems: buildActionItems(enrollments, classBilling, cheerBilling),
@@ -2055,6 +2156,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     allEnrollments: enrollments,
     cheerEnrollments,
     enrollmentAthletes: buildAdminEnrollmentAthleteOptions(athletes),
+    reportingParents: buildReportingParents(parents),
+    reportingAthletes: buildReportingAthletes(athletes, parentById),
     classBilling,
     cheerBilling,
     scheduleSeasons,
@@ -2066,6 +2169,31 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     statusBreakdown: buildStatusBreakdown(enrollmentStatusRecords),
     enrollmentTrend: buildEnrollmentTrend(enrollments, cheerEnrollments),
     programBreakdown: buildProgramBreakdown(enrollments, cheerEnrollments),
+  }
+}
+
+export async function getAdminReportingData(): Promise<AdminReportingData> {
+  requireAdminSession(await getAccountSession())
+  const data = await getAdminDashboardData()
+
+  return {
+    reportingGeneratedAt: data.reportingGeneratedAt,
+    metrics: data.metrics,
+    allEnrollments: data.allEnrollments,
+    cheerEnrollments: data.cheerEnrollments,
+    reportingParents: data.reportingParents,
+    reportingAthletes: data.reportingAthletes,
+    classBilling: data.classBilling,
+    cheerBilling: data.cheerBilling,
+    scheduleSeasons: data.scheduleSeasons,
+    classSchedules: data.classSchedules,
+    cheerSchedules: data.cheerSchedules,
+    classSessions: data.classSessions,
+    cheerSessions: data.cheerSessions,
+    timeClockReview: data.timeClockReview,
+    statusBreakdown: data.statusBreakdown,
+    enrollmentTrend: data.enrollmentTrend,
+    programBreakdown: data.programBreakdown,
   }
 }
 

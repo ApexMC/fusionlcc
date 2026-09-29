@@ -42,10 +42,11 @@ export const adminDashboardRoutes = {
     href: "/account/admin/time-clock",
     icon: Clock,
   },
-  charts: {
-    title: "Charts",
-    description: "Track enrollment activity, status health, and program demand.",
-    href: "/account/admin/charts",
+  reporting: {
+    title: "Reporting",
+    description:
+      "Audit subscriptions, export financial and operational data, and review enrollment analytics.",
+    href: "/account/admin/reporting",
     icon: BarChart3,
   },
   announcements: {
