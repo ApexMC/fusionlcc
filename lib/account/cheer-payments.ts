@@ -97,8 +97,13 @@ export function getCombinedSubscriptionStatus(
 
 function getEnrollmentLifecycleStatus(
   tuitionSubscription: Stripe.Subscription,
-  feeSubscription: Stripe.Subscription
+  feeSubscription: Stripe.Subscription,
+  eventType?: Stripe.Event.Type
 ) {
+  if (eventType === "checkout.session.completed") {
+    return "active"
+  }
+
   if (
     activeSubscriptionStatuses.has(tuitionSubscription.status) &&
     activeSubscriptionStatuses.has(feeSubscription.status)
@@ -293,12 +298,14 @@ async function persistCheerSubscriptions({
   tuitionSubscription,
   feeSubscription,
   paymentStatus,
+  eventType,
 }: {
   enrollmentId: string | number
   customerId?: string | null
   tuitionSubscription: Stripe.Subscription
   feeSubscription: Stripe.Subscription
   paymentStatus?: string | null
+  eventType?: Stripe.Event.Type
 }) {
   const supabase = createAdminClient()
   const combinedStatus = getCombinedSubscriptionStatus(
@@ -322,7 +329,8 @@ async function persistCheerSubscriptions({
     current_period_end: period.currentPeriodEnd,
     status: getEnrollmentLifecycleStatus(
       tuitionSubscription,
-      feeSubscription
+      feeSubscription,
+      eventType
     ),
     ...(normalizedPaymentStatus
       ? { payment_status: normalizedPaymentStatus }
@@ -332,7 +340,7 @@ async function persistCheerSubscriptions({
     .from("CheerEnrollments")
     .update(update)
     .eq("enrollment_id", enrollmentId)
-    .select("enrollment_id")
+    .select("enrollment_id,status")
     .maybeSingle()
 
   if (error) {
@@ -341,6 +349,14 @@ async function persistCheerSubscriptions({
 
   if (!data) {
     throw new Error(`Cheer enrollment ${enrollmentId} was not found.`)
+  }
+
+  if (data.status !== update.status) {
+    throw new Error(
+      `Cheer enrollment status did not update. Expected ${update.status}, received ${
+        data.status ?? "null"
+      }.`
+    )
   }
 }
 
@@ -363,6 +379,7 @@ export async function finalizeCheerCheckout({
     tuitionSubscription,
     feeSubscription,
     paymentStatus,
+    eventType: "checkout.session.completed",
   })
 }
 
