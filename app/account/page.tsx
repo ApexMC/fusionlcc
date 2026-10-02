@@ -536,7 +536,6 @@ export default async function AccountPage() {
                             </div>
                             {parent ? (
                                 <ManageAccountCard
-                                    userId={session.userId}
                                     phone={parent.phone ?? undefined}
                                     address={parent.address ?? undefined}
                                     city={parent.city ?? undefined}

@@ -20,6 +20,7 @@ import {
   YAxis,
 } from "recharts"
 
+import { SummaryCard } from "@/components/account/summary_card"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -117,35 +118,6 @@ function EmptyChart({ label }: { label: string }) {
     <div className="flex h-64 items-center justify-center rounded-lg border border-dashed px-6 text-center text-sm text-muted-foreground">
       {label}
     </div>
-  )
-}
-
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  detail,
-}: {
-  icon: typeof Activity
-  label: string
-  value: string
-  detail: string
-}) {
-  return (
-    <Card size="sm" className="bg-white dark:bg-black">
-      <CardContent className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {label}
-          </p>
-          <p className="mt-2 text-2xl font-bold tabular-nums">{value}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-        </div>
-        <div className="rounded-lg bg-muted p-2 text-muted-foreground">
-          <Icon className="size-4" aria-hidden="true" />
-        </div>
-      </CardContent>
-    </Card>
   )
 }
 

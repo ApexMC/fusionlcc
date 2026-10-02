@@ -37,7 +37,7 @@ export default async function RootLayout({
   const announcements = await getAnnouncements().catch(() => []);
 
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    <html lang="en" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"

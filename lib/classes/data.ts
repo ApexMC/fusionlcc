@@ -1,5 +1,6 @@
 import "server-only"
 
+import { normalizeProgramType } from "@/lib/programs"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   getDateKey,
@@ -103,24 +104,6 @@ type PublicClassSessionRow = {
 
 function toId(value: string | number | null | undefined) {
   return value === null || value === undefined ? null : String(value)
-}
-
-function normalizeProgramType(value: string | null | undefined) {
-  if (!value) {
-    return null
-  }
-
-  const normalized = value.toLowerCase().replace(/[\s-]+/g, "_")
-
-  if (normalized.includes("cheer")) {
-    return "competitive_cheer"
-  }
-
-  if (normalized.includes("gym")) {
-    return "gymnastics"
-  }
-
-  return normalized
 }
 
 function formatTimeLabel(

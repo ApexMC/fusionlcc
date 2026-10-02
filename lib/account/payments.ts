@@ -1,5 +1,6 @@
 import "server-only"
 
+import { normalizeProgramType } from "@/lib/programs"
 import Stripe from "stripe"
 
 import { getAccountSession, getParentForUser } from "@/lib/account/auth"
@@ -46,24 +47,6 @@ const paymentEnrollmentSelect = `
 
 function firstRelation<T>(value: T | T[] | null | undefined) {
   return Array.isArray(value) ? value[0] : value
-}
-
-function normalizeProgramType(value: string | null | undefined) {
-  if (!value) {
-    return null
-  }
-
-  const normalized = value.toLowerCase().replace(/[\s-]+/g, "_")
-
-  if (normalized.includes("cheer")) {
-    return "competitive_cheer"
-  }
-
-  if (normalized.includes("gym")) {
-    return "gymnastics"
-  }
-
-  return normalized
 }
 
 export function normalizeEnrollmentPaymentStatus(

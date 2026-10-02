@@ -6,14 +6,18 @@ import type {
 
 export type CsvValue = string | number | boolean | null | undefined
 export type CsvRow = Record<string, CsvValue>
-export type CoverageState = "subscribed" | "attention" | "not-subscribed" | "unknown"
+export type CoverageState = "subscribed" | "payment-not-required" | "attention" | "not-subscribed" | "unknown"
 
 const activeStatuses = new Set(["active", "trialing"])
 const endedStatuses = new Set(["canceled", "cancelled", "incomplete_expired"])
 const attentionStatuses = new Set(["past_due", "unpaid", "incomplete", "paused"])
+const paymentAttentionStatuses = new Set(["payment_failed", "past_due", "unpaid", "incomplete"])
+const paymentNotRequiredStatuses = new Set(["payment_not_required", "no_payment_required"])
+const endedEnrollmentStatuses = new Set(["denied", "canceled", "cancelled"])
 
 export const coverageLabels: Record<CoverageState, string> = {
   subscribed: "Subscribed",
+  "payment-not-required": "Payment not required",
   attention: "Needs attention",
   "not-subscribed": "Not subscribed",
   unknown: "Unknown",
@@ -40,10 +44,21 @@ export type SubscriptionAuditRecord = {
 export function buildSubscriptionAuditRecords(
   data: Pick<AdminDashboardData, "allEnrollments" | "cheerEnrollments">
 ): SubscriptionAuditRecord[] {
+  // Class payments are waived only for the athlete with a current cheer enrollment.
+  const cheerAthleteIds = new Set(data.cheerEnrollments
+    .filter((enrollment) => !endedEnrollmentStatuses.has(enrollment.status?.trim().toLowerCase() ?? ""))
+    .map((enrollment) => enrollment.athleteId)
+    .filter(Boolean))
+
   return [
     ...data.allEnrollments.map((enrollment) => {
       const ids = [enrollment.stripeSubscriptionId]
-      const coverageState = getCoverageState({ ...enrollment, subscriptionIds: ids })
+      const paymentStatus = enrollment.athleteId &&
+        cheerAthleteIds.has(enrollment.athleteId) &&
+        !endedEnrollmentStatuses.has(enrollment.status?.trim().toLowerCase() ?? "")
+        ? "payment_not_required"
+        : enrollment.paymentStatus
+      const coverageState = getCoverageState({ ...enrollment, paymentStatus, subscriptionIds: ids })
 
       return {
         key: `class:${enrollment.enrollmentId}`,
@@ -62,7 +77,7 @@ export function buildSubscriptionAuditRecords(
           "Coverage state": coverageLabels[coverageState],
           "Billing data available": enrollment.billingDataAvailable,
           "Subscription status": enrollment.subscriptionStatus ?? "",
-          "Payment status": enrollment.paymentStatus ?? "",
+          "Payment status": paymentStatus ?? "",
           "Stripe customer ID": enrollment.stripeCustomerId,
           "Subscription IDs": ids.filter(Boolean).join("; "),
           "Billing day": enrollment.billingDay,
@@ -108,13 +123,20 @@ export function buildSubscriptionAuditRecords(
 
 export function getCoverageState({
   billingDataAvailable,
+  paymentStatus,
   subscriptionStatus,
   subscriptionIds,
 }: {
   billingDataAvailable: boolean
+  paymentStatus?: string | null
   subscriptionStatus: string | null
   subscriptionIds: Array<string | null>
 }): CoverageState {
+  const payment = paymentStatus?.trim().toLowerCase() ?? ""
+  if (paymentNotRequiredStatuses.has(payment)) {
+    return "payment-not-required"
+  }
+
   if (!billingDataAvailable) {
     return "unknown"
   }
@@ -123,6 +145,10 @@ export function getCoverageState({
   const hasAnySubscription = subscriptionIds.some((id) => Boolean(id?.trim()))
   const hasEverySubscription =
     subscriptionIds.length > 0 && subscriptionIds.every((id) => Boolean(id?.trim()))
+
+  if (paymentAttentionStatuses.has(payment)) {
+    return "attention"
+  }
 
   if (endedStatuses.has(status)) {
     return "not-subscribed"

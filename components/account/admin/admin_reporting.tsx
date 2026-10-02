@@ -17,6 +17,7 @@ import {
   UsersRound,
 } from "lucide-react"
 
+import { SummaryCard } from "@/components/account/summary_card"
 import { AdminCharts } from "@/components/account/admin/admin_charts"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -85,37 +86,6 @@ function formatMoney(value: number) {
   }).format(value)
 }
 
-
-
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  detail,
-}: {
-  icon: LucideIcon
-  label: string
-  value: string
-  detail: string
-}) {
-  return (
-    <Card size="sm" className="bg-white dark:bg-black">
-      <CardContent className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {label}
-          </p>
-          <p className="mt-2 text-2xl font-bold tabular-nums">{value}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-        </div>
-        <div className="rounded-lg bg-muted p-2 text-muted-foreground">
-          <Icon className="size-4" aria-hidden="true" />
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
 function ExportCard({ report }: { report: ReportingExport }) {
   const Icon = reportIcons[report.icon]
 
@@ -169,6 +139,7 @@ export function AdminReporting({ data }: { data: AdminReportingData }) {
   const coverageCounts = React.useMemo(() => {
     const counts: Record<CoverageState, number> = {
       subscribed: 0,
+      "payment-not-required": 0,
       attention: 0,
       "not-subscribed": 0,
       unknown: 0,
@@ -228,6 +199,11 @@ export function AdminReporting({ data }: { data: AdminReportingData }) {
       value: "subscribed",
       label: "Subscribed",
       count: coverageCounts.subscribed,
+    },
+    {
+      value: "payment-not-required",
+      label: coverageLabels["payment-not-required"],
+      count: coverageCounts["payment-not-required"],
     },
     {
       value: "not-subscribed",
@@ -293,7 +269,7 @@ export function AdminReporting({ data }: { data: AdminReportingData }) {
             icon={CircleAlert}
             label="Needs attention"
             value={coverageCounts.attention.toLocaleString()}
-            detail="Inactive or problem subscriptions"
+            detail="Subscription or payment problems"
           />
           <SummaryCard
             icon={BadgeDollarSign}
@@ -310,7 +286,7 @@ export function AdminReporting({ data }: { data: AdminReportingData }) {
         <CardHeader className="border-b">
           <CardTitle>Subscription audit</CardTitle>
           <CardDescription>
-            Find exactly who is subscribed, who is not, and which records need a billing follow-up.
+            Find who is subscribed, whose payment is not required, and which records need a billing follow-up.
           </CardDescription>
           <CardAction>
             <Button
@@ -365,7 +341,7 @@ export function AdminReporting({ data }: { data: AdminReportingData }) {
           </div>
 
           <div className="max-h-[32rem] overflow-auto rounded-lg border">
-            <table className="w-full min-w-[52rem] text-left text-sm">
+            <table className="w-full min-w-[46rem] text-left text-sm">
               <thead className="sticky top-0 z-10 bg-muted/95 text-xs text-muted-foreground backdrop-blur">
                 <tr>
                   <th className="px-3 py-2.5 font-medium">Parent</th>
@@ -373,15 +349,20 @@ export function AdminReporting({ data }: { data: AdminReportingData }) {
                   <th className="px-3 py-2.5 font-medium">Program</th>
                   <th className="px-3 py-2.5 font-medium">Enrollment</th>
                   <th className="px-3 py-2.5 font-medium">Subscription</th>
-                  <th className="px-3 py-2.5 font-medium">Payment</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {filteredAuditRecords.map((record) => {
                   const row = record.exportRow
                   const stateLabel = coverageLabels[record.coverageState]
+                  const paymentNotRequired = record.coverageState === "payment-not-required"
+                  const statusDetail = paymentNotRequired ? null : Array.from(new Set(
+                    [row["Subscription status"], row["Payment status"]]
+                      .map((status) => status.trim().toLowerCase().replaceAll("_", " "))
+                      .filter(Boolean)
+                  )).join(" · ") || "No status"
                   const badgeVariant =
-                    record.coverageState === "subscribed"
+                    record.coverageState === "subscribed" || paymentNotRequired
                       ? "success"
                       : record.coverageState === "attention"
                         ? "warning"
@@ -410,12 +391,11 @@ export function AdminReporting({ data }: { data: AdminReportingData }) {
                       </td>
                       <td className="px-3 py-3">
                         <Badge variant={badgeVariant}>{stateLabel}</Badge>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {row["Subscription status"] || "No status"}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 capitalize">
-                        {row["Payment status"] || "—"}
+                        {statusDetail ? (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {statusDetail}
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   )
@@ -423,7 +403,7 @@ export function AdminReporting({ data }: { data: AdminReportingData }) {
                 {!filteredAuditRecords.length ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={5}
                       className="px-4 py-10 text-center text-muted-foreground"
                     >
                       No subscription records match this view.

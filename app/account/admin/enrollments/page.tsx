@@ -4,14 +4,14 @@ import {
 } from "@/components/account/dashboard_navigation"
 import { EnrollmentManagement } from "@/components/account/admin/enrollment_management"
 import { CheerEnrollmentManagement } from "@/components/account/admin/cheer_enrollment_management"
-import { getAdminDashboardData } from "@/lib/account/data"
+import { getAdminEnrollmentsData } from "@/lib/account/data"
 import { requireAdminOwnerAccountSession } from "@/app/account/_lib/route-guards"
 import { adminDashboardRoutes } from "@/components/account/dashboard_routes"
 
 export default async function AdminEnrollmentsPage() {
   await requireAdminOwnerAccountSession()
 
-  const dashboardData = await getAdminDashboardData()
+  const enrollmentsData = await getAdminEnrollmentsData()
   const route = adminDashboardRoutes.enrollments
 
   return (
@@ -23,14 +23,14 @@ export default async function AdminEnrollmentsPage() {
         backLabel="Dashboard"
       />
       <EnrollmentManagement
-        enrollments={dashboardData.allEnrollments}
-        athletes={dashboardData.enrollmentAthletes}
-        schedules={dashboardData.classSchedules}
+        enrollments={enrollmentsData.allEnrollments}
+        athletes={enrollmentsData.enrollmentAthletes}
+        schedules={enrollmentsData.classSchedules}
       />
       <CheerEnrollmentManagement
-        enrollments={dashboardData.cheerEnrollments}
-        athletes={dashboardData.enrollmentAthletes}
-        teams={dashboardData.cheerBilling}
+        enrollments={enrollmentsData.cheerEnrollments}
+        athletes={enrollmentsData.enrollmentAthletes}
+        teams={enrollmentsData.cheerBilling}
       />
     </AccountDashboardFrame>
   )

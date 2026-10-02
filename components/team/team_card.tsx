@@ -5,6 +5,7 @@ import Link from "next/link";
 function TeamCard({
   member,
   offsetClass,
+  loading = "lazy",
 }: {
   member: {
     name: string;
@@ -13,6 +14,7 @@ function TeamCard({
     slug: string;
   };
   offsetClass?: string;
+  loading?: "eager" | "lazy";
 }) {
   return (
     <Link
@@ -29,7 +31,8 @@ function TeamCard({
             src={member.img}
             alt={`${member.name} headshot`}
             fill
-            sizes=""
+            sizes="(min-width: 1024px) 251px, (min-width: 768px) calc((100vw - 272px) / 3), (min-width: 640px) calc((100vw - 192px) / 3), calc((100vw - 136px) / 2)"
+            loading={loading}
             className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-black/60 to-transparent" />

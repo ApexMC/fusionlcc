@@ -1,5 +1,7 @@
 import "server-only"
 
+import { getDateKey, getDateKeyInTimeZone, parseDateKeyParts } from "@/lib/date_keys"
+import { normalizeProgramType } from "@/lib/programs"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getStripe } from "@/lib/stripe/server"
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
@@ -70,6 +72,7 @@ const enrollmentSelectWithPayments = `
   payment_status,
   Athletes(
     athlete_id,
+    created_at,
     first_name,
     last_name,
     user_id,
@@ -96,6 +99,7 @@ const enrollmentSelectBase = `
   selection_required,
   Athletes(
     athlete_id,
+    created_at,
     first_name,
     last_name,
     user_id,
@@ -290,24 +294,6 @@ function getScheduleSummary(
     .join(", ")
 }
 
-function normalizeProgramType(value: string | null | undefined) {
-  if (!value) {
-    return null
-  }
-
-  const normalized = value.toLowerCase().replace(/[\s-]+/g, "_")
-
-  if (normalized.includes("cheer")) {
-    return "competitive_cheer"
-  }
-
-  if (normalized.includes("gym")) {
-    return "gymnastics"
-  }
-
-  return normalized
-}
-
 export function resolveBillingDay(
   classRecord: Pick<ClassRecord, "billing_day" | "program_type" | "type"> | null
 ) {
@@ -362,6 +348,7 @@ export function toDisplayEnrollment(
   return {
     enrollmentId: String(enrollment.enrollment_id),
     athleteId: toId(enrollment.athlete_id ?? athlete?.athlete_id),
+    athleteCreatedAt: athlete?.created_at ?? null,
     athleteName: athleteName || "Unknown athlete",
     parentName: parentName || "Unknown parent",
     parentPhone: parent?.phone ?? null,
@@ -1472,9 +1459,24 @@ function sortSessionAthletes(athletes: ClassSessionExpectedAthlete[]) {
   })
 }
 
+function getAthleteCreatedDateKey(value: string | null) {
+  if (!value) {
+    return ""
+  }
+
+  if (parseDateKeyParts(value)) {
+    return value
+  }
+
+  const date = new Date(value)
+
+  return Number.isNaN(date.getTime()) ? "" : getDateKeyInTimeZone(date)
+}
+
 function buildClassSessionRosterIndexes(enrollments: EnrollmentDisplayRecord[]) {
   const expectedByScheduleId = new Map<string, ClassSessionExpectedAthlete[]>()
   const rosterByClassId = new Map<string, ClassSessionExpectedAthlete[]>()
+  const athleteCreatedDateByEnrollmentId = new Map<string, string>()
 
   enrollments.forEach((enrollment) => {
     const scheduleId = enrollment.scheduleId
@@ -1504,16 +1506,18 @@ function buildClassSessionRosterIndexes(enrollments: EnrollmentDisplayRecord[]) 
       attendanceReviewedBy: null,
     }
 
-    rosterByClassId.set(classId, [
-      ...(rosterByClassId.get(classId) ?? []),
-      athlete,
-    ])
+    athleteCreatedDateByEnrollmentId.set(
+      enrollment.enrollmentId,
+      getAthleteCreatedDateKey(enrollment.athleteCreatedAt)
+    )
+    const classRoster = rosterByClassId.get(classId) ?? []
+    classRoster.push(athlete)
+    rosterByClassId.set(classId, classRoster)
 
     if (scheduleId) {
-      expectedByScheduleId.set(scheduleId, [
-        ...(expectedByScheduleId.get(scheduleId) ?? []),
-        athlete,
-      ])
+      const scheduleRoster = expectedByScheduleId.get(scheduleId) ?? []
+      scheduleRoster.push(athlete)
+      expectedByScheduleId.set(scheduleId, scheduleRoster)
     }
   })
 
@@ -1523,6 +1527,7 @@ function buildClassSessionRosterIndexes(enrollments: EnrollmentDisplayRecord[]) 
   return {
     expectedByScheduleId,
     rosterByClassId,
+    athleteCreatedDateByEnrollmentId,
   }
 }
 
@@ -1583,7 +1588,7 @@ function buildClassSessionRows({
       classSchedule,
     ])
   )
-  const { expectedByScheduleId, rosterByClassId } =
+  const { expectedByScheduleId, rosterByClassId, athleteCreatedDateByEnrollmentId } =
     buildClassSessionRosterIndexes(enrollments)
   const attendanceByKey = buildAttendanceBySessionEnrollment(attendanceRows)
 
@@ -1592,9 +1597,18 @@ function buildClassSessionRows({
     const classSchedule = scheduleId ? scheduleById.get(scheduleId) : null
     const classId = toId(row.class_id) ?? classSchedule?.classId ?? null
     const sessionId = String(row.session_id)
-    const scheduledAthletes = scheduleId
-      ? expectedByScheduleId.get(scheduleId) ?? []
-      : []
+    const sessionDate = getDateKey(row.date)
+    const isEligibleForSession = (athlete: ClassSessionExpectedAthlete) => {
+      const createdDate = athleteCreatedDateByEnrollmentId.get(
+        athlete.enrollmentId
+      )
+
+      // Compare calendar dates so athletes created on the session day are eligible.
+      return !sessionDate || !createdDate || createdDate <= sessionDate
+    }
+    const scheduledAthletes = (
+      scheduleId ? expectedByScheduleId.get(scheduleId) ?? [] : []
+    ).filter(isEligibleForSession)
     const scheduledEnrollmentIds = new Set(
       scheduledAthletes.map((athlete) => athlete.enrollmentId)
     )
@@ -1607,7 +1621,9 @@ function buildClassSessionRows({
     const displayedEnrollmentIds = new Set(
       expectedAthletes.map((athlete) => athlete.enrollmentId)
     )
-    const classRoster = classId ? rosterByClassId.get(classId) ?? [] : []
+    const classRoster = (
+      classId ? rosterByClassId.get(classId) ?? [] : []
+    ).filter(isEligibleForSession)
     const makeupAthletes = classRoster.flatMap((athlete) => {
       if (scheduledEnrollmentIds.has(athlete.enrollmentId)) {
         return []
@@ -2050,41 +2066,18 @@ function buildActionItems(
   ] satisfies OperationsActionItem[]
 }
 
-export async function getAdminDashboardData(): Promise<AdminDashboardData> {
-  const [
-    parents,
-    athletes,
-    enrollmentRows,
-    cheerEnrollmentRows,
-    classes,
-    cheerTeams,
-    classScheduleRows,
-    scheduleSeasonRows,
-    cheerScheduleRows,
-    classSessionRows,
-    cheerSessionRows,
-    classSessionAttendanceRows,
-    timeClockReview,
-  ] = await Promise.all([
-    fetchParents(),
-    fetchAthletes(),
-    fetchEnrollments(),
-    fetchCheerEnrollments(),
-    fetchClasses(),
-    fetchCheerTeams(),
-    fetchClassScheduleRows(),
-    fetchScheduleSeasons(),
-    fetchCheerScheduleRows(),
-    fetchClassSessionRows(),
-    fetchCheerSessionRows(),
-    fetchClassSessionAttendanceRows(),
-    getAdminTimeClockReviewData(),
-  ])
+// Reuse the same builders across focused pages and the complete dashboard.
+async function fetchClassWorkspaceData() {
+  const [enrollmentRows, classes, classScheduleRows, scheduleSeasonRows] =
+    await Promise.all([
+      fetchEnrollments(),
+      fetchClasses(),
+      fetchClassScheduleRows(),
+      fetchScheduleSeasons(),
+    ])
   const enrollments = enrollmentRows.map(toDisplayEnrollment)
   const classBilling = buildClassBillingRows(classes)
-  const cheerBilling = buildCheerBillingRows(cheerTeams)
   const classNameById = buildClassNameById(classBilling)
-  const cheerTeamNameById = buildCheerTeamNameById(cheerBilling)
   const scheduleSeasons = buildScheduleSeasonRows(scheduleSeasonRows)
   const scheduleSeasonById = new Map(
     scheduleSeasons.map((scheduleSeason) => [
@@ -2101,27 +2094,176 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     enrollmentCountBySchedule,
     athleteNamesBySchedule
   )
+
+  return { enrollments, classBilling, classNameById, scheduleSeasons, classSchedules }
+}
+
+async function fetchCheerWorkspaceData() {
+  const [cheerEnrollmentRows, cheerTeams, cheerScheduleRows] = await Promise.all([
+    fetchCheerEnrollments(),
+    fetchCheerTeams(),
+    fetchCheerScheduleRows(),
+  ])
+  const cheerBilling = buildCheerBillingRows(cheerTeams)
+  const cheerTeamNameById = buildCheerTeamNameById(cheerBilling)
   const cheerSchedules = buildCheerScheduleRows(
     cheerScheduleRows,
     cheerTeamNameById,
     buildCheerScheduleRosterCounts(cheerEnrollmentRows, cheerScheduleRows)
   )
+
+  return { cheerEnrollmentRows, cheerBilling, cheerTeamNameById, cheerSchedules }
+}
+
+function buildCheerEnrollments(
+  enrollmentRows: CheerEnrollmentRecord[],
+  athletes: AthleteRecord[],
+  parentById: Map<string, ParentRecord>,
+  teamNameById: Map<string, string>,
+  schedules: CheerScheduleDisplayRecord[]
+) {
   const athleteById = new Map(
     athletes.map((athlete) => [String(athlete.athlete_id), athlete])
   )
-  const parentById = new Map(
-    parents.map((parent) => [String(parent.parent_id), parent])
+  const scheduleById = new Map(
+    schedules.map((schedule) => [schedule.scheduleId, schedule])
   )
-  const cheerScheduleById = new Map(
-    cheerSchedules.map((schedule) => [schedule.scheduleId, schedule])
-  )
-  const cheerEnrollments = cheerEnrollmentRows.map((enrollment) =>
+
+  return enrollmentRows.map((enrollment) =>
     toDisplayCheerEnrollment(enrollment, {
       athleteById,
       parentById,
-      teamNameById: cheerTeamNameById,
-      scheduleById: cheerScheduleById,
+      teamNameById,
+      scheduleById,
     })
+  )
+}
+
+export async function getAdminBillingData(): Promise<
+  Pick<AdminDashboardData, "classBilling" | "cheerBilling">
+> {
+  const [classes, teams] = await Promise.all([fetchClasses(), fetchCheerTeams()])
+
+  return {
+    classBilling: buildClassBillingRows(classes),
+    cheerBilling: buildCheerBillingRows(teams),
+  }
+}
+
+export async function getAdminSchedulesData(): Promise<
+  Pick<AdminDashboardData,
+    "classBilling" | "cheerBilling" | "scheduleSeasons" | "classSchedules" | "cheerSchedules"
+  >
+> {
+  const [classData, cheerData] = await Promise.all([
+    fetchClassWorkspaceData(),
+    fetchCheerWorkspaceData(),
+  ])
+
+  return {
+    classBilling: classData.classBilling,
+    cheerBilling: cheerData.cheerBilling,
+    scheduleSeasons: classData.scheduleSeasons,
+    classSchedules: classData.classSchedules,
+    cheerSchedules: cheerData.cheerSchedules,
+  }
+}
+
+export async function getAdminEnrollmentsData(): Promise<
+  Pick<AdminDashboardData,
+    "allEnrollments" | "cheerEnrollments" | "enrollmentAthletes" | "classSchedules" | "cheerBilling"
+  >
+> {
+  const [parents, athletes, classData, cheerData] = await Promise.all([
+    fetchParents(),
+    fetchAthletes(),
+    fetchClassWorkspaceData(),
+    fetchCheerWorkspaceData(),
+  ])
+
+  return {
+    allEnrollments: classData.enrollments,
+    cheerEnrollments: buildCheerEnrollments(
+      cheerData.cheerEnrollmentRows,
+      athletes,
+      new Map(parents.map((parent) => [String(parent.parent_id), parent])),
+      cheerData.cheerTeamNameById,
+      cheerData.cheerSchedules
+    ),
+    enrollmentAthletes: buildAdminEnrollmentAthleteOptions(athletes),
+    classSchedules: classData.classSchedules,
+    cheerBilling: cheerData.cheerBilling,
+  }
+}
+
+export async function getClassSessionReviewData(): Promise<ClassSessionDisplayRecord[]> {
+  const [classData, sessionRows, attendanceRows] = await Promise.all([
+    fetchClassWorkspaceData(),
+    fetchClassSessionRows(),
+    fetchClassSessionAttendanceRows(),
+  ])
+
+  return buildClassSessionRows({
+    sessionRows,
+    schedules: classData.classSchedules,
+    classNameById: classData.classNameById,
+    enrollments: classData.enrollments,
+    attendanceRows,
+  })
+}
+
+export async function getAdminSessionsData(): Promise<
+  Pick<AdminDashboardData, "classSessions" | "cheerSessions">
+> {
+  const [classSessions, teams, scheduleRows, sessionRows] = await Promise.all([
+    getClassSessionReviewData(),
+    fetchCheerTeams(),
+    fetchCheerScheduleRows(),
+    fetchCheerSessionRows(),
+  ])
+  const teamNameById = buildCheerTeamNameById(buildCheerBillingRows(teams))
+
+  return {
+    classSessions,
+    cheerSessions: buildCheerSessionRows({
+      sessionRows,
+      schedules: buildCheerScheduleRows(scheduleRows, teamNameById),
+      teamNameById,
+    }),
+  }
+}
+
+export async function getAdminDashboardData(): Promise<AdminDashboardData> {
+  const [
+    parents,
+    athletes,
+    classData,
+    cheerData,
+    classSessionRows,
+    cheerSessionRows,
+    classSessionAttendanceRows,
+    timeClockReview,
+  ] = await Promise.all([
+    fetchParents(),
+    fetchAthletes(),
+    fetchClassWorkspaceData(),
+    fetchCheerWorkspaceData(),
+    fetchClassSessionRows(),
+    fetchCheerSessionRows(),
+    fetchClassSessionAttendanceRows(),
+    getAdminTimeClockReviewData(),
+  ])
+  const { enrollments, classBilling, classNameById, scheduleSeasons, classSchedules } = classData
+  const { cheerEnrollmentRows, cheerBilling, cheerTeamNameById, cheerSchedules } = cheerData
+  const parentById = new Map(
+    parents.map((parent) => [String(parent.parent_id), parent])
+  )
+  const cheerEnrollments = buildCheerEnrollments(
+    cheerEnrollmentRows,
+    athletes,
+    parentById,
+    cheerTeamNameById,
+    cheerSchedules
   )
   const enrollmentStatusRecords: EnrollmentStatusRecord[] = [
     ...enrollments,
@@ -2150,9 +2292,6 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     metrics: buildMetrics(parents, enrollments, mrrCents),
     reviewQueue: buildReviewQueueAction(enrollmentStatusRecords),
     actionItems: buildActionItems(enrollments, classBilling, cheerBilling),
-    pendingEnrollments: enrollments.filter(
-      (enrollment) => enrollment.status.toLowerCase() === "pending"
-    ),
     allEnrollments: enrollments,
     cheerEnrollments,
     enrollmentAthletes: buildAdminEnrollmentAthleteOptions(athletes),
@@ -2256,53 +2395,12 @@ export async function getClassRegistrationRequestData(userId: string) {
 export async function getCoachDashboardData(
   userId: string
 ): Promise<CoachDashboardData> {
-  const [
-    enrollmentRows,
-    classes,
-    classScheduleRows,
-    scheduleSeasonRows,
-    classSessionRows,
-    classSessionAttendanceRows,
-    timeClock,
-  ] = await Promise.all([
-    fetchEnrollments(),
-    fetchClasses(),
-    fetchClassScheduleRows(),
-    fetchScheduleSeasons(),
-    fetchClassSessionRows(),
-    fetchClassSessionAttendanceRows(),
+  const [classSessions, timeClock] = await Promise.all([
+    getClassSessionReviewData(),
     getCoachTimeClockData(userId),
   ])
-  const enrollments = enrollmentRows.map(toDisplayEnrollment)
-  const classBilling = buildClassBillingRows(classes)
-  const classNameById = buildClassNameById(classBilling)
-  const scheduleSeasons = buildScheduleSeasonRows(scheduleSeasonRows)
-  const scheduleSeasonById = new Map(
-    scheduleSeasons.map((scheduleSeason) => [
-      scheduleSeason.seasonId,
-      scheduleSeason,
-    ])
-  )
-  const enrollmentCountBySchedule = buildEnrollmentCountBySchedule(enrollments)
-  const athleteNamesBySchedule = buildAthleteNamesBySchedule(enrollments)
-  const classSchedules = buildClassScheduleRows(
-    classScheduleRows,
-    classNameById,
-    scheduleSeasonById,
-    enrollmentCountBySchedule,
-    athleteNamesBySchedule
-  )
 
-  return {
-    classSessions: buildClassSessionRows({
-      sessionRows: classSessionRows,
-      schedules: classSchedules,
-      classNameById,
-      enrollments,
-      attendanceRows: classSessionAttendanceRows,
-    }),
-    timeClock,
-  }
+  return { classSessions, timeClock }
 }
 
 export async function getParentAthleteEnrollments(

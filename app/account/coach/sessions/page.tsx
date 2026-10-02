@@ -4,12 +4,12 @@ import {
 } from "@/components/account/dashboard_navigation"
 import { ClassSessionReview } from "@/components/account/admin/class_session_review"
 import { requireCoachAccountSession } from "@/app/account/_lib/route-guards"
-import { getCoachDashboardData } from "@/lib/account/data"
+import { getClassSessionReviewData } from "@/lib/account/data"
 import { coachDashboardRoutes } from "@/components/account/dashboard_routes"
 
 export default async function CoachSessionsPage() {
-  const session = await requireCoachAccountSession()
-  const dashboardData = await getCoachDashboardData(session.userId)
+  await requireCoachAccountSession()
+  const sessions = await getClassSessionReviewData()
   const route = coachDashboardRoutes.sessions
 
   return (
@@ -20,7 +20,7 @@ export default async function CoachSessionsPage() {
         icon={route.icon}
         backLabel="Dashboard"
       />
-      <ClassSessionReview sessions={dashboardData.classSessions} />
+      <ClassSessionReview sessions={sessions} />
     </AccountDashboardFrame>
   )
 }

@@ -21,9 +21,9 @@ export default async function TeamMemberPage({
                 src={member.img}
                 alt={`${member.name} headshot`}
                 fill
-                sizes=""
-                className="h-auto w-full object-cover"
-                priority
+                sizes="(min-width: 768px) 240px, calc(100vw - 48px)"
+                className="object-cover"
+                preload
               />
             </div>
           </div>

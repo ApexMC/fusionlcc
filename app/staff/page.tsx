@@ -1,8 +1,6 @@
 import TeamCard from "@/components/team/team_card";
 import { team } from "@/components/team/team";
 
-const teamSections = ["Coaching Staff"];
-
 export default function Staff() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-zinc-900 relative z-0">
@@ -15,26 +13,21 @@ export default function Staff() {
           Meet our team, here to guide our athletes to success, confidence, and growth on and off the mat.
         </p>
 
-        {teamSections.map((section) => {
-          const members = team;
-
-          return (
-            <div className="text-center mt-20 mb-10 font-bold text-3xl text-zinc-900 dark:text-zinc-50">
-              <div className="mt-10 grid grid-cols-2 gap-6 md:gap-16 sm:grid-cols-3 lg:grid-cols-3 relative z-0">
-                {members.map((member, i) => {
-                  const offsetClass = i % 3 === 1 ? "sm:translate-y-12" : "";
-                  return (
-                    <TeamCard
-                      key={member.name}
-                      member={member}
-                      offsetClass={offsetClass}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+        <div className="text-center mt-20 mb-10 font-bold text-3xl text-zinc-900 dark:text-zinc-50">
+          <div className="mt-10 grid grid-cols-2 gap-6 md:gap-16 sm:grid-cols-3 lg:grid-cols-3 relative z-0">
+            {team.map((member, i) => {
+              const offsetClass = i % 3 === 1 ? "sm:translate-y-12" : "";
+              return (
+                <TeamCard
+                  key={member.name}
+                  member={member}
+                  offsetClass={offsetClass}
+                  loading={i < 3 ? "eager" : "lazy"}
+                />
+              );
+            })}
+          </div>
+        </div>
       </main>
     </div>
   );

@@ -623,14 +623,6 @@ async function updateEnrollmentStatus(
   }
 }
 
-export async function approveEnrollment(enrollmentId: string) {
-  return updateEnrollmentStatus(enrollmentId, "approved")
-}
-
-export async function denyEnrollment(enrollmentId: string) {
-  return updateEnrollmentStatus(enrollmentId, "denied")
-}
-
 export async function updateEnrollmentAdminStatus({
   enrollmentId,
   status,

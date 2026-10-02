@@ -33,6 +33,25 @@ for (const [label, subscriptionStatus, subscriptionIds, billingDataAvailable, ex
   })
 }
 
+const paymentCoverageCases = [
+  ["payment exemption", "payment_not_required", null, [null], true, "payment-not-required"],
+  ["legacy payment exemption", " NO_PAYMENT_REQUIRED ", "inactive", [null], true, "payment-not-required"],
+  ["known exemption without billing columns", "payment_not_required", null, [null], false, "payment-not-required"],
+  ["failed payment on an active subscription", "payment_failed", "active", ["sub_class"], true, "attention"],
+  ["past-due payment on a trial", "past_due", "trialing", ["sub_class"], true, "attention"],
+  ["unpaid checkout", "unpaid", null, [null], true, "attention"],
+  ["paid active subscription", "paid", "active", ["sub_class"], true, "subscribed"],
+  ["paid checkout missing a cheer fee", "paid", "active", ["sub_tuition", null], true, "attention"],
+  ["paid enrollment missing a subscription", "paid", null, [null], true, "not-subscribed"],
+  ["billing still unavailable", "payment_failed", "active", ["sub_class"], false, "unknown"],
+]
+
+for (const [label, paymentStatus, subscriptionStatus, subscriptionIds, billingDataAvailable, expected] of paymentCoverageCases) {
+  test(`coverage: ${label}`, () => {
+    assert.equal(getCoverageState({ paymentStatus, subscriptionStatus, subscriptionIds, billingDataAvailable }), expected)
+  })
+}
+
 test("known empty billing fields differ from fields missing from a fallback query", () => {
   const fields = ["stripe_subscription_id", "subscription_status", "payment_status"]
   assert.equal(hasBillingData({ enrollment_id: 1 }, fields), false)
@@ -105,6 +124,45 @@ test("subscription audits retain availability and unique keys across class and c
   assert.equal(rows[0].exportRow["Billing data available"], false)
   assert.equal(rows[1].coverageState, "attention")
   assert.notEqual(rows[0].key, rows[1].key)
+})
+
+test("subscription audit waivers match current cheer athletes without covering siblings or historical classes", () => {
+  const classEnrollment = {
+    status: "approved", billingDataAvailable: true,
+    subscriptionStatus: null, stripeSubscriptionId: null, paymentStatus: "unpaid",
+  }
+  const cheerEnrollment = {
+    status: "active", billingDataAvailable: true, paymentStatus: "payment_failed",
+    subscriptionStatus: "active", tuitionSubscriptionId: "sub_tuition", feeSubscriptionId: "sub_fee",
+  }
+  const records = buildSubscriptionAuditRecords({
+    allEnrollments: [
+      { ...classEnrollment, enrollmentId: "1", athleteId: "cheer-athlete", billingDataAvailable: false },
+      { ...classEnrollment, enrollmentId: "2", athleteId: "sibling" },
+      { ...classEnrollment, enrollmentId: "3", athleteId: "former-cheer" },
+      { ...classEnrollment, enrollmentId: "4", athleteId: "cheer-athlete", status: "canceled", paymentStatus: null },
+      { ...classEnrollment, enrollmentId: "5", athleteId: null },
+      { ...classEnrollment, enrollmentId: "6", athleteId: "pending-cheer" },
+    ],
+    cheerEnrollments: [
+      { ...cheerEnrollment, enrollmentId: "1", athleteId: "cheer-athlete" },
+      { ...cheerEnrollment, enrollmentId: "2", athleteId: "sibling", status: "denied" },
+      { ...cheerEnrollment, enrollmentId: "3", athleteId: "former-cheer", status: " CANCELLED " },
+      { ...cheerEnrollment, enrollmentId: "4", athleteId: null },
+      { ...cheerEnrollment, enrollmentId: "5", athleteId: "pending-cheer", status: "pending" },
+    ],
+  })
+  const byKey = new Map(records.map(record => [record.key, record]))
+  const waived = byKey.get("class:1")
+  assert.equal(waived.coverageState, "payment-not-required")
+  assert.equal(waived.exportRow["Coverage state"], "Payment not required")
+  assert.equal(waived.exportRow["Payment status"], "payment_not_required")
+  assert.equal(waived.exportRow["Billing data available"], false)
+  for (const key of ["class:2", "class:3", "class:5", "cheer:1"]) {
+    assert.equal(byKey.get(key).coverageState, "attention", key)
+  }
+  assert.equal(byKey.get("class:4").coverageState, "not-subscribed")
+  assert.equal(byKey.get("class:6").coverageState, "payment-not-required")
 })
 
 test("financial and schedule exports retain corrected values; failed time reads are marked unavailable", () => {

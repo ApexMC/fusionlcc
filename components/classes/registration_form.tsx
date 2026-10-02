@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import limitlessLogo from "@/public/images/logos/limitless_logo.png";
 import createClient from "@/lib/supabase/client";
 import { requestEnrollment } from "@/app/actions/enrollments";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
@@ -211,11 +212,11 @@ export default function RegistrationForm({
         onSubmit={onSubmit}
         className="mt-10 space-y-5 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <Image
-          src="/images/logos/limitless_logo.png"
+          src={limitlessLogo}
           alt="Register"
+          loading="eager"
           width={125}
-          height={125}
-          className="mx-auto"
+          className="h-auto mx-auto"
         />
         <div className="mt-4 mb-8 mx-auto flex justify-center" aria-hidden="true">
             <div className="h-1.5 w-sm rounded-full bg-linear-to-r from-purple-600 to-purple-600" />

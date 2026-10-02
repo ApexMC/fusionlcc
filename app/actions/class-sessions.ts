@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
+import { parseDateKeyParts } from "@/lib/date_keys"
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
 import { sendContactEmail } from "@/lib/contact/email"
 import {
@@ -79,12 +80,6 @@ type EnrollmentRow = {
 
 const rosterEnrollmentStatuses = ["approved", "active"] as const
 
-type DateParts = {
-  year: number
-  month: number
-  day: number
-}
-
 function firstRelation<T>(value: T | T[] | null | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
@@ -97,34 +92,10 @@ function normalizeStatus(value: string | null | undefined) {
   return value?.trim().toLowerCase() || "scheduled"
 }
 
-function parseDateParts(value: string): DateParts | null {
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-
-  if (!match) {
-    return null
-  }
-
-  const year = Number(match[1])
-  const month = Number(match[2])
-  const day = Number(match[3])
-  const date = new Date(Date.UTC(year, month - 1, day))
-
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    return null
-  }
-
-  return { year, month, day }
-}
-
 function normalizeDateInput(value: string) {
   const normalized = value.trim()
 
-  return parseDateParts(normalized) ? normalized : null
+  return parseDateKeyParts(normalized) ? normalized : null
 }
 
 function formatDate(value: string | null | undefined) {

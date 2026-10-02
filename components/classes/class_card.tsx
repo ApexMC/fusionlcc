@@ -11,6 +11,7 @@ interface ClassCardProps {
   description?: string | null;
   scheduleSummary?: string | null;
   imagePosition?: "left" | "right";
+  imageSizes?: string;
 }
 
 const ClassCard = ({
@@ -23,6 +24,7 @@ const ClassCard = ({
   scheduleSummary,
   slug,
   imagePosition = "left",
+  imageSizes = "(min-width: 1024px) calc((100vw - 272px) / 8), (min-width: 768px) calc((100vw - 176px) / 4), calc(100vw - 112px)",
 }: ClassCardProps) => {
   const isImageLeft = imagePosition === "left";
 
@@ -34,7 +36,7 @@ const ClassCard = ({
           src={imageSrc}
           alt={imageAlt}
           fill
-          sizes="100%"
+          sizes={imageSizes}
           className="object-cover"
         />
       </div>

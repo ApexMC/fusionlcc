@@ -1,4 +1,5 @@
 import Image from "next/image";
+import limitlessLogo from "@/public/images/logos/limitless_logo.png";
 import Link from "next/link";
 import { Sparkles, Users, Trophy, HeartHandshake } from "lucide-react";
 import ClassCard from "@/components/classes/class_card";
@@ -37,12 +38,11 @@ export default function Home() {
       <section className="relative flex w-full flex-col items-center overflow-hidden px-6 py-24 text-center sm:py-32">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-linear-to-b from-purple-500/10 via-transparent to-transparent dark:from-purple-500/10" />
         <Image
-          src="/images/logos/limitless_logo.png"
+          src={limitlessLogo}
           alt="Limitless Cheer & Gymnastics logo"
           width={120}
-          height={120}
-          className="mb-6"
-          priority
+          className="h-auto mb-6"
+          preload
         />
         <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-5xl">
           Welcome to Limitless<br/>Cheer & Gymnastics!
@@ -92,7 +92,7 @@ export default function Home() {
           src="/images/landing_header.png"
           alt="Competitive cheer athlete performing a jump in the gym"
           fill
-          priority
+          sizes="100vw"
           aria-hidden="true"
           className="object-cover"
         />
@@ -134,6 +134,7 @@ export default function Home() {
             duration={30}
             description="Designed for our youngest athletes, this class introduces basic movement, coordination, and tumbling skills in a fun supportive environment."
             imagePosition="left"
+            imageSizes="(min-width: 1024px) 212px, (min-width: 768px) calc((100vw - 176px) / 4), (min-width: 640px) calc(100vw - 176px), calc(100vw - 96px)"
           />
           <ClassCard
             imageSrc="/images/classes/class_4.png"
@@ -144,6 +145,7 @@ export default function Home() {
             duration={55}
             description="Ideal for athletes beginning their tumbling journey. This class focuses on developing strength, flexibility, body control, and proper technique."
             imagePosition="right"
+            imageSizes="(min-width: 1024px) 212px, (min-width: 768px) calc((100vw - 176px) / 4), (min-width: 640px) calc(100vw - 176px), calc(100vw - 96px)"
           />
         </div>
         <div className="mt-12 flex justify-center">

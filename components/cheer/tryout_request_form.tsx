@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import limitlessLogo from "@/public/images/logos/limitless_logo.png"
 import { useState } from "react"
 
 import { requestCheerTryout } from "@/app/actions/cheer-enrollments"
@@ -141,11 +142,11 @@ export function TryoutRequestForm({
         className="mt-10 w-full space-y-5 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
       >
         <Image
-          src="/images/logos/limitless_logo.png"
+          src={limitlessLogo}
           alt="Limitless Cheer and Gymnastics"
+          loading="eager"
           width={125}
-          height={125}
-          className="mx-auto"
+          className="h-auto mx-auto"
         />
         <div
           className="mx-auto mb-8 mt-4 flex justify-center"

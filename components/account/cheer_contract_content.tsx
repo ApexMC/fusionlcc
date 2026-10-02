@@ -1,4 +1,5 @@
 import Image from "next/image"
+import limitlessLogo from "@/public/images/logos/limitless_logo.png"
 import type { ReactNode } from "react"
 
 import {
@@ -215,10 +216,11 @@ export function CheerContractContent() {
     <article className="mx-auto max-w-4xl space-y-8 bg-background px-1 py-2 text-sm leading-6 text-foreground sm:px-4">
       <header className="flex flex-col items-center text-center">
         <Image
-          src="/images/logos/limitless_logo.png"
+          src={limitlessLogo}
           alt="Limitless Cheer Co."
+          loading="eager"
           width={220}
-          height={160}
+          sizes="(min-width: 640px) 208px, 176px"
           className="h-auto w-44 sm:w-52"
         />
         <h1 className="mt-3 text-2xl font-bold uppercase text-green-800 dark:text-green-300 sm:text-3xl">

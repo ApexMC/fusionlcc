@@ -119,6 +119,7 @@ export type CheerEnrollmentRecord = {
 export type EnrollmentDisplayRecord = {
   enrollmentId: string
   athleteId: string | null
+  athleteCreatedAt: string | null
   athleteName: string
   parentName: string
   parentPhone: string | null
@@ -236,7 +237,6 @@ export type AdminDashboardData = {
   metrics: AdminDashboardMetrics
   reviewQueue: OperationsActionItem
   actionItems: OperationsActionItem[]
-  pendingEnrollments: EnrollmentDisplayRecord[]
   allEnrollments: EnrollmentDisplayRecord[]
   cheerEnrollments: CheerEnrollmentDisplayRecord[]
   enrollmentAthletes: AdminEnrollmentAthleteOption[]

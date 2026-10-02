@@ -1,18 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
-import { useTheme } from "next-themes";
+import limitlessLogo from "@/public/images/logos/limitless_logo.png";
 
 export default function ContactForm() {
   const [status, setStatus] = useState<
     "idle" | "sending" | "success" | "error"
   >("idle");
   const [message, setMessage] = useState("");
-
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   async function onSubmit(a: React.FormEvent<HTMLFormElement>) {
     a.preventDefault();
@@ -42,9 +38,9 @@ export default function ContactForm() {
       setStatus("success");
       setMessage("Thanks! Your message has been sent.");
       form.reset();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus("error");
-      setMessage(err?.message || "Something went wrong. Please try again.");
+      setMessage(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     }
   }
 
@@ -53,11 +49,11 @@ export default function ContactForm() {
         onSubmit={onSubmit}
         className="mt-10 space-y-5 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <Image
-          src="/images/logos/limitless_logo.png"
+          src={limitlessLogo}
           alt="Contact"
+          loading="eager"
           width={125}
-          height={125}
-          className="mx-auto"
+          className="h-auto mx-auto"
         />
         <div className="grid gap-5 md:grid-cols-2">
         <div>

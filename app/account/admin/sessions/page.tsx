@@ -8,14 +8,14 @@ import {
 import { CheerSessionReview } from "@/components/account/admin/cheer_session_review"
 import { ClassSessionReview } from "@/components/account/admin/class_session_review"
 import { Button } from "@/components/ui/button"
-import { getAdminDashboardData } from "@/lib/account/data"
+import { getAdminSessionsData } from "@/lib/account/data"
 import { requireAdminOwnerAccountSession } from "@/app/account/_lib/route-guards"
 import { adminDashboardRoutes } from "@/components/account/dashboard_routes"
 
 export default async function AdminSessionsPage() {
   await requireAdminOwnerAccountSession()
 
-  const dashboardData = await getAdminDashboardData()
+  const sessionsData = await getAdminSessionsData()
   const route = adminDashboardRoutes.sessions
 
   return (
@@ -35,10 +35,10 @@ export default async function AdminSessionsPage() {
         }
       />
       <ClassSessionReview
-        sessions={dashboardData.classSessions}
+        sessions={sessionsData.classSessions}
         canCancelSessions
       />
-      <CheerSessionReview sessions={dashboardData.cheerSessions} />
+      <CheerSessionReview sessions={sessionsData.cheerSessions} />
     </AccountDashboardFrame>
   )
 }

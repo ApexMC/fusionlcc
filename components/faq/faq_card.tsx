@@ -1,6 +1,5 @@
 "use client";
 
-import { CircleAlert } from "lucide-react";
 import { ReactNode, useState } from "react";
 
 interface FAQCardProps {

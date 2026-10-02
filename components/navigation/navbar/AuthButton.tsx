@@ -21,9 +21,12 @@ export default function AuthButton() {
   useEffect(() => {
     let mounted = true;
     let currentUser: User | null = null;
+    let activeRequest: { userId: string; controller: AbortController } | null = null;
 
-    async function loadRoleAccess(nextUser: User | null) {
+    async function loadRoleAccess(nextUser: User | null, force = false) {
       if (!nextUser) {
+        activeRequest?.controller.abort();
+        activeRequest = null;
         if (mounted) {
           setShowTimeClock(false);
           setRequiresEnrollmentSelection(false);
@@ -31,45 +34,55 @@ export default function AuthButton() {
         return;
       }
 
+      if (!force && activeRequest?.userId === nextUser.id) return;
+
+      activeRequest?.controller.abort();
+      const request = {
+        userId: nextUser.id,
+        controller: new AbortController(),
+      };
+      activeRequest = request;
+
       try {
         const response = await fetch("/api/account/roles", {
           cache: "no-store",
+          signal: request.controller.signal,
         });
         const data = response.ok
           ? ((await response.json()) as AccountRoleResponse)
           : null;
 
-        if (mounted) {
+        if (mounted && activeRequest === request) {
           setShowTimeClock(Boolean(data?.isStaff));
           setRequiresEnrollmentSelection(
             Boolean(data?.requiresEnrollmentSelection)
           );
         }
       } catch {
-        if (mounted) {
+        if (mounted && activeRequest === request && !request.controller.signal.aborted) {
           setShowTimeClock(false);
           setRequiresEnrollmentSelection(false);
         }
+      } finally {
+        if (activeRequest === request) activeRequest = null;
       }
     }
 
-    supabase.auth.getUser().then(({ data }) => {
-      const nextUser = data?.user ?? null;
-
-      if (!mounted) return;
-      currentUser = nextUser;
-      setUser(nextUser);
-      void loadRoleAccess(nextUser);
-    });
+    // Supabase emits INITIAL_SESSION when the subscription is registered.
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (!mounted) return;
       const nextUser = session?.user ?? null;
 
+      if (currentUser?.id !== nextUser?.id) {
+        setShowTimeClock(false);
+        setRequiresEnrollmentSelection(false);
+      }
       currentUser = nextUser;
       setUser(nextUser);
       void loadRoleAccess(nextUser);
     });
     const reloadEnrollmentSelectionFlag = () => {
-      void loadRoleAccess(currentUser);
+      void loadRoleAccess(currentUser, true);
     };
 
     window.addEventListener(
@@ -79,6 +92,8 @@ export default function AuthButton() {
 
     return () => {
       mounted = false;
+      activeRequest?.controller.abort();
+      activeRequest = null;
       window.removeEventListener(
         "account-enrollment-selection-updated",
         reloadEnrollmentSelectionFlag

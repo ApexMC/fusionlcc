@@ -40,13 +40,6 @@ const programHighlights = [
   },
 ];
 
-const seasonSteps = [
-  "Attend an evaluation or placement conversation.",
-  "Receive a team recommendation from the coaching staff.",
-  "Train weekly on routine skills, strength, flexibility, and performance.",
-  "Represent Limitless with sportsmanship and strong team commitment.",
-];
-
 const expectations = [
   "A positive attitude and willingness to be coached",
   "Consistent practice attendance",
@@ -65,7 +58,7 @@ export default async function CompetitiveCheer() {
           src="/images/landing_header.png"
           alt="Competitive cheer athlete performing a jump in the gym"
           fill
-          priority
+          preload
           sizes="100vw"
           className="object-cover object-center"
         />

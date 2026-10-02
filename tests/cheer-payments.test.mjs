@@ -1,21 +1,11 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
 import test from "node:test"
-import ts from "typescript"
+import { loadTypeScriptModule, loadTypeScriptModuleWithMocks as loadModule } from "./load-typescript.mjs"
 
-async function loadModule(path, dependencies) {
-  const source = await readFile(new URL(path, import.meta.url), "utf8")
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-  })
-  const exports = {}
-  const require = (specifier) => {
-    assert.ok(specifier in dependencies, `Unexpected dependency: ${specifier}`)
-    return dependencies[specifier]
-  }
-  new Function("require", "exports", outputText)(require, exports)
-  return exports
-}
+const programs = await loadTypeScriptModule("../lib/programs.ts")
+const stripeHelpers = await loadModule("../lib/stripe/server.ts", {
+  "server-only": {}, "stripe": {},
+})
 
 function subscription(id, status, role) {
   return {
@@ -54,6 +44,7 @@ async function fixture({ tuitionStatus = "active", feeStatus = "active", result,
   }
   const dependencies = {
     "server-only": {},
+    "@/lib/programs": programs,
     "@/lib/account/auth": {},
     "@/lib/account/data": {},
     "@/lib/supabase/admin": { createAdminClient: () => ({
@@ -75,8 +66,8 @@ async function fixture({ tuitionStatus = "active", feeStatus = "active", result,
       },
     }) },
     "@/lib/stripe/server": {
+      ...stripeHelpers,
       getStripe: () => stripe,
-      getPeriodDate: () => null,
     },
   }
   dependencies["@/lib/account/payments"] = await loadModule("../lib/account/payments.ts", dependencies)

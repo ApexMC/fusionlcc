@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import limitlessLogo from "@/public/images/logos/limitless_logo.png";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 
@@ -39,12 +40,11 @@ export default function ForgotPasswordPage() {
     <section className="mx-auto max-w-2xl px-6 py-16">
       <div className="space-y-5 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <Image
-          src="/images/logos/limitless_logo.png"
+          src={limitlessLogo}
           alt="Limitless Logo"
           width={125}
-          height={125}
-          className="mx-auto"
-          priority
+          className="h-auto mx-auto"
+          preload
         />
 
         <div className="space-y-2 text-center">

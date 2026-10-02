@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import limitlessLogo from "@/public/images/logos/limitless_logo.png";
 import Link from "next/link";
 import { useState, FormEvent, useEffect, useRef } from "react";
 import createClient from "@/lib/supabase/client";
@@ -168,11 +169,11 @@ export default function SignInPage() {
     <section className="mx-auto max-w-2xl px-6 py-16">
       <div className="space-y-5 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <Image
-          src="/images/logos/limitless_logo.png"
+          src={limitlessLogo}
           alt="Limitless Logo"
+          loading="eager"
           width={125}
-          height={125}
-          className="mx-auto"
+          className="h-auto mx-auto"
         />
 
         {/* Tabs */}

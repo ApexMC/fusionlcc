@@ -12,7 +12,7 @@ import type {
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   getNextBillingAnchorUnix,
-  getPeriodDate,
+  getSubscriptionPeriod,
   getStripe,
 } from "@/lib/stripe/server"
 import { normalizeEnrollmentPaymentStatus } from "@/lib/account/payments"
@@ -42,29 +42,6 @@ function getStripeId(value: string | { id: string } | null | undefined) {
   }
 
   return typeof value === "string" ? value : value.id
-}
-
-function getSubscriptionPeriod(subscription: Stripe.Subscription) {
-  const subscriptionWithPeriod = subscription as Stripe.Subscription & {
-    current_period_start?: number | null
-    current_period_end?: number | null
-  }
-  const firstItem = subscription.items.data[0] as
-    | (Stripe.SubscriptionItem & {
-        current_period_start?: number | null
-        current_period_end?: number | null
-      })
-    | undefined
-
-  return {
-    currentPeriodStart: getPeriodDate(
-      subscriptionWithPeriod.current_period_start ??
-        firstItem?.current_period_start
-    ),
-    currentPeriodEnd: getPeriodDate(
-      subscriptionWithPeriod.current_period_end ?? firstItem?.current_period_end
-    ),
-  }
 }
 
 export function getCombinedSubscriptionStatus(
