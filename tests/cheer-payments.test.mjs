@@ -109,7 +109,7 @@ test("checkout recovery also activates cheer", async () => {
   const { payments, row } = await fixture({ feeStatus: "incomplete" })
   assert.equal(await payments.recoverCompletedCheerCheckout({
     enrollmentId: row.enrollment_id, customerId: "cus_cheer",
-  }), true)
+  }), "cs_cheer")
   assert.equal(row.status, "active")
 })
 

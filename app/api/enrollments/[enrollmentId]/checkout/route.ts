@@ -11,6 +11,7 @@ import {
   saveStripeCustomerId,
 } from "@/lib/account/payments"
 import { getStripe, getNextBillingAnchorUnix } from "@/lib/stripe/server"
+import { getCheckoutConfirmationPath } from "@/lib/account/checkout-confirmation"
 
 function getOrigin(fallbackPath = "/account") {
   return async function origin() {
@@ -97,7 +98,11 @@ export async function POST(
         },
       ],
       discounts: stripeCouponId ? [{ coupon: stripeCouponId }] : undefined,
-      success_url: `${origin}/account?checkout=success&enrollment=${context.enrollment.enrollment_id}`,
+      success_url: `${origin}${getCheckoutConfirmationPath({
+        kind: "class",
+        enrollmentId: String(context.enrollment.enrollment_id),
+        sessionId: "{CHECKOUT_SESSION_ID}",
+      })}`,
       cancel_url: `${origin}/account?checkout=canceled&enrollment=${context.enrollment.enrollment_id}`,
       client_reference_id: String(context.enrollment.enrollment_id),
       metadata,

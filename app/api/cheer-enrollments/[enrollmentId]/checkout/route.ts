@@ -11,6 +11,7 @@ import {
   saveCheerStripeCustomerId,
 } from "@/lib/account/cheer-payments"
 import { getNextBillingAnchorUnix, getStripe } from "@/lib/stripe/server"
+import { getCheckoutConfirmationPath } from "@/lib/account/checkout-confirmation"
 
 async function getOrigin() {
   const headerList = await headers()
@@ -76,7 +77,11 @@ export async function POST(
 
     if (recoveredCheckout) {
       return NextResponse.json({
-        url: `${origin}/account?checkout=success&cheerEnrollment=${context.enrollment.enrollment_id}`,
+        url: `${origin}${getCheckoutConfirmationPath({
+          kind: "cheer",
+          enrollmentId: String(context.enrollment.enrollment_id),
+          sessionId: recoveredCheckout,
+        })}`,
       })
     }
 
@@ -103,7 +108,11 @@ export async function POST(
           { price: tuitionPriceId, quantity: 1 },
           { price: feePriceId, quantity: 1 },
         ],
-        success_url: `${origin}/api/cheer-enrollments/${context.enrollment.enrollment_id}/complete?session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${origin}${getCheckoutConfirmationPath({
+          kind: "cheer",
+          enrollmentId: String(context.enrollment.enrollment_id),
+          sessionId: "{CHECKOUT_SESSION_ID}",
+        })}`,
         cancel_url: `${origin}/account?checkout=canceled&cheerEnrollment=${context.enrollment.enrollment_id}`,
         client_reference_id: String(context.enrollment.enrollment_id),
         metadata,

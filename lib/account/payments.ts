@@ -204,7 +204,10 @@ async function cancelClassSubscription({
   }
 }
 
-export async function cancelClassSubscriptionsForAthlete(athleteId: string | number) {
+export async function cancelClassSubscriptionsForAthlete(
+  athleteId: string | number,
+  { beforeCancel }: { beforeCancel?: () => Promise<void> } = {}
+) {
   const supabase = createAdminClient()
   const enrollments = await fetchAllRows<EnrollmentRecord>((from, to) =>
     supabase
@@ -240,6 +243,7 @@ export async function cancelClassSubscriptionsForAthlete(athleteId: string | num
     const subscriptionId = waivedEnrollment.stripe_subscription_id as string | null
 
     if (subscriptionId) {
+      await beforeCancel?.()
       await cancelClassSubscription({ subscriptionId, enrollmentId: enrollment.enrollment_id, athleteId })
     }
 

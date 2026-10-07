@@ -152,6 +152,12 @@ async function billingFixture({ cheerStatus = "approved", subscriptionStatus = n
     "next/headers": { headers: async () => new Map([["origin", "https://fixture.example.test"]]) },
     "next/server": { NextResponse: { json: (value, options) => Response.json(value, options) } },
     "@/lib/account/payments": payments,
+    "@/lib/account/checkout-confirmation": await loadModule("../lib/account/checkout-confirmation.ts", {
+      "server-only": {},
+      "@/lib/account/payments": payments,
+      "@/lib/account/cheer-payments": {},
+      "@/lib/stripe/server": {},
+    }),
     "@/lib/stripe/server": {
       getNextBillingAnchorUnix: () => 1792022400,
       getStripe: () => {
@@ -204,6 +210,8 @@ test("class checkout remains available for ineligible cheer and siblings without
     assert.equal(fixture.sessions.length, 1)
     assert.equal(fixture.sessions[0].mode, "subscription")
     assert.deepEqual(fixture.sessions[0].line_items, [{ price: "price_gym", quantity: 1 }])
+    assert.equal(fixture.sessions[0].success_url,
+      "https://fixture.example.test/account/checkout-confirmation?kind=class&enrollment=1&session_id={CHECKOUT_SESSION_ID}")
   }
 })
 

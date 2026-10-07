@@ -79,13 +79,25 @@ async function fixture(options = {}) {
     }
   } }
   const session = {
-    id: "cs_cheer", status: options.sessionStatus ?? "complete", customer: "cus_family", subscription: tuition.id, payment_status: "no_payment_required",
+    id: "cs_cheer", status: options.sessionStatus ?? "complete", customer: "cus_family", subscription: tuition.id, payment_status: options.sessionPaymentStatus ?? "no_payment_required",
     metadata: { enrollment_kind: "cheer", cheer_enrollment_id: "42", tuition_price_id: "price_tuition", fee_price_id: "price_fee" },
   }
   const stripe = {
     checkout: { sessions: { retrieve: async () => session, list: async () => ({ data: [session] }) } },
     customers: { update: async () => ({}) },
     subscriptions: {
+      update: async (id, params) => {
+        // Enforce Stripe's real metadata limits at this external boundary.
+        // Otherwise an invalid tracking key can pass every cancellation test.
+        for (const [key, value] of Object.entries(params.metadata ?? {})) {
+          assert.ok(key.length <= 40, `Stripe metadata key exceeds 40 characters: ${key}`)
+          assert.ok(value.length <= 500, `Stripe metadata value exceeds 500 characters: ${key}`)
+        }
+        if (controls.markerFailures > 0) { controls.markerFailures--; throw new Error("Marker save failed") }
+        const row = subscriptions.get(id)
+        Object.assign(row.metadata, params.metadata)
+        return structuredClone(row)
+      },
       retrieve: async id => {
         assert.ok(subscriptions.has(id), `Unknown subscription: ${id}`)
         return structuredClone(subscriptions.get(id))
@@ -160,17 +172,68 @@ test("the webhook completion, verified return, and checkout recovery all convert
       enrollmentId: "42", tuitionPriceId: "price_tuition", feePriceId: "price_fee",
     })
     else if (path === "return") await result.payments.finalizeCompletedCheerCheckoutSession({ sessionId: "cs_cheer", enrollmentId: "42", customerId: "cus_family" })
-    else assert.equal(await result.payments.recoverCompletedCheerCheckout({ enrollmentId: "42", customerId: "cus_family" }), true)
+    else assert.equal(await result.payments.recoverCompletedCheerCheckout({ enrollmentId: "42", customerId: "cus_family" }), "cs_cheer")
     assertClassesFree(result)
     assert.equal(result.canceled.length, 2, path)
   }
 })
 
 test("incomplete checkout never cancels class billing", async () => {
-  const result = await fixture({ sessionStatus: "open" })
-  await assert.rejects(result.payments.finalizeCompletedCheerCheckoutSession({ sessionId: "cs_cheer", enrollmentId: "42", customerId: "cus_family" }), /not complete yet/)
-  assert.deepEqual(result.classes, result.originalClasses)
+  for (const options of [{ sessionStatus: "open" }, { sessionPaymentStatus: "unpaid" }]) {
+    const result = await fixture(options)
+    await assert.rejects(result.payments.finalizeCompletedCheerCheckoutSession({ sessionId: "cs_cheer", enrollmentId: "42", customerId: "cus_family" }), /not complete yet/)
+    assert.deepEqual(result.classes, result.originalClasses)
+    assert.deepEqual(result.canceled, [])
+  }
+})
+
+test("the confirmation retains the cancellation notice when the webhook clears class IDs before the return", async () => {
+  const result = await fixture()
+  await result.payments.splitAndFinalizeCheerCheckout({
+    session: { id: "cs_cheer", customer: "cus_family", subscription: "sub_tuition", payment_status: "paid" },
+    enrollmentId: "42", tuitionPriceId: "price_tuition", feePriceId: "price_fee",
+  })
+  assertClassesFree(result)
+  assert.deepEqual(await result.payments.finalizeCompletedCheerCheckoutSession({
+    sessionId: "cs_cheer", enrollmentId: "42", customerId: "cus_family",
+  }), { classSubscriptionsCanceled: true })
+  assert.equal(result.canceled.length, 2)
+})
+
+test("cheer confirmation has no cancellation notice when this athlete had no class subscription", async () => {
+  const result = await fixture()
+  for (const row of result.classes.filter(row => row.athlete_id === 7 && ["active", "approved", "inactive"].includes(row.status))) {
+    row.stripe_subscription_id = null
+  }
+  assert.deepEqual(await result.payments.finalizeCompletedCheerCheckoutSession({
+    sessionId: "cs_cheer", enrollmentId: "42", customerId: "cus_family",
+  }), { classSubscriptionsCanceled: false })
   assert.deepEqual(result.canceled, [])
+  assert.equal(result.tuition.metadata.class_cancellation_requested, undefined)
+})
+
+test("confirmation reports success only after every class cancellation finishes and preserves the notice on retry", async () => {
+  let canceledOnce = false
+  const result = await fixture({ onCancel: async () => {
+    if (!canceledOnce) { canceledOnce = true; result.controls.cancelFailures = 1 }
+  } })
+  const complete = () => result.payments.finalizeCompletedCheerCheckoutSession({
+    sessionId: "cs_cheer", enrollmentId: "42", customerId: "cus_family",
+  })
+  await assert.rejects(complete(), /Stripe cancellation failed/)
+  assert.equal(result.classes[0].stripe_subscription_id, null)
+  assert.equal(result.tuition.metadata.class_cancellation_requested, "true")
+  assert.deepEqual(await complete(), { classSubscriptionsCanceled: true })
+  assertClassesFree(result)
+})
+
+test("cancellation evidence is saved before class subscription IDs can be erased", async () => {
+  const result = await fixture({ markerFailures: 1 })
+  await assert.rejects(result.complete(), /Marker save failed/)
+  assert.equal(result.classes[0].stripe_subscription_id, "sub_class")
+  assert.deepEqual(result.canceled, [])
+  await result.complete()
+  assertClassesFree(result)
 })
 
 test("sequential and concurrent duplicate cheer completions are safe", async () => {

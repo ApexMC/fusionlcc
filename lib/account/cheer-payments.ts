@@ -344,7 +344,24 @@ async function persistCheerSubscriptions({
       throw new Error(`Cheer enrollment ${enrollmentId} is missing its athlete.`)
     }
 
-    await cancelClassSubscriptionsForAthlete(data.athlete_id)
+    let cancellationRecorded =
+      tuitionSubscription.metadata.class_cancellation_requested === "true"
+
+    await cancelClassSubscriptionsForAthlete(data.athlete_id, {
+      beforeCancel: async () => {
+        if (cancellationRecorded) {
+          return
+        }
+
+        // Record this before class billing IDs are cleared so the checkout
+        // return can show the notice when a webhook finishes first or a
+        // partial cancellation needs to be retried.
+        await getStripe().subscriptions.update(tuitionSubscription.id, {
+          metadata: { class_cancellation_requested: "true" },
+        })
+        cancellationRecorded = true
+      },
+    })
   }
 }
 
@@ -551,7 +568,10 @@ function assertCompletedCheerCheckoutSession({
   enrollmentId: string
   customerId: string
 }) {
-  if (session.status !== "complete") {
+  if (
+    session.status !== "complete" ||
+    !["paid", "no_payment_required"].includes(session.payment_status)
+  ) {
     throw new Error("The cheer Checkout session is not complete yet.")
   }
 
@@ -598,6 +618,16 @@ export async function finalizeCompletedCheerCheckoutSession({
     tuitionPriceId: session.metadata!.tuition_price_id!,
     feePriceId: session.metadata!.fee_price_id!,
   })
+
+  // Read the durable marker after finalization to cover a concurrent webhook
+  // using a different copy of the subscription.
+  const tuitionSubscription = await stripe.subscriptions.retrieve(
+    getStripeId(session.subscription)!
+  )
+  return {
+    classSubscriptionsCanceled:
+      tuitionSubscription.metadata.class_cancellation_requested === "true",
+  }
 }
 
 export async function recoverCompletedCheerCheckout({
@@ -637,7 +667,7 @@ export async function recoverCompletedCheerCheckout({
     feePriceId: session.metadata!.fee_price_id!,
   })
 
-  return true
+  return session.id
 }
 
 export async function findCheerEnrollmentIdBySubscription(
