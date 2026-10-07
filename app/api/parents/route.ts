@@ -5,6 +5,7 @@ import { fetchAllRows, isSchemaCompatibilityError } from "@/lib/account/paginati
 import {
   getEnrollmentPaymentStatus,
   getParentPaymentStatus,
+  isClassPaymentWaiverCheerEnrollment,
   isCurrentParentEnrollment,
   type ParentAthleteSummary,
   type ParentEnrollmentPaymentRow,
@@ -167,7 +168,7 @@ export async function GET() {
           classType: classRecord?.type ?? null,
           scheduleLabel: formatScheduleLabel(schedule),
           status: enrollment.status ?? "unknown",
-          paymentStatus: getEnrollmentPaymentStatus(enrollment, "class", cheerEnrollments.length > 0),
+          paymentStatus: getEnrollmentPaymentStatus(enrollment, "class", cheerEnrollments.some(isClassPaymentWaiverCheerEnrollment)),
         }
       })
       const summary: ParentAthleteSummary = {

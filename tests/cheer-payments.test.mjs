@@ -3,6 +3,8 @@ import test from "node:test"
 import { loadTypeScriptModule, loadTypeScriptModuleWithMocks as loadModule } from "./load-typescript.mjs"
 
 const programs = await loadTypeScriptModule("../lib/programs.ts")
+const parentPayments = await loadTypeScriptModule("../lib/account/parent-enrollments.ts")
+const pagination = await loadTypeScriptModule("../lib/account/pagination.ts")
 const stripeHelpers = await loadModule("../lib/stripe/server.ts", {
   "server-only": {}, "stripe": {},
 })
@@ -17,7 +19,7 @@ function subscription(id, status, role) {
 }
 
 async function fixture({ tuitionStatus = "active", feeStatus = "active", result, sessionStatus = "complete" } = {}) {
-  const row = { enrollment_id: "42", status: "approved", payment_status: "unpaid",
+  const row = { enrollment_id: "42", athlete_id: 7, status: "approved", payment_status: "unpaid",
     tuition_subscription_id: "sub_tuition", fee_subscription_id: "sub_fee" }
   const updates = []
   const tuition = subscription("sub_tuition", tuitionStatus, "tuition")
@@ -47,8 +49,16 @@ async function fixture({ tuitionStatus = "active", feeStatus = "active", result,
     "@/lib/programs": programs,
     "@/lib/account/auth": {},
     "@/lib/account/data": {},
+    "@/lib/account/parent-enrollments": parentPayments,
+    "@/lib/account/pagination": pagination,
     "@/lib/supabase/admin": { createAdminClient: () => ({
       from(table) {
+        if (table === "Enrollments") {
+          return {
+            select() { return this }, eq() { return this }, in() { return this }, order() { return this },
+            async range() { return { data: [], error: null, count: 0 } },
+          }
+        }
         assert.equal(table, "CheerEnrollments")
         let update
         return {

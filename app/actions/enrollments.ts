@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import type Stripe from "stripe"
 
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
+import { CLASS_PAYMENT_WAIVER_CHEER_STATUSES } from "@/lib/account/parent-enrollments"
 import { sendContactEmail } from "@/lib/contact/email"
 import { BLOCKED_ENROLLMENT_MESSAGE } from "@/lib/enrollments"
 import { formatLocalTime } from "@/lib/local_time"
@@ -559,6 +560,7 @@ async function updateEnrollmentStatus(
         .from("CheerEnrollments")
         .select("enrollment_id")
         .eq("athlete_id", contextResult.context.athleteId)
+        .in("status", CLASS_PAYMENT_WAIVER_CHEER_STATUSES)
         .limit(1)
 
     if (cheerEnrollmentError) {

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/toast"
 import { SmartSelect } from "@/components/ui/smart-select"
+import { isClassPaymentWaiverCheerEnrollment } from "@/lib/account/parent-enrollments"
 import type {
   CheerEnrollmentDisplayRecord,
   ClassOption,
@@ -319,7 +320,11 @@ export function ParentEnrollments({
                 {athlete.enrollments.length ? (
                   <div className="space-y-3">
                   {athlete.enrollments.map((enrollment) => {
+                    const classPaymentWaived = athlete.cheerEnrollments.some(
+                      isClassPaymentWaiverCheerEnrollment
+                    )
                     const canStartSubscription =
+                      !classPaymentWaived &&
                       enrollment.status === "approved" &&
                       !isActiveSubscription(enrollment)
                     const canManageSubscription =
@@ -366,7 +371,14 @@ export function ParentEnrollments({
                                 </p>
                                 <EnrollmentStatusBadge status={enrollment.status}/>
                               </div>
-                              {enrollment.subscriptionStatus ? (
+                              {classPaymentWaived ? (
+                                <div className="flex flex-row gap-2">
+                                  <p className="text-zinc-900 dark:text-zinc-50 text-sm">
+                                    Payment:
+                                  </p>
+                                  <EnrollmentStatusBadge status="payment_not_required" />
+                                </div>
+                              ) : enrollment.subscriptionStatus ? (
                                 <div className="flex flex-row gap-2">
                                   <p className="text-zinc-900 dark:text-zinc-50 text-sm">
                                     Subscription:
@@ -733,7 +745,11 @@ export function ParentEnrollments({
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-muted-foreground">Payment status</dt>
-                  <dd>{selectedEnrollment.paymentStatus ?? "Not available"}</dd>
+                  <dd>
+                    {selectedEnrollment.paymentStatus === "payment_not_required" ? (
+                      <EnrollmentStatusBadge status="payment_not_required" />
+                    ) : selectedEnrollment.paymentStatus ?? "Not available"}
+                  </dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-muted-foreground">Current period</dt>

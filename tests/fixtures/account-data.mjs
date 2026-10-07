@@ -5,6 +5,7 @@ const dependencies = Object.fromEntries(await Promise.all([
   ["@/lib/date_keys", "../lib/date_keys.ts"],
   ["@/lib/programs", "../lib/programs.ts"],
   ["@/lib/account/pagination", "../lib/account/pagination.ts"],
+  ["@/lib/account/parent-enrollments", "../lib/account/parent-enrollments.ts"],
   ["@/lib/account/reporting", "../lib/account/reporting.ts"],
   ["@/lib/scheduling", "../lib/scheduling.ts"],
   ["@/lib/local_time", "../lib/local_time.ts"],
@@ -67,27 +68,38 @@ export async function accountDataFixture({
     from(table) {
       assert.ok(allowedTables.includes(table), `Unexpected table read: ${table}`)
       let selection
+      const filters = []
+      function read(from, to) {
+        calls.push({ table, selection, from, to })
+        if (failures[table]) return { data: null, error: failures[table] }
+        if (missingBillingColumns && (
+          (table === "Classes" && selection.includes("stripe_price_id")) ||
+          (table === "Enrollments" && selection.includes("stripe_subscription_id"))
+        )) {
+          return { data: null, error: { code: "42703", message: "Column unavailable" } }
+        }
+        const rows = tableData[table].filter(row => filters.every(filter => filter(row)))
+        // Exercise actual pagination with an API cap smaller than the requested page.
+        let data = structuredClone(from === undefined ? rows : rows.slice(from, Math.min(to + 1, from + 2)))
+        if (missingBillingColumns && table === "Classes") {
+          data = data.map(row => Object.fromEntries(selection.split(",").map(key => [key, row[key]])))
+        }
+        return { data, error: null, count: rows.length }
+      }
       return {
         select(value) { selection = value; return this },
         order() { return this },
         is() { return this },
-        range(from, to) {
-          calls.push({ table, selection, from, to })
-          if (failures[table]) return Promise.resolve({ data: null, error: failures[table] })
-          if (missingBillingColumns && (
-            (table === "Classes" && selection.includes("stripe_price_id")) ||
-            (table === "Enrollments" && selection.includes("stripe_subscription_id"))
-          )) {
-            return Promise.resolve({ data: null, error: { code: "42703", message: "Column unavailable" } })
-          }
-          const rows = tableData[table]
-          // Exercise actual pagination with an API cap smaller than the requested page.
-          let data = structuredClone(rows.slice(from, Math.min(to + 1, from + 2)))
-          if (missingBillingColumns && table === "Classes") {
-            data = data.map(row => Object.fromEntries(selection.split(",").map(key => [key, row[key]])))
-          }
-          return Promise.resolve({ data, error: null, count: rows.length })
+        eq(key, value) {
+          filters.push(row => String(row[key]) === String(value))
+          return this
         },
+        in(key, values) {
+          filters.push(row => values.map(String).includes(String(row[key])))
+          return this
+        },
+        then(resolve, reject) { return Promise.resolve(read()).then(resolve, reject) },
+        range(from, to) { return Promise.resolve(read(from, to)) },
       }
     },
   })

@@ -5,6 +5,8 @@ import Stripe from "stripe"
 
 import { getAccountSession, getParentForUser } from "@/lib/account/auth"
 import { resolveBillingDay } from "@/lib/account/data"
+import { fetchAllRows } from "@/lib/account/pagination"
+import { CLASS_PAYMENT_WAIVER_CHEER_STATUSES } from "@/lib/account/parent-enrollments"
 import type {
   AthleteRecord,
   ClassRecord,
@@ -12,7 +14,9 @@ import type {
   ParentRecord,
 } from "@/lib/account/types"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getPeriodDate } from "@/lib/stripe/server"
+import { getPeriodDate, getStripe } from "@/lib/stripe/server"
+
+const currentClassEnrollmentStatuses = ["approved", "active", "inactive"]
 
 const paymentEnrollmentSelect = `
   enrollment_id,
@@ -138,6 +142,129 @@ export async function getParentEnrollmentPaymentContext(
 export function ensureApprovedEnrollment(enrollment: EnrollmentRecord) {
   if (enrollment.status !== "approved") {
     throw new Error("Only approved enrollments can start a subscription.")
+  }
+}
+
+export async function ensureClassPaymentRequired(athleteId: string | number) {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("CheerEnrollments")
+    .select("enrollment_id")
+    .eq("athlete_id", athleteId)
+    .in("status", CLASS_PAYMENT_WAIVER_CHEER_STATUSES)
+    .limit(1)
+
+  if (error) {
+    throw new Error(`Unable to determine whether class payment is required: ${error.message}`)
+  }
+
+  if (data?.length) {
+    throw new Error(
+      "Payment is not required for this class because the athlete has an approved or active cheer enrollment."
+    )
+  }
+}
+
+async function cancelClassSubscription({
+  subscriptionId,
+  enrollmentId,
+  athleteId,
+}: {
+  subscriptionId: string
+  enrollmentId: string | number
+  athleteId: string | number
+}) {
+  const stripe = getStripe()
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+  const metadata = subscription.metadata
+
+  if (
+    metadata.enrollment_kind === "cheer" ||
+    metadata.cheer_enrollment_id ||
+    (metadata.enrollment_id && metadata.enrollment_id !== String(enrollmentId)) ||
+    (metadata.athlete_id && metadata.athlete_id !== String(athleteId))
+  ) {
+    throw new Error(`Class subscription ${subscriptionId} does not match this athlete's enrollment.`)
+  }
+
+  if (subscription.status !== "canceled") {
+    try {
+      await stripe.subscriptions.cancel(subscriptionId, {
+        invoice_now: false,
+        prorate: false,
+      })
+    } catch (error) {
+      // Concurrent checkout completion handlers may cancel the same
+      // subscription, or Stripe may succeed before a connection fails.
+      const latestSubscription = await stripe.subscriptions.retrieve(subscriptionId)
+      if (latestSubscription.status !== "canceled") {
+        throw error
+      }
+    }
+  }
+}
+
+export async function cancelClassSubscriptionsForAthlete(athleteId: string | number) {
+  const supabase = createAdminClient()
+  const enrollments = await fetchAllRows<EnrollmentRecord>((from, to) =>
+    supabase
+      .from("Enrollments")
+      .select("enrollment_id,stripe_subscription_id", { count: from === 0 ? "exact" : undefined })
+      .eq("athlete_id", athleteId)
+      .in("status", currentClassEnrollmentStatuses)
+      .order("enrollment_id", { ascending: true })
+      .range(from, to)
+  )
+
+  for (const enrollment of enrollments) {
+    // Persist the waiver before canceling Stripe so its cancellation webhook
+    // cannot deactivate the class. Keep the subscription ID until cleanup
+    // succeeds so a failed cancellation or database write can be retried.
+    const { data: waivedEnrollment, error: waiverError } = await supabase
+      .from("Enrollments")
+      .update({ status: "active", payment_status: "payment_not_required" })
+      .eq("enrollment_id", enrollment.enrollment_id)
+      .eq("athlete_id", athleteId)
+      .in("status", currentClassEnrollmentStatuses)
+      .select("enrollment_id,stripe_subscription_id")
+      .maybeSingle()
+
+    if (waiverError) {
+      throw new Error(waiverError.message)
+    }
+
+    if (!waivedEnrollment) {
+      continue
+    }
+
+    const subscriptionId = waivedEnrollment.stripe_subscription_id as string | null
+
+    if (subscriptionId) {
+      await cancelClassSubscription({ subscriptionId, enrollmentId: enrollment.enrollment_id, athleteId })
+    }
+
+    let cleanup = supabase
+      .from("Enrollments")
+      .update({
+        stripe_subscription_id: null,
+        subscription_status: null,
+        current_period_start: null,
+        current_period_end: null,
+      })
+      .eq("enrollment_id", enrollment.enrollment_id)
+      .eq("athlete_id", athleteId)
+      .eq("status", "active")
+      .eq("payment_status", "payment_not_required")
+
+    cleanup = subscriptionId
+      ? cleanup.eq("stripe_subscription_id", subscriptionId)
+      : cleanup.is("stripe_subscription_id", null)
+
+    const { error: cleanupError } = await cleanup
+
+    if (cleanupError) {
+      throw new Error(cleanupError.message)
+    }
   }
 }
 
@@ -310,38 +437,6 @@ function getEnrollmentStatusFromSubscription(
   return "inactive"
 }
 
-async function updateEnrollmentLifecycleStatus({
-  enrollmentId,
-  status,
-}: {
-  enrollmentId: string | number
-  status: EnrollmentLifecycleStatus
-}) {
-  const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from("Enrollments")
-    .update({ status })
-    .eq("enrollment_id", enrollmentId)
-    .select("enrollment_id,status")
-    .maybeSingle()
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  if (!data) {
-    throw new Error(`Enrollment ${enrollmentId} was not found.`)
-  }
-
-  if (data.status !== status) {
-    throw new Error(
-      `Enrollment status did not update. Expected ${status}, received ${
-        data.status ?? "null"
-      }.`
-    )
-  }
-}
-
 export async function updateEnrollmentFromSubscription({
   enrollmentId,
   customerId,
@@ -356,6 +451,33 @@ export async function updateEnrollmentFromSubscription({
   eventType?: Stripe.Event.Type
 }) {
   const supabase = createAdminClient()
+  const { data: enrollment, error: enrollmentError } = await supabase
+    .from("Enrollments")
+    .select("enrollment_id,athlete_id,stripe_subscription_id,payment_status")
+    .eq("enrollment_id", enrollmentId)
+    .maybeSingle()
+
+  if (enrollmentError) {
+    throw new Error(enrollmentError.message)
+  }
+
+  if (!enrollment) {
+    throw new Error(`Enrollment ${enrollmentId} was not found.`)
+  }
+
+  if (enrollment.payment_status === "payment_not_required") {
+    // A class Checkout opened before cheer approval can finish after the
+    // waiver. Cancel that arriving subscription instead of orphaning it.
+    if (subscription.status !== "canceled") {
+      await cancelClassSubscription({ subscriptionId: subscription.id, enrollmentId, athleteId: enrollment.athlete_id })
+    }
+    return
+  }
+
+  if (enrollment.stripe_subscription_id && enrollment.stripe_subscription_id !== subscription.id) {
+    return
+  }
+
   const enrollmentStatus = getEnrollmentStatusFromSubscription(
     subscription.status,
     eventType
@@ -389,7 +511,7 @@ export async function updateEnrollmentFromSubscription({
     subscriptionWithPeriod.current_period_end ?? firstItem?.current_period_end
   )
 
-  const { error } = await supabase
+  let update = supabase
     .from("Enrollments")
     .update({
       stripe_customer_id:
@@ -402,8 +524,18 @@ export async function updateEnrollmentFromSubscription({
       current_period_start: period.currentPeriodStart,
       current_period_end: period.currentPeriodEnd,
       payment_status: normalizeEnrollmentPaymentStatus(paymentStatus),
+      status: enrollmentStatus,
     })
     .eq("enrollment_id", enrollmentId)
+    .or("payment_status.is.null,payment_status.neq.payment_not_required")
+
+  update = enrollment.stripe_subscription_id
+    ? update.eq("stripe_subscription_id", enrollment.stripe_subscription_id)
+    : update.is("stripe_subscription_id", null)
+
+  const { data, error } = await update
+    .select("enrollment_id,status")
+    .maybeSingle()
 
   console.log("[updateEnrollmentFromSubscription] result", {
     enrollmentId,
@@ -414,8 +546,28 @@ export async function updateEnrollmentFromSubscription({
     throw new Error(error.message)
   }
 
-  await updateEnrollmentLifecycleStatus({
-    enrollmentId,
-    status: enrollmentStatus,
-  })
+  // A concurrent cheer completion can mark the class free after our read.
+  if (!data && subscription.status !== "canceled") {
+    const { data: latestEnrollment, error: latestError } = await supabase
+      .from("Enrollments")
+      .select("athlete_id,payment_status")
+      .eq("enrollment_id", enrollmentId)
+      .maybeSingle()
+
+    if (latestError) {
+      throw new Error(latestError.message)
+    }
+
+    if (latestEnrollment?.payment_status === "payment_not_required") {
+      await cancelClassSubscription({ subscriptionId: subscription.id, enrollmentId, athleteId: latestEnrollment.athlete_id })
+    }
+  }
+
+  if (data && data.status !== enrollmentStatus) {
+    throw new Error(
+      `Enrollment status did not update. Expected ${enrollmentStatus}, received ${
+        data.status ?? "null"
+      }.`
+    )
+  }
 }

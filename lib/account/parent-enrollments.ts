@@ -42,6 +42,14 @@ function normalizeStatus(status: string | null | undefined) {
   return (status ?? "").trim().toLowerCase()
 }
 
+export const CLASS_PAYMENT_WAIVER_CHEER_STATUSES = ["approved", "active"] as const
+
+export function isClassPaymentWaiverCheerEnrollment(enrollment: ParentEnrollmentPaymentRow) {
+  return CLASS_PAYMENT_WAIVER_CHEER_STATUSES.some(
+    (status) => status === normalizeStatus(enrollment.status)
+  )
+}
+
 export function isCurrentParentEnrollment(enrollment: ParentEnrollmentPaymentRow) {
   return !["denied", "canceled", "cancelled"].includes(normalizeStatus(enrollment.status))
 }

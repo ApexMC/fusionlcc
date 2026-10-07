@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getStripe } from "@/lib/stripe/server"
 import { getAccountSession, requireAdminSession } from "@/lib/account/auth"
 import { fetchAllRows, isSchemaCompatibilityError } from "@/lib/account/pagination"
+import { isClassPaymentWaiverCheerEnrollment } from "@/lib/account/parent-enrollments"
 import {
   buildCheerScheduleRosterCounts,
   buildRecurringRevenueMetric,
@@ -2463,16 +2464,22 @@ export async function getParentAthleteEnrollments(
       const athleteName = [athlete.first_name, athlete.last_name]
         .filter(Boolean)
         .join(" ")
+      const athleteCheerEnrollments = cheerEnrollments.filter(
+        (enrollment) => enrollment.athleteId === athleteId
+      )
+      const classPaymentWaived = athleteCheerEnrollments.some(
+        isClassPaymentWaiverCheerEnrollment
+      )
 
       return {
         athleteId,
         athleteName: athleteName || "Unnamed athlete",
-        enrollments: enrollments.filter(
-          (enrollment) => enrollment.athleteId === athleteId
-        ),
-        cheerEnrollments: cheerEnrollments.filter(
-          (enrollment) => enrollment.athleteId === athleteId
-        ),
+        enrollments: enrollments
+          .filter((enrollment) => enrollment.athleteId === athleteId)
+          .map((enrollment) => classPaymentWaived
+            ? { ...enrollment, paymentStatus: "payment_not_required" }
+            : enrollment),
+        cheerEnrollments: athleteCheerEnrollments,
       }
     }),
     classOptions: buildClassOptions(classes, activeSeasonScheduleRows),

@@ -22,11 +22,22 @@ function athleteWithPayments(classStatuses, cheerStatuses) {
   }
 }
 
-test("classes waive payment only for their own athlete's current cheer enrollment", () => {
+test("classes waive payment only for their own athlete's eligible cheer enrollment", () => {
   assert.equal(payments.getEnrollmentPaymentStatus(classEnrollment, "class", true), "payment_not_required")
   assert.equal(payments.getEnrollmentPaymentStatus(classEnrollment, "class", false), "payment_failed")
   assert.equal(payments.getEnrollmentPaymentStatus(paidCheer, "cheer", true), "paid")
   assert.equal(payments.getEnrollmentPaymentStatus({ status: "approved" }, "class"), "ready_to_pay")
+})
+
+test("only approved or active cheer enrollments waive class payment, regardless of Stripe status", () => {
+  for (const status of ["approved", "active", " APPROVED ", " ACTIVE "]) {
+    for (const subscription_status of [null, "active", "incomplete", "past_due", "canceled"]) {
+      assert.equal(payments.isClassPaymentWaiverCheerEnrollment({ status, subscription_status, payment_status: "unpaid" }), true)
+    }
+  }
+  for (const status of ["pending", "denied", "canceled", "cancelled", "inactive", "unknown", null]) {
+    assert.equal(payments.isClassPaymentWaiverCheerEnrollment({ status, subscription_status: "active", payment_status: "paid" }), false)
+  }
 })
 
 test("paid cheer covers classes without hiding a cheer payment problem", () => {
@@ -170,6 +181,18 @@ test("class names and cheer enrollments survive a missing class schedule relatio
   assert.equal(response.status, 200)
   const parents = await response.json()
   assert.equal(parents.find((row) => row.parent_id === 1).athletes[0].enrollments[0].className, "Tumbling")
+})
+
+test("parents API applies the approved-or-active cheer waiver regardless of billing status", async () => {
+  for (const status of ["approved", "active", "pending", "inactive", "denied", "canceled"]) {
+    const tables = fixtures()
+    Object.assign(tables.CheerEnrollments[0], { status, subscription_status: "past_due", payment_status: "unpaid" })
+    const { GET } = await loadParentsRoute(tables)
+    const parents = await (await GET()).json()
+    const athlete = parents.find(row => row.parent_id === 1).athletes.find(row => row.athleteId === "10")
+    assert.equal(athlete.enrollments[0].paymentStatus,
+      ["approved", "active"].includes(status) ? "payment_not_required" : "payment_failed", status)
+  }
 })
 
 test("a failed cheer read returns an error instead of hiding cheer and charging classes", async () => {

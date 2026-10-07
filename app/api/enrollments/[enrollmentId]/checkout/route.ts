@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 
 import {
   ensureApprovedEnrollment,
+  ensureClassPaymentRequired,
   ensureNoActiveSubscription,
   getClassBillingConfig,
   getMultiAthleteCouponId,
@@ -40,6 +41,7 @@ export async function POST(
     const { enrollmentId } = await params
     const context = await getParentEnrollmentPaymentContext(enrollmentId)
     ensureApprovedEnrollment(context.enrollment)
+    await ensureClassPaymentRequired(context.athlete.athlete_id)
     ensureNoActiveSubscription(context.enrollment)
 
     const { stripePriceId, billingDay, programType } = getClassBillingConfig(

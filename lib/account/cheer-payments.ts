@@ -15,7 +15,10 @@ import {
   getSubscriptionPeriod,
   getStripe,
 } from "@/lib/stripe/server"
-import { normalizeEnrollmentPaymentStatus } from "@/lib/account/payments"
+import {
+  cancelClassSubscriptionsForAthlete,
+  normalizeEnrollmentPaymentStatus,
+} from "@/lib/account/payments"
 
 type CheerSubscriptionRole = "tuition" | "fee"
 
@@ -317,7 +320,7 @@ async function persistCheerSubscriptions({
     .from("CheerEnrollments")
     .update(update)
     .eq("enrollment_id", enrollmentId)
-    .select("enrollment_id,status")
+    .select("enrollment_id,athlete_id,status")
     .maybeSingle()
 
   if (error) {
@@ -334,6 +337,14 @@ async function persistCheerSubscriptions({
         data.status ?? "null"
       }.`
     )
+  }
+
+  if (update.status === "active") {
+    if (data.athlete_id === null || data.athlete_id === undefined) {
+      throw new Error(`Cheer enrollment ${enrollmentId} is missing its athlete.`)
+    }
+
+    await cancelClassSubscriptionsForAthlete(data.athlete_id)
   }
 }
 
