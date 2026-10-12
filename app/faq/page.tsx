@@ -16,17 +16,17 @@ export default function FAQ() {
         <FAQCard
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I pay for gymnastics classes?"
-          answer={<span>Once an enrollment request has been approved by our staff, you can then begin payment for the enrollment on your <Link className="text-purple-400" href="/account">account dashboard</Link>. Payments for gymnastics classes are now structured as monthly subscriptions. This allows for consistent scheduling and replaces the need for manual monthly invoicing. Classes are billed monthly on the 1st, so starting payment for a new enrollment will present as $0.00 today, then the full monthly amount on the 1st of the following month. Once you&apos;ve subscribed to your class plan, your enrollment becomes active and your athlete is placed on the roster for the session time you selected.</span>}
+          answer={<span>Once an enrollment request has been approved by our staff, you can then begin payment for the enrollment on your <Link className="text-purple-400" href="/account">account dashboard</Link>. Payments for gymnastics classes are now structured as monthly subscriptions. This allows for consistent scheduling and replaces the need for manual monthly invoicing. Your first payment is prorated for the time remaining until your class&apos;s next billing date. The full monthly amount then renews on the class&apos;s scheduled billing day. Once you&apos;ve subscribed to your class plan, your enrollment becomes active and your athlete is placed on the roster for the session time you selected.</span>}
         />
         <FAQCard 
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I pay for competitive cheer?"
-          answer={<span>Once a cheer enrollment is approved, navigate to your <Link className="text-purple-400" href="/account">account dashboard</Link> to sign the cheer contract. Once signed you can then select Pay on the enrollment to complete Stripe Checkout. Checkout includes both the monthly tuition and cheer fee. Tuition renews on the 1st and cheer fees renew on the 15th, with no prorated charge when billing starts.<br></br><br></br><span className="text-orange-300">Important Note:</span> During checkout, it may appear that both tuition and cheer fee payments are being billed on the 1st. However, this is a visual inconsistency due to creating multiple subscriptions at once. All items must initially be created with the same billing day, but as soon as the checkout completes, the cheer fee subscription is immediately updated to withdraw on the 15th.</span>}
+          answer={<span>Once a cheer enrollment is approved, navigate to your <Link className="text-purple-400" href="/account">account dashboard</Link> to sign the cheer contract. Once signed you can then select Pay on the enrollment to complete Stripe Checkout. Your first payment includes prorated tuition through the next 1st and a prorated cheer fee through the next 15th. After that, the full monthly tuition renews on the 1st and the full monthly cheer fee renews on the 15th.</span>}
         />
         <FAQCard 
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I manage my subscriptions?"
-          answer={<span>Managing your subscriptions is done through your <Link className="text-purple-400" href="/account">account dashboard</Link>. Scroll to the enrollments section and select the &quot;Manage&quot; button on any active enrollment. This will direct you to our payment portal where you can cancel active subscriptions or update on file payment methods.</span>}
+          answer={<span>You can manage your subscriptions in the Subscriptions &amp; Payments section of your <Link className="text-purple-400" href="/account#billing">account dashboard</Link>. From there, you can cancel active subscriptions, view invoices, and update saved payment methods.</span>}
         />
         <FAQCard
           icon={<Minus className="w-5 h-5 text-black dark:text-white" />}

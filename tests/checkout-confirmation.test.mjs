@@ -223,6 +223,10 @@ test("cheer checkout and recovered checkout both send users to the confirmation 
         getParentCheerEnrollmentPaymentContext: async () => context,
         ensureApprovedCheerEnrollment() {}, ensureSignedCheerContract() {}, ensureNoCheerSubscriptions() {},
         getCheerBillingConfig: () => ({ tuitionPriceId: "price_tuition", feePriceId: "price_fee" }),
+        getCheerCheckoutFeeProration: async ({ billingAnchor }) => ({
+          lineItem: { price_data: { currency: "usd", product: "prod_fee", unit_amount: 2500 }, quantity: 1 },
+          periodStart: 1791331200, periodEnd: billingAnchor,
+        }),
         recoverCompletedCheerCheckout: async () => recoveredSession,
         saveCheerStripeCustomerId: async () => {},
       },
@@ -243,6 +247,13 @@ test("cheer checkout and recovered checkout both send users to the confirmation 
       assert.equal(url.searchParams.get("session_id"), recoveredSession)
     } else {
       assert.equal(createdSessions.length, 1)
+      assert.equal(createdSessions[0].subscription_data.proration_behavior, "create_prorations")
+      assert.deepEqual(createdSessions[0].line_items, [
+        { price: "price_tuition", quantity: 1 },
+        { price_data: { currency: "usd", product: "prod_fee", unit_amount: 2500 }, quantity: 1 },
+      ])
+      assert.equal(createdSessions[0].metadata.fee_proration_end, "1792022400")
+      assert.match(createdSessions[0].custom_text.submit.message, /prorated/)
       assert.equal(createdSessions[0].success_url,
         "https://example.test/account/checkout-confirmation?kind=cheer&enrollment=42&session_id={CHECKOUT_SESSION_ID}")
     }

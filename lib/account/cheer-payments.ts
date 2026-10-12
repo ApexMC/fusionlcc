@@ -455,6 +455,54 @@ async function findExistingFeeSubscription({
   )
 }
 
+export async function getCheerCheckoutFeeProration({
+  customerId,
+  feePriceId,
+  billingAnchor,
+}: {
+  customerId: string
+  feePriceId: string
+  billingAnchor: number
+}) {
+  // Checkout has one subscription anchor. Use Stripe's fee calculation for
+  // the 15th as a one-time item alongside tuition, which renews on the 1st.
+  const preview = await getStripe().invoices.createPreview({
+    customer: customerId,
+    discounts: "",
+    subscription_details: {
+      items: [{ price: feePriceId, quantity: 1 }],
+      billing_cycle_anchor: billingAnchor,
+      proration_behavior: "create_prorations",
+    },
+  })
+  const feeLine = preview.lines.data.find(
+    (line) =>
+      line.parent?.subscription_item_details?.proration &&
+      getStripeId(line.pricing?.price_details?.price) === feePriceId &&
+      line.period.end === billingAnchor
+  )
+  const productId = feeLine?.pricing?.price_details?.product
+
+  if (!feeLine || !productId || feeLine.amount < 0) {
+    throw new Error("Stripe could not calculate the prorated cheer fee.")
+  }
+
+  const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = {
+    price_data: {
+      currency: feeLine.currency,
+      product: productId,
+      unit_amount: feeLine.amount,
+    },
+    quantity: 1,
+  }
+
+  return {
+    lineItem,
+    periodStart: feeLine.period.start,
+    periodEnd: feeLine.period.end,
+  }
+}
+
 export async function splitAndFinalizeCheerCheckout({
   session,
   enrollmentId,
@@ -473,6 +521,17 @@ export async function splitAndFinalizeCheerCheckout({
     throw new Error(
       "Completed cheer Checkout session is missing its subscription or customer."
     )
+  }
+
+  const prepaidFeeEnd = session.metadata?.fee_proration_end
+    ? Number(session.metadata.fee_proration_end)
+    : null
+
+  if (
+    prepaidFeeEnd !== null &&
+    (!Number.isSafeInteger(prepaidFeeEnd) || prepaidFeeEnd <= 0)
+  ) {
+    throw new Error("Completed cheer Checkout has an invalid fee proration period.")
   }
 
   const stripe = getStripe()
@@ -532,14 +591,25 @@ export async function splitAndFinalizeCheerCheckout({
     subscription_role: "fee",
     checkout_session_id: session.id,
   }
+  const prepaidPeriodElapsed =
+    prepaidFeeEnd !== null && prepaidFeeEnd <= Math.floor(Date.now() / 1000)
+  const feeBillingAnchor =
+    prepaidFeeEnd !== null && !prepaidPeriodElapsed
+      ? prepaidFeeEnd
+      : getNextBillingAnchorUnix(15)
   const feeSubscription =
     existingFeeSubscription ??
     (await stripe.subscriptions.create(
       {
         customer: customerId,
         items: [{ price: feePriceId, quantity: 1 }],
-        billing_cycle_anchor: getNextBillingAnchorUnix(15),
-        proration_behavior: "none",
+        billing_cycle_anchor: feeBillingAnchor,
+        // The initial fee period was collected in Checkout. If completion is
+        // delayed past it, bill only the time after that prepaid period.
+        proration_behavior: prepaidPeriodElapsed ? "create_prorations" : "none",
+        ...(prepaidFeeEnd !== null && prepaidPeriodElapsed
+          ? { backdate_start_date: prepaidFeeEnd }
+          : {}),
         ...(paymentMethodId
           ? { default_payment_method: paymentMethodId }
           : {}),

@@ -19,9 +19,10 @@ export function getStripe() {
   return stripe
 }
 
-export function getNextBillingAnchorUnix(billingDay: 1 | 15): number {
-  const now = new Date()
-
+export function getNextBillingAnchorUnix(
+  billingDay: 1 | 15,
+  now = new Date()
+): number {
   let anchor = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), billingDay, 12, 0, 0)
   )

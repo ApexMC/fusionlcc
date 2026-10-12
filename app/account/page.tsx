@@ -6,6 +6,7 @@ import ManageAccountCard from "@/components/account/manage_account";
 import AthleteCardList from "@/components/account/athletes/athlete_card";
 import { getAccountSession, getParentForUser } from "@/lib/account/auth";
 import { ParentEnrollments } from "@/components/account/parent_enrollments";
+import { ParentBilling } from "@/components/account/parent_billing";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,12 +23,10 @@ import type {
     ParentAthleteEnrollment,
     ParentRecord,
 } from "@/lib/account/types";
-import { cn } from "@/lib/utils";
 import { getDateKey, getDateKeyInTimeZone } from "@/lib/date_keys";
 import {
     BadgeCheck,
     BookOpen,
-    CircleDollarSign,
     CreditCard,
     ListChecks,
     Mail,
@@ -452,7 +451,7 @@ function getParentDashboardStats({
         {
             label: typeof balance === "number" && balance < 0 ? "Account Balance" : "Account Credit",
             value: formatCurrency(balance),
-            href: "#family-profile",
+            href: "#credit-balance",
             detail:
                 typeof balance !== "number"
                     ? "Balance not available"
@@ -504,12 +503,20 @@ export default async function AccountPage() {
                     title="Parent Dashboard"
                     description="A family view of athletes, enrollment requests, billing status, and the next class to request."
                     actions={
-                        <Button asChild variant="outline">
-                            <Link href="/classes">
-                                <BookOpen />
-                                Browse classes
-                            </Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <Button asChild variant="outline">
+                                <a href="#billing">
+                                    <CreditCard />
+                                    Manage billing
+                                </a>
+                            </Button>
+                            <Button asChild variant="outline">
+                                <Link href="/classes">
+                                    <BookOpen />
+                                    Browse classes
+                                </Link>
+                            </Button>
+                        </div>
                     }
                 />
                 <DashboardStatGrid
@@ -580,90 +587,77 @@ export default async function AccountPage() {
                                     </div>
                                 </div>
                             </div>
-                            <div className={cn(
-                                    "flex items-center gap-2 rounded-lg border bg-background p-3 sm:col-span-2",
-                                    typeof parent?.balance === "number" && parent.balance < 0
-                                        ? "border-amber-300/60 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/20"
-                                        : "border-emerald-300/60 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/50"
-                                )}>
-                                <CircleDollarSign className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                                <div className="min-w-0">
-                                    <div className="text-xs text-muted-foreground">
-                                        Account Balance
-                                    </div>
-                                    <div className="text-sm font-medium">
-                                        {typeof parent?.balance === "number" ? formatCurrency(parent.balance) : "Not provided"}
-                                    </div>
-                                </div>
-                            </div>
                         </CardContent>
                     </Card>
                 </section>
 
-                <section
-                    id="athletes"
-                    className="scroll-mt-24 space-y-3"
-                    aria-label="Athletes"
-                >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-zinc-50">
-                                Athletes
-                            </h2>
-                            <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
-                                <ListChecks className="size-4" />
-                                {countLabel(athleteCards.length, "record")}
-                            </div>
-                        </div>
-                        <ManageAthleteCard
-                            userId={session.userId}
-                            parentId={parent?.parent_id}
-                            icon={
-                                <>
-                                    <Plus className="size-4" />
-                                    Add athlete
-                                </>
-                            }
-                        />
-                    </div>
-                    {athleteCards.length ? (
-                        <AthleteCardList
-                            userId={session.userId}
-                            athletes={athleteCards}
-                        />
-                    ) : (
-                        <Card className="rounded-lg border-dashed bg-white dark:bg-black">
-                            <CardContent className="py-8 text-sm text-muted-foreground">
-                                Add an athlete before requesting a class.
-                            </CardContent>
-                        </Card>
-                    )}
-                </section>
-
-                <section
-                    id="enrollments"
-                    className="scroll-mt-24 space-y-3"
-                    aria-label="Enrollments"
-                >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
+                <div className="grid min-w-0 grid-cols-1 items-start gap-6 md:grid-cols-2">
+                    <section
+                        id="athletes"
+                        className="min-w-0 scroll-mt-24 space-y-3"
+                        aria-label="Athletes"
+                    >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h2 className="flex items-center gap-2 mb-2 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                                    <BadgeCheck className="size-5" />
-                                    Enrollments
+                                <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-zinc-50">
+                                    Athletes
                                 </h2>
+                                <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
+                                    <ListChecks className="size-4" />
+                                    {countLabel(athleteCards.length, "record")}
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
-                                <ListChecks className="size-4" />
-                                {countLabel(parentEnrollments.length, "record")}
+                            <ManageAthleteCard
+                                userId={session.userId}
+                                parentId={parent?.parent_id}
+                                icon={
+                                    <>
+                                        <Plus className="size-4" />
+                                        Add athlete
+                                    </>
+                                }
+                            />
+                        </div>
+                        {athleteCards.length ? (
+                            <AthleteCardList
+                                userId={session.userId}
+                                athletes={athleteCards}
+                            />
+                        ) : (
+                            <Card className="rounded-lg border-dashed bg-white dark:bg-black">
+                                <CardContent className="py-8 text-sm text-muted-foreground">
+                                    Add an athlete before requesting a class.
+                                </CardContent>
+                            </Card>
+                        )}
+                    </section>
+
+                    <section
+                        id="enrollments"
+                        className="min-w-0 scroll-mt-24 space-y-3"
+                        aria-label="Enrollments"
+                    >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <div>
+                                    <h2 className="flex items-center gap-2 mb-2 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                                        <BadgeCheck className="size-5" />
+                                        Enrollments
+                                    </h2>
+                                </div>
+                                <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground">
+                                    <ListChecks className="size-4" />
+                                    {countLabel(parentEnrollments.length, "record")}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <ParentEnrollments
-                        athletes={parentEnrollmentData.athletes}
-                        classOptions={parentEnrollmentData.classOptions}
-                    />
-                </section>
+                        <ParentEnrollments
+                            athletes={parentEnrollmentData.athletes}
+                            classOptions={parentEnrollmentData.classOptions}
+                        />
+                    </section>
+                </div>
+                <ParentBilling />
             </AccountDashboardFrame>
         );
     }

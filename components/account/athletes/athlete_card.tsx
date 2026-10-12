@@ -18,7 +18,7 @@ type Athlete = {
 
 export default function AthleteCardList({ userId, athletes }: { userId: string; athletes: Athlete[] }) {
   return (
-    <div className="grid w-full grid-cols-1 gap-4 text-zinc-700 dark:text-zinc-300 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-4 text-zinc-700 dark:text-zinc-300">
         {athletes.map((athlete) => (
             <Card key={athlete.athlete_id} className="h-full rounded-lg bg-white transition-all duration-200 hover:shadow-md dark:bg-black">
                 <CardHeader>

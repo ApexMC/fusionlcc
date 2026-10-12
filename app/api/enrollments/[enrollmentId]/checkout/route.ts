@@ -109,7 +109,7 @@ export async function POST(
       subscription_data: {
         billing_cycle_anchor: getNextBillingAnchorUnix(billingDay),
         metadata,
-        proration_behavior: "none",
+        proration_behavior: "create_prorations",
       },
     })
 

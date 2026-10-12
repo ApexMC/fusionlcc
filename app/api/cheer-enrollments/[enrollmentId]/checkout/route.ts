@@ -6,6 +6,7 @@ import {
   ensureSignedCheerContract,
   ensureNoCheerSubscriptions,
   getCheerBillingConfig,
+  getCheerCheckoutFeeProration,
   getParentCheerEnrollmentPaymentContext,
   recoverCompletedCheerCheckout,
   saveCheerStripeCustomerId,
@@ -87,6 +88,13 @@ export async function POST(
 
     ensureNoCheerSubscriptions(context.enrollment)
 
+    const now = new Date()
+    const tuitionBillingAnchor = getNextBillingAnchorUnix(1, now)
+    const feeProration = await getCheerCheckoutFeeProration({
+      customerId: stripeCustomerId,
+      feePriceId,
+      billingAnchor: getNextBillingAnchorUnix(15, now),
+    })
     const metadata = {
       user_id: context.userId,
       parent_id: String(context.parent.parent_id),
@@ -97,6 +105,7 @@ export async function POST(
       subscription_role: "tuition",
       tuition_price_id: tuitionPriceId,
       fee_price_id: feePriceId,
+      fee_proration_end: String(feeProration.periodEnd),
       program_type: "competitive_cheer",
     }
     const session = await stripe.checkout.sessions.create(
@@ -106,7 +115,7 @@ export async function POST(
         payment_method_collection: "always",
         line_items: [
           { price: tuitionPriceId, quantity: 1 },
-          { price: feePriceId, quantity: 1 },
+          feeProration.lineItem,
         ],
         success_url: `${origin}${getCheckoutConfirmationPath({
           kind: "cheer",
@@ -119,17 +128,17 @@ export async function POST(
         custom_text: {
           submit: {
             message:
-              "Tuition renews on the 1st and cheer fees renew on the 15th. No prorated amount is charged when billing is started.",
+              "Today's charge is prorated: tuition covers the time until the next 1st, and cheer fees cover the time until the next 15th. Full monthly amounts renew on those dates.",
           },
         },
         subscription_data: {
-          billing_cycle_anchor: getNextBillingAnchorUnix(1),
+          billing_cycle_anchor: tuitionBillingAnchor,
           metadata,
-          proration_behavior: "none",
+          proration_behavior: "create_prorations",
         },
       },
       {
-        idempotencyKey: `cheer-checkout:${context.enrollment.enrollment_id}:${tuitionPriceId}:${feePriceId}`,
+        idempotencyKey: `cheer-checkout-prorated:${context.enrollment.enrollment_id}:${tuitionPriceId}:${feePriceId}:${tuitionBillingAnchor}:${feeProration.periodStart}:${feeProration.periodEnd}`,
       }
     )
 

@@ -7,7 +7,6 @@ import {
   CreditCard,
   Eye,
   FileSignature,
-  Settings,
   X,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -39,7 +38,7 @@ import type {
   ParentAthleteEnrollment,
 } from "@/lib/account/types"
 
-type StripeResponse = {
+type CheckoutResponse = {
   url?: string
   error?: string
 }
@@ -136,33 +135,26 @@ export function ParentEnrollments({
       }
     : null
 
-  async function openStripeSession(
-    enrollment: EnrollmentDisplayRecord,
-    route: "checkout" | "portal"
-  ) {
-    const busyId = `${route}-${enrollment.enrollmentId}`
-    setBusyKey(busyId)
+  async function startCheckout(enrollment: EnrollmentDisplayRecord) {
+    setBusyKey(`checkout-${enrollment.enrollmentId}`)
 
     try {
       const response = await fetch(
-        `/api/enrollments/${enrollment.enrollmentId}/${route}`,
+        `/api/enrollments/${enrollment.enrollmentId}/checkout`,
         {
           method: "POST",
         }
       )
-      const data = (await response.json().catch(() => ({}))) as StripeResponse
+      const data = (await response.json().catch(() => ({}))) as CheckoutResponse
 
       if (!response.ok || !data.url) {
-        throw new Error(data.error ?? "Stripe session could not be created.")
+        throw new Error(data.error ?? "Checkout session could not be created.")
       }
 
       window.location.assign(data.url)
     } catch (error) {
       toast({
-        title:
-          route === "checkout"
-            ? "Unable to start payment"
-            : "Unable to open subscription",
+        title: "Unable to start payment",
         description:
           error instanceof Error ? error.message : "Please try again.",
         variant: "error",
@@ -171,31 +163,24 @@ export function ParentEnrollments({
     }
   }
 
-  async function openCheerStripeSession(
-    enrollment: CheerEnrollmentDisplayRecord,
-    route: "checkout" | "portal"
-  ) {
-    const busyId = `cheer-${route}-${enrollment.enrollmentId}`
-    setBusyKey(busyId)
+  async function startCheerCheckout(enrollment: CheerEnrollmentDisplayRecord) {
+    setBusyKey(`cheer-checkout-${enrollment.enrollmentId}`)
 
     try {
       const response = await fetch(
-        `/api/cheer-enrollments/${enrollment.enrollmentId}/${route}`,
+        `/api/cheer-enrollments/${enrollment.enrollmentId}/checkout`,
         { method: "POST" }
       )
-      const data = (await response.json().catch(() => ({}))) as StripeResponse
+      const data = (await response.json().catch(() => ({}))) as CheckoutResponse
 
       if (!response.ok || !data.url) {
-        throw new Error(data.error ?? "Stripe session could not be created.")
+        throw new Error(data.error ?? "Checkout session could not be created.")
       }
 
       window.location.assign(data.url)
     } catch (error) {
       toast({
-        title:
-          route === "checkout"
-            ? "Unable to start payment"
-            : "Unable to open subscription",
+        title: "Unable to start payment",
         description:
           error instanceof Error ? error.message : "Please try again.",
         variant: "error",
@@ -300,7 +285,7 @@ export function ParentEnrollments({
           </div>
         </div>
       ) : null}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,24rem),1fr))] gap-4">
         {athletes.map((athlete) => (
           <Card key={athlete.athleteId} className="bg-white dark:bg-black">
             <CardHeader>
@@ -327,9 +312,6 @@ export function ParentEnrollments({
                       !classPaymentWaived &&
                       enrollment.status === "approved" &&
                       !isActiveSubscription(enrollment)
-                    const canManageSubscription =
-                      Boolean(enrollment.stripeSubscriptionId) &&
-                      isActiveSubscription(enrollment)
                     const needsScheduleSelection =
                       enrollment.selectionRequired &&
                       !resolvedSelectionIds[enrollment.enrollmentId]
@@ -346,7 +328,7 @@ export function ParentEnrollments({
                         key={enrollment.enrollmentId}
                         className="rounded-lg border p-3"
                       >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                           <div className="min-w-0">
                             <div className="font-medium text-zinc-900 dark:text-zinc-50 mb-3">
                               {enrollment.className}
@@ -410,31 +392,13 @@ export function ParentEnrollments({
                                 type="button"
                                 size="sm"
                                 disabled={Boolean(busyKey)}
-                                onClick={() =>
-                                  openStripeSession(enrollment, "checkout")
-                                }
+                                onClick={() => startCheckout(enrollment)}
                               >
                                 <CreditCard />
                                 {busyKey ===
                                 `checkout-${enrollment.enrollmentId}`
                                   ? "Opening"
                                   : "Pay"}
-                              </Button>
-                            ) : null}
-                            {canManageSubscription ? (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                disabled={Boolean(busyKey)}
-                                onClick={() =>
-                                  openStripeSession(enrollment, "portal")
-                                }
-                              >
-                                <Settings />
-                                {busyKey === `portal-${enrollment.enrollmentId}`
-                                  ? "Opening"
-                                  : "Manage"}
                               </Button>
                             ) : null}
                             {enrollment.status === "pending" ? (
@@ -560,11 +524,6 @@ export function ParentEnrollments({
                         contractSigned &&
                         !enrollment.tuitionSubscriptionId &&
                         !enrollment.feeSubscriptionId
-                      const canManageSubscription =
-                        Boolean(
-                          enrollment.tuitionSubscriptionId ||
-                            enrollment.feeSubscriptionId
-                        ) && isActiveSubscription(enrollment)
                       const canReviewContract = ["approved", "active"].includes(
                         enrollment.status
                       )
@@ -574,7 +533,7 @@ export function ParentEnrollments({
                           key={enrollment.enrollmentId}
                           className="rounded-lg border p-3"
                         >
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                             <div className="min-w-0">
                               <div className="mb-3 font-medium text-zinc-900 dark:text-zinc-50">
                                 {enrollment.teamName}
@@ -659,7 +618,7 @@ export function ParentEnrollments({
                                   size="sm"
                                   disabled={Boolean(busyKey)}
                                   onClick={() =>
-                                    openCheerStripeSession(enrollment, "checkout")
+                                    startCheerCheckout(enrollment)
                                   }
                                 >
                                   <CreditCard />
@@ -667,23 +626,6 @@ export function ParentEnrollments({
                                   `cheer-checkout-${enrollment.enrollmentId}`
                                     ? "Opening"
                                     : "Pay"}
-                                </Button>
-                              ) : null}
-                              {canManageSubscription ? (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={Boolean(busyKey)}
-                                  onClick={() =>
-                                    openCheerStripeSession(enrollment, "portal")
-                                  }
-                                >
-                                  <Settings />
-                                  {busyKey ===
-                                  `cheer-portal-${enrollment.enrollmentId}`
-                                    ? "Opening"
-                                    : "Manage"}
                                 </Button>
                               ) : null}
                             </div>

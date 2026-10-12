@@ -209,6 +209,7 @@ test("class checkout remains available for ineligible cheer and siblings without
     assert.equal(response.status, 200, JSON.stringify(options))
     assert.equal(fixture.sessions.length, 1)
     assert.equal(fixture.sessions[0].mode, "subscription")
+    assert.equal(fixture.sessions[0].subscription_data.proration_behavior, "create_prorations")
     assert.deepEqual(fixture.sessions[0].line_items, [{ price: "price_gym", quantity: 1 }])
     assert.equal(fixture.sessions[0].success_url,
       "https://fixture.example.test/account/checkout-confirmation?kind=class&enrollment=1&session_id={CHECKOUT_SESSION_ID}")
