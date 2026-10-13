@@ -343,3 +343,22 @@ test("subscription events still update paid class enrollments normally", async (
     assert.equal(result.classes[0].subscription_status, status)
   }
 })
+
+test("class subscription-only events preserve the last invoice payment result", async () => {
+  for (const [eventType, paymentStatus, status] of [
+    ["invoice.payment_succeeded", "paid", "active"],
+    ["invoice.payment_failed", "payment_failed", "past_due"],
+  ]) {
+    const result = await fixture()
+    const currentSubscription = subscription("sub_class", { enrollment_id: "100" }, status)
+    await result.classPayments.updateEnrollmentFromSubscription({
+      enrollmentId: 100, subscription: currentSubscription, eventType, paymentStatus,
+    })
+    assert.equal(result.classes[0].payment_status, paymentStatus)
+    await result.classPayments.updateEnrollmentFromSubscription({
+      enrollmentId: 100, subscription: currentSubscription, eventType: "customer.subscription.updated",
+    })
+    assert.equal(result.classes[0].payment_status, paymentStatus)
+    assert.equal(result.classes[0].subscription_status, status)
+  }
+})

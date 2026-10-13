@@ -601,6 +601,7 @@ export async function splitAndFinalizeCheerCheckout({
     existingFeeSubscription ??
     (await stripe.subscriptions.create(
       {
+        application_fee_percent: 1.5,
         customer: customerId,
         items: [{ price: feePriceId, quantity: 1 }],
         billing_cycle_anchor: feeBillingAnchor,

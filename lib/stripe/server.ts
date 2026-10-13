@@ -9,13 +9,21 @@ export function getStripe() {
     return stripe
   }
 
-  const secretKey = process.env.STRIPE_SECRET_KEY
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim()
 
   if (!secretKey) {
     throw new Error("STRIPE_SECRET_KEY is not configured.")
   }
 
-  stripe = new Stripe(secretKey)
+  const connectedAccountId = process.env.STRIPE_CONNECTED_ACCOUNT_ID?.trim()
+
+  if (!connectedAccountId) {
+    throw new Error("STRIPE_CONNECTED_ACCOUNT_ID is not configured.")
+  }
+
+  // Keep customers, prices, subscriptions, and billing operations in the gym's
+  // account while the platform collects application fees.
+  stripe = new Stripe(secretKey, { stripeAccount: connectedAccountId })
   return stripe
 }
 

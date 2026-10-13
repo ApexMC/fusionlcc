@@ -132,6 +132,7 @@ export async function POST(
           },
         },
         subscription_data: {
+          application_fee_percent: 1.5,
           billing_cycle_anchor: tuitionBillingAnchor,
           metadata,
           proration_behavior: "create_prorations",

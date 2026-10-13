@@ -233,6 +233,7 @@ test("cheer checkout charges the fee preview once and anchors tuition and fees i
   assert.deepEqual(await response.json(), { url: "https://checkout.example.test" })
   assert.equal(previews[0].subscription_details.billing_cycle_anchor, stripeHelpers.getNextBillingAnchorUnix(15))
   assert.equal(sessions[0].params.subscription_data.billing_cycle_anchor, stripeHelpers.getNextBillingAnchorUnix(1))
+  assert.equal(sessions[0].params.subscription_data.application_fee_percent, 1.5)
   assert.equal(sessions[0].params.subscription_data.proration_behavior, "create_prorations")
   assert.deepEqual(sessions[0].params.line_items, [
     { price: "price_tuition", quantity: 1 },
@@ -275,6 +276,7 @@ test("prepaid cheer fee subscriptions start billing on the quoted 15th without c
   assert.equal(row.payment_status, "paid")
   assert.deepEqual(deletedItems, [])
   assert.equal(createdFees.length, 1)
+  assert.equal(createdFees[0].params.application_fee_percent, 1.5)
   assert.deepEqual(createdFees[0].params.items, [{ price: "price_fee", quantity: 1 }])
   assert.equal(createdFees[0].params.billing_cycle_anchor, feeProrationEnd)
   assert.equal(createdFees[0].params.proration_behavior, "none")

@@ -241,7 +241,7 @@ export async function createBillingSetupIntent(context: BillingContext, customer
 }
 
 function getPublishableKey() {
-  const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? process.env.STRIPE_PUBLISHABLE_KEY
+  const key = process.env.STRIPE_PUBLISHABLE_KEY
   return key?.startsWith("pk_") ? key : null
 }
 

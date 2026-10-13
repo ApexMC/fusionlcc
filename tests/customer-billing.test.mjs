@@ -308,15 +308,15 @@ test("currency formatting uses the correct minor unit", () => {
 })
 
 test("card setup uses the existing publishable-key setting and never exposes a secret key", async t => {
-  const savedPublic = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  const savedPublic = process.env.STRIPE_PUBLISHABLE_KEY
   const savedExisting = process.env.STRIPE_PUBLISHABLE_KEY
   t.after(() => {
-    if (savedPublic === undefined) delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-    else process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = savedPublic
+    if (savedPublic === undefined) delete process.env.STRIPE_PUBLISHABLE_KEY
+    else process.env.STRIPE_PUBLISHABLE_KEY = savedPublic
     if (savedExisting === undefined) delete process.env.STRIPE_PUBLISHABLE_KEY
     else process.env.STRIPE_PUBLISHABLE_KEY = savedExisting
   })
-  delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  delete process.env.STRIPE_PUBLISHABLE_KEY
   process.env.STRIPE_PUBLISHABLE_KEY = "pk_test_demo"
   const f = await fixture()
   await assert.rejects(f.billing.createBillingSetupIntent(context, "cus_foreign"), /does not belong/)

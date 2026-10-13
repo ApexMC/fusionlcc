@@ -515,6 +515,7 @@ export async function updateEnrollmentFromSubscription({
     subscriptionWithPeriod.current_period_end ?? firstItem?.current_period_end
   )
 
+  const normalizedPaymentStatus = normalizeEnrollmentPaymentStatus(paymentStatus)
   let update = supabase
     .from("Enrollments")
     .update({
@@ -527,7 +528,10 @@ export async function updateEnrollmentFromSubscription({
       subscription_status: subscription.status,
       current_period_start: period.currentPeriodStart,
       current_period_end: period.currentPeriodEnd,
-      payment_status: normalizeEnrollmentPaymentStatus(paymentStatus),
+      // Subscription-only events contain no new invoice payment result.
+      ...(normalizedPaymentStatus !== null
+        ? { payment_status: normalizedPaymentStatus }
+        : {}),
       status: enrollmentStatus,
     })
     .eq("enrollment_id", enrollmentId)

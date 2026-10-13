@@ -24,11 +24,15 @@ function getStripeId(value: string | { id: string } | null | undefined) {
 }
 
 function getInvoiceSubscriptionId(invoice: Stripe.Invoice) {
+  const subscription = invoice.parent?.type === "subscription_details"
+    ? invoice.parent.subscription_details?.subscription
+    : null
+  // Older webhook snapshots keep the subscription at the top level.
   const invoiceWithSubscription = invoice as Stripe.Invoice & {
     subscription?: string | Stripe.Subscription | null
   }
 
-  return getStripeId(invoiceWithSubscription.subscription)
+  return getStripeId(subscription ?? invoiceWithSubscription.subscription)
 }
 
 async function findEnrollmentIdBySubscription(subscriptionId: string) {
@@ -229,6 +233,11 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Invalid webhook signature."
     return NextResponse.json({ error: message }, { status: 400 })
+  }
+
+  // Connect endpoints can receive events for every account on the platform.
+  if (event.account !== process.env.STRIPE_CONNECTED_ACCOUNT_ID?.trim()) {
+    return NextResponse.json({ received: true, ignored: true })
   }
 
   try {

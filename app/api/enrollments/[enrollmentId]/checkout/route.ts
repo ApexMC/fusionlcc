@@ -107,6 +107,7 @@ export async function POST(
       client_reference_id: String(context.enrollment.enrollment_id),
       metadata,
       subscription_data: {
+        application_fee_percent: 1.5,
         billing_cycle_anchor: getNextBillingAnchorUnix(billingDay),
         metadata,
         proration_behavior: "create_prorations",
