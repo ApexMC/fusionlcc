@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Clock,
   Megaphone,
+  UserRoundCog,
   UserRound,
   Users,
 } from "lucide-react"
@@ -16,6 +17,12 @@ export const adminDashboardRoutes = {
     description: "Search parent accounts and review attached athletes.",
     href: "/account/admin/customers",
     icon: UserRound,
+  },
+  staff: {
+    title: "Staff",
+    description: "View coach accounts and create accounts for staff members.",
+    href: "/account/admin/staff",
+    icon: UserRoundCog,
   },
   enrollments: {
     title: "Enrollments",

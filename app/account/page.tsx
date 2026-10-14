@@ -49,6 +49,7 @@ import {
 
 const adminDashboardSections = [
     adminDashboardRoutes.customers,
+    adminDashboardRoutes.staff,
     adminDashboardRoutes.enrollments,
     {
         title: "Billing",
