@@ -1961,8 +1961,11 @@ async function estimateMonthlyRecurringRevenue(
   const coverageUnverified = coverage.some((enrollment) => {
     const state = getCoverageState(enrollment)
     const status = enrollment.subscriptionStatus?.trim().toLowerCase() ?? ""
+    // Failed invoices need attention, but do not invalidate an active
+    // subscription's recurring price. Only missing billing data blocks MRR.
     return state === "unknown" ||
-      (["active", "trialing"].includes(status) && state !== "subscribed")
+      (["active", "trialing"].includes(status) &&
+        enrollment.subscriptionIds.some((id) => !id?.trim()))
   })
 
   if (coverageUnverified) {

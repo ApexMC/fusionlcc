@@ -64,6 +64,7 @@ export async function accountDataFixture({
   allowedTables = Object.keys(tables), failures = {}, missingBillingColumns = false,
   tableData = tables,
   modulePath = "../lib/account/data.ts",
+  stripe,
 } = {}) {
   const calls = []
   const createAdminClient = () => ({
@@ -117,7 +118,10 @@ export async function accountDataFixture({
     ...dependencies,
     "server-only": {},
     "@/lib/supabase/admin": { createAdminClient },
-    "@/lib/stripe/server": { getStripe: () => { throw new Error("Unexpected Stripe request") } },
+    "@/lib/stripe/server": { getStripe: () => {
+      if (!stripe) throw new Error("Unexpected Stripe request")
+      return stripe
+    } },
     "@/lib/account/auth": {},
   })
   return { data, calls }
