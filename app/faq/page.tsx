@@ -1,6 +1,7 @@
 import FAQCard from "@/components/faq/faq_card";
 import { CircleAlert, Minus } from "lucide-react";
 import Link from "next/link";
+import { SectionLink } from "@/components/navigation/section-link";
 export default function FAQ() {
   return (
     <div className="flex flex-col flex-1 items-center justify-start bg-zinc-100 dark:bg-zinc-900 font-sans">
@@ -26,7 +27,7 @@ export default function FAQ() {
         <FAQCard 
           icon={<CircleAlert className="w-5 h-5 text-yellow-500 dark:text-yellow-500" />}
           question="How do I manage my subscriptions?"
-          answer={<span>You can manage your subscriptions in the Subscriptions &amp; Payments section of your <Link className="text-purple-400" href="/account#billing">account dashboard</Link>. From there, you can cancel active subscriptions, view invoices, and update saved payment methods.</span>}
+          answer={<span>You can manage your subscriptions in the Subscriptions &amp; Payments section of your <SectionLink className="text-purple-400" href="/account#billing">account dashboard</SectionLink>. From there, you can cancel active subscriptions, view invoices, and update saved payment methods.</span>}
         />
         <FAQCard
           icon={<Minus className="w-5 h-5 text-black dark:text-white" />}

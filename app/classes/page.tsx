@@ -1,5 +1,6 @@
 import { BadgeDollarSign, CalendarDays } from "lucide-react"
 import Link from "next/link"
+import { SectionLink } from "@/components/navigation/section-link"
 
 import ClassCard from "@/components/classes/class_card"
 import MultiAthleteDiscountTable from "@/components/classes/multi_athlete_discount_table"
@@ -22,13 +23,13 @@ export default async function ClassSchedules() {
             <CalendarDays className="size-4" aria-hidden="true" />
             View Calendar
           </Link>
-          <a
+          <SectionLink
             href="#multi-athlete-discounts"
             className="inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-purple-600/20 transition-all hover:-translate-y-0.5 hover:bg-purple-700 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:outline-none dark:bg-purple-500 dark:hover:bg-purple-400"
           >
             <BadgeDollarSign className="size-4" aria-hidden="true" />
             Discounts
-          </a>
+          </SectionLink>
         </div>
         <p className="mt-6 mb-12 max-w-2xl text-center text-zinc-600 dark:text-zinc-400">
           <span className="text-orange-400">Placement Note:</span> Athletes may

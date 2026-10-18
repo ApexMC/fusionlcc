@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
+import { SectionLink } from "@/components/navigation/section-link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -173,13 +174,13 @@ export function DashboardStatGrid({ stats }: { stats: DashboardStat[] }) {
         )
 
         return stat.href ? (
-          <Link
+          <SectionLink
             key={stat.label}
             href={stat.href}
             className="group block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             {panel}
-          </Link>
+          </SectionLink>
         ) : (
           <div key={stat.label}>{panel}</div>
         )

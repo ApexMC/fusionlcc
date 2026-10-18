@@ -42,6 +42,7 @@ import {
   shiftDateKey,
 } from "@/lib/date_keys"
 import { normalizeLocalTime } from "@/lib/local_time"
+import { attendanceLabels, isCanceledSession, normalizeAttendanceStatus } from "@/lib/account/attendance"
 import {
   formatSessionDate as formatDate,
   formatSessionStatus,
@@ -53,8 +54,8 @@ import {
 
 const attendanceOptions = [
   { value: "present", label: "Present" },
-  { value: "absent", label: "Absent" },
-  { value: "excused", label: "Excused" },
+  { value: "absent", label: "Unexcused absence" },
+  { value: "excused", label: "Excused absence" },
   { value: "late", label: "Late" },
 ] as const
 
@@ -195,7 +196,7 @@ function matchesAttendanceFilter(
   }
 
   if (filter === "incomplete") {
-    return completion === "not-started"
+    return completion === "not-started" || completion === "partial"
   }
 
   return completion === filter
@@ -518,9 +519,13 @@ function shouldIgnoreRowClick(event: React.MouseEvent<HTMLTableRowElement>) {
   )
 }
 
+function getAttendanceKey(athlete: ClassSessionExpectedAthlete) {
+  return athlete.attendanceKey ?? athlete.enrollmentId
+}
+
 function buildDrafts(athletes: ClassSessionExpectedAthlete[]) {
   return athletes.reduce<Record<string, AttendanceDraft>>((drafts, athlete) => {
-    drafts[athlete.enrollmentId] = {
+    drafts[getAttendanceKey(athlete)] = {
       attendanceStatus: athlete.attendanceStatus ?? "",
       notes: athlete.attendanceNotes ?? "",
       reviewedAt: athlete.attendanceReviewedAt,
@@ -532,8 +537,14 @@ function buildDrafts(athletes: ClassSessionExpectedAthlete[]) {
 
 function AttendanceReviewTable({
   session,
+  saveAttendance,
+  disabledReason,
+  program,
 }: {
   session: ClassSessionDisplayRecord
+  saveAttendance: typeof updateClassSessionAttendanceBatch
+  disabledReason?: string
+  program: "class" | "cheer"
 }) {
   const [drafts, setDrafts] = React.useState(() =>
     buildDrafts(session.expectedAthletes)
@@ -578,7 +589,7 @@ function AttendanceReviewTable({
 
   function getDraft(athlete: ClassSessionExpectedAthlete) {
     return (
-      drafts[athlete.enrollmentId] ?? {
+      drafts[getAttendanceKey(athlete)] ?? {
         attendanceStatus: athlete.attendanceStatus ?? "",
         notes: athlete.attendanceNotes ?? "",
         reviewedAt: athlete.attendanceReviewedAt,
@@ -652,6 +663,7 @@ function AttendanceReviewTable({
   }
 
   async function saveSessionAttendance() {
+    if (saving || disabledReason) return
     const missingAttendance = attendanceAthletes.find(
       (athlete) => !getDraft(athlete).attendanceStatus
     )
@@ -668,7 +680,7 @@ function AttendanceReviewTable({
     setSaving(true)
 
     try {
-      const result = await updateClassSessionAttendanceBatch({
+      const result = await saveAttendance({
         sessionId: session.sessionId,
         attendance: attendanceAthletes.map((athlete) => {
           const draft = getDraft(athlete)
@@ -697,10 +709,10 @@ function AttendanceReviewTable({
         attendanceAthletes.reduce<Record<string, AttendanceDraft>>(
           (nextDrafts, athlete) => ({
             ...nextDrafts,
-            [athlete.enrollmentId]: {
+            [getAttendanceKey(athlete)]: {
               attendanceStatus:
-                current[athlete.enrollmentId]?.attendanceStatus ?? "",
-              notes: current[athlete.enrollmentId]?.notes ?? "",
+                current[getAttendanceKey(athlete)]?.attendanceStatus ?? "",
+              notes: current[getAttendanceKey(athlete)]?.notes ?? "",
               reviewedAt,
             },
           }),
@@ -743,7 +755,7 @@ function AttendanceReviewTable({
           <Button
             type="button"
             size="sm"
-            disabled={saving || !attendanceAthletes.length}
+            disabled={saving || Boolean(disabledReason) || !attendanceAthletes.length}
             onClick={saveSessionAttendance}
           >
             <Save />
@@ -751,6 +763,7 @@ function AttendanceReviewTable({
           </Button>
         </div>
       </div>
+      {disabledReason ? <p role="status" className="mt-3 text-sm text-muted-foreground">{disabledReason}</p> : null}
       {availableMakeupAthletes.length ? (
         <div className="mt-4 flex flex-col gap-2 rounded-md border border-dashed p-3 sm:flex-row sm:items-end">
           <label className="grid min-w-0 flex-1 gap-1 text-xs font-medium text-muted-foreground">
@@ -799,7 +812,7 @@ function AttendanceReviewTable({
                   <div>
                     <div className="font-medium">{athlete.athleteName}</div>
                     <div className="text-xs text-muted-foreground">
-                      Enrollment #{athlete.enrollmentId}
+                      {athlete.enrollmentId ? `Enrollment #${athlete.enrollmentId}` : "Historical attendance"}
                     </div>
                     {athlete.isMakeup ? (
                       <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -817,7 +830,7 @@ function AttendanceReviewTable({
                       <Badge
                         variant={getAttendanceVariant(draft.attendanceStatus)}
                       >
-                        {draft.attendanceStatus}
+                        {attendanceLabels[normalizeAttendanceStatus(draft.attendanceStatus) ?? "present"]}
                       </Badge>
                     ) : null}
                     {canRemoveMakeup ? (
@@ -850,9 +863,11 @@ function AttendanceReviewTable({
                 </div>
                 <div className="mt-3 grid gap-2">
                   <SmartSelect
+                    disabled={saving || Boolean(disabledReason)}
+                    aria-label={`Attendance for ${athlete.athleteName}`}
                     value={draft.attendanceStatus}
                     onValueChange={(value) =>
-                      updateDraft(athlete.enrollmentId, {
+                      updateDraft(getAttendanceKey(athlete), {
                         attendanceStatus: value as ClassSessionAttendanceStatus,
                       })
                     }
@@ -863,9 +878,12 @@ function AttendanceReviewTable({
                     className="h-10 w-full rounded-lg border border-input bg-background px-2 text-base"
                   />
                   <Input
+                    disabled={saving || Boolean(disabledReason)}
+                    aria-label={`Notes for ${athlete.athleteName}`}
+                    maxLength={program === "cheer" ? 2000 : undefined}
                     value={draft.notes}
                     onChange={(event) =>
-                      updateDraft(athlete.enrollmentId, {
+                      updateDraft(getAttendanceKey(athlete), {
                         notes: event.target.value,
                       })
                     }
@@ -931,7 +949,7 @@ function AttendanceReviewTable({
                         ) : null}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Enrollment #{athlete.enrollmentId}
+                        {athlete.enrollmentId ? `Enrollment #${athlete.enrollmentId}` : "Historical attendance"}
                       </div>
                       {athlete.isMakeup && athlete.scheduleLabel ? (
                         <div className="text-xs text-muted-foreground">
@@ -950,9 +968,11 @@ function AttendanceReviewTable({
                     <TableCell>
                       <div className="flex flex-col gap-2">
                         <SmartSelect
+                          disabled={saving || Boolean(disabledReason)}
+                          aria-label={`Attendance for ${athlete.athleteName}`}
                           value={draft.attendanceStatus}
                           onValueChange={(value) =>
-                            updateDraft(athlete.enrollmentId, {
+                            updateDraft(getAttendanceKey(athlete), {
                               attendanceStatus:
                                 value as ClassSessionAttendanceStatus,
                             })
@@ -970,16 +990,19 @@ function AttendanceReviewTable({
                               draft.attendanceStatus
                             )}
                           >
-                            {draft.attendanceStatus}
+                            {attendanceLabels[normalizeAttendanceStatus(draft.attendanceStatus) ?? "present"]}
                           </Badge>
                         ) : null}
                       </div>
                     </TableCell>
                     <TableCell>
                       <Input
+                        disabled={saving || Boolean(disabledReason)}
+                        aria-label={`Notes for ${athlete.athleteName}`}
+                        maxLength={program === "cheer" ? 2000 : undefined}
                         value={draft.notes}
                         onChange={(event) =>
-                          updateDraft(athlete.enrollmentId, {
+                          updateDraft(getAttendanceKey(athlete), {
                             notes: event.target.value,
                           })
                         }
@@ -1224,17 +1247,28 @@ function UpcomingSessionsPanel({
   )
 }
 
-export function ClassSessionReview({
+export function SessionReview({
   sessions,
   canCancelSessions = false,
+  initialSessionId,
+  program = "class",
+  saveAttendance = updateClassSessionAttendanceBatch,
+  attendanceUnavailableReason,
 }: {
   sessions: ClassSessionDisplayRecord[]
   canCancelSessions?: boolean
+  initialSessionId?: string
+  program?: "class" | "cheer"
+  saveAttendance?: typeof updateClassSessionAttendanceBatch
+  attendanceUnavailableReason?: string
 }) {
+  const programLabel = program === "cheer" ? "Team" : "Class"
+  const programPlural = program === "cheer" ? "teams" : "classes"
   const defaultDateRange = React.useMemo(() => getDefaultDateRange(), [])
+  const initialSession = sessions.find((session) => session.sessionId === initialSessionId)
   const [query, setQuery] = React.useState("")
-  const [dateFrom, setDateFrom] = React.useState(defaultDateRange.dateFrom)
-  const [dateTo, setDateTo] = React.useState(defaultDateRange.dateTo)
+  const [dateFrom, setDateFrom] = React.useState(initialSession?.sessionDate ? getDateKey(initialSession.sessionDate) : defaultDateRange.dateFrom)
+  const [dateTo, setDateTo] = React.useState(initialSession?.sessionDate ? getDateKey(initialSession.sessionDate) : defaultDateRange.dateTo)
   const [classFilter, setClassFilter] = React.useState("all")
   const [scheduleFilter, setScheduleFilter] = React.useState("all")
   const [statusFilter, setStatusFilter] = React.useState("all")
@@ -1245,7 +1279,7 @@ export function ClassSessionReview({
     React.useState<SortDirection>("desc")
   const [expandedSessionId, setExpandedSessionId] = React.useState<
     string | null
-  >(null)
+  >(initialSessionId ?? null)
   const [upcomingSessionsOpen, setUpcomingSessionsOpen] =
     React.useState(false)
   const [cancelSessionTarget, setCancelSessionTarget] =
@@ -1268,6 +1302,14 @@ export function ClassSessionReview({
   const filterPanelId = React.useId()
   const router = useRouter()
   const { toast } = useToast()
+  function attendanceDisabledReason(session: ClassSessionDisplayRecord) {
+    if (attendanceUnavailableReason) return attendanceUnavailableReason
+    if (program !== "cheer") return undefined
+    const date = getDateKey(session.sessionDate)
+    return !date || date > todayDateKey || isCanceledSession(session.status)
+      ? "Attendance is available for dated sessions today or earlier that have not been canceled."
+      : undefined
+  }
   const classOptions = React.useMemo(
     () =>
       Array.from(new Set(sessions.map((session) => session.className)))
@@ -1575,9 +1617,10 @@ export function ClassSessionReview({
     <>
     <Card className="w-full bg-white dark:bg-black">
       <CardHeader>
-        <CardTitle>Class Sessions</CardTitle>
+        <CardTitle>{program === "cheer" ? "Cheer Practice Sessions" : "Class Sessions"}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6 overscroll-contain pr-3 scrollbar-gutter:stable">
+        {attendanceUnavailableReason ? <p role="status" className="text-sm text-amber-700 dark:text-amber-300">{attendanceUnavailableReason}</p> : null}
         <div className="space-y-4 bg-white dark:bg-black">
           <div className="flex items-center justify-between gap-3 md:hidden">
             <Button
@@ -1636,18 +1679,18 @@ export function ClassSessionReview({
               />
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              Class
+              {programLabel}
               <SmartSelect
                 value={classFilter}
                 onValueChange={setClassFilter}
                 options={[
-                  { value: "all", label: "All classes" },
+                  { value: "all", label: `All ${programPlural}` },
                   ...classOptions.map((className) => ({
                     value: className,
                     label: className,
                   })),
                 ]}
-                searchPlaceholder="Search classes..."
+                searchPlaceholder={`Search ${programPlural}...`}
                 className={selectControlClassName}
               />
             </label>
@@ -1700,7 +1743,7 @@ export function ClassSessionReview({
                     setSortKey(nextSortKey)
                     setSortDirection(getDefaultSortDirection(nextSortKey))
                   }}
-                  options={sortOptions}
+                  options={sortOptions.map((option) => option.value === "class" ? { ...option, label: programLabel } : option)}
                   className={`${selectControlClassName} min-w-0 flex-1`}
                 />
                 <Button
@@ -1770,7 +1813,7 @@ export function ClassSessionReview({
                   <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <div className="text-xs font-medium text-muted-foreground">
-                        Class
+                        {programLabel}
                       </div>
                       <div>{session.className}</div>
                     </div>
@@ -1817,7 +1860,7 @@ export function ClassSessionReview({
                   </div>
                   {isExpanded ? (
                     <div className="mt-3">
-                      <AttendanceReviewTable session={session} />
+                      <AttendanceReviewTable session={session} saveAttendance={saveAttendance} program={program} disabledReason={attendanceDisabledReason(session)} />
                     </div>
                   ) : null}
                 </div>
@@ -1825,7 +1868,7 @@ export function ClassSessionReview({
             })
           ) : (
             <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              No class sessions match the current filters.
+              No {program === "cheer" ? "cheer practice" : "class"} sessions match the current filters.
             </div>
           )}
         </div>
@@ -1850,7 +1893,7 @@ export function ClassSessionReview({
                   sortDirection={sortDirection}
                   onSort={updateSort}
                 >
-                  Class
+                  {programLabel}
                 </SortHeaderButton>
               </TableHead>
               <TableHead>
@@ -1967,7 +2010,7 @@ export function ClassSessionReview({
                           colSpan={6}
                           className="whitespace-normal bg-muted/30 p-4"
                         >
-                          <AttendanceReviewTable session={session} />
+                          <AttendanceReviewTable session={session} saveAttendance={saveAttendance} program={program} disabledReason={attendanceDisabledReason(session)} />
                         </TableCell>
                       </TableRow>
                     ) : null}
@@ -1977,7 +2020,7 @@ export function ClassSessionReview({
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">
-                  No class sessions match the current filters.
+                  No {program === "cheer" ? "cheer practice" : "class"} sessions match the current filters.
                 </TableCell>
               </TableRow>
             )}
@@ -2129,3 +2172,5 @@ export function ClassSessionReview({
     </>
   )
 }
+
+export { SessionReview as ClassSessionReview }

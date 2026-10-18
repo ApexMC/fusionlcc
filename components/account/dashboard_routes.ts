@@ -18,6 +18,12 @@ export const adminDashboardRoutes = {
     href: "/account/admin/customers",
     icon: UserRound,
   },
+  athletes: {
+    title: "Athletes",
+    description: "Monitor seasonal attendance, absence allowances, and athlete history.",
+    href: "/account/admin/athletes",
+    icon: Users,
+  },
   staff: {
     title: "Staff",
     description: "View coach accounts and create accounts for staff members.",

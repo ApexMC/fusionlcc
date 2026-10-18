@@ -1,6 +1,7 @@
 import "server-only"
 
-import { getDateKey, getDateKeyInTimeZone, parseDateKeyParts } from "@/lib/date_keys"
+import { getDateKey, getDateKeyInTimeZone, parseDateKeyParts, shiftDateKey } from "@/lib/date_keys"
+import { formatSessionTimeLabel, getCalendarDateRange, type CalendarSession } from "@/lib/calendar"
 import { normalizeProgramType } from "@/lib/programs"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getStripe } from "@/lib/stripe/server"
@@ -833,30 +834,42 @@ async function fetchCheerScheduleRows() {
   }
 }
 
-async function fetchClassSessionRows() {
+async function fetchClassSessionRows(dateRange?: ReturnType<typeof getCalendarDateRange>) {
   const supabase = createAdminClient()
-  return fetchAllRows<ClassSessionRow>((from, to) =>
-      supabase
-        .from("ClassSessions")
-        .select("session_id,class_id,schedule_id,date,starts_at,ends_at,status,type", { count: from === 0 ? "exact" : undefined })
-        .order("date", { ascending: false })
-        .order("starts_at", { ascending: true })
-        .order("session_id", { ascending: true })
-        .range(from, to)
-    )
+  return fetchAllRows<ClassSessionRow>((from, to) => {
+    let query = supabase
+      .from("ClassSessions")
+      .select("session_id,class_id,schedule_id,date,starts_at,ends_at,status,type", { count: from === 0 ? "exact" : undefined })
+
+    if (dateRange) {
+      query = query.gte("date", dateRange.startsOn).lte("date", dateRange.endsOn)
+    }
+
+    return query
+      .order("date", { ascending: false })
+      .order("starts_at", { ascending: true })
+      .order("session_id", { ascending: true })
+      .range(from, to)
+  })
 }
 
-async function fetchCheerSessionRows() {
+async function fetchCheerSessionRows(dateRange?: ReturnType<typeof getCalendarDateRange>) {
   const supabase = createAdminClient()
-  return fetchAllRows<CheerSessionRow>((from, to) =>
-      supabase
-        .from("CheerSessions")
-        .select("session_id,team_id,schedule_id,date,starts_at,ends_at,status,type", { count: from === 0 ? "exact" : undefined })
-        .order("date", { ascending: false })
-        .order("starts_at", { ascending: true })
-        .order("session_id", { ascending: true })
-        .range(from, to)
-    )
+  return fetchAllRows<CheerSessionRow>((from, to) => {
+    let query = supabase
+      .from("CheerSessions")
+      .select("session_id,team_id,schedule_id,date,starts_at,ends_at,status,type", { count: from === 0 ? "exact" : undefined })
+
+    if (dateRange) {
+      query = query.gte("date", dateRange.startsOn).lte("date", dateRange.endsOn)
+    }
+
+    return query
+      .order("date", { ascending: false })
+      .order("starts_at", { ascending: true })
+      .order("session_id", { ascending: true })
+      .range(from, to)
+  })
 }
 
 export async function getDeadPeriods(): Promise<DeadPeriodRecord[]> {
@@ -881,18 +894,28 @@ function isMissingAttendanceTableError(error: { code?: string; message?: string 
   return ["42P01", "42703", "PGRST205", "PGRST204"].includes(error.code ?? "")
 }
 
-async function fetchClassSessionAttendanceRows() {
+async function fetchClassSessionAttendanceRows(enrollmentIds?: string[]) {
+  if (enrollmentIds && !enrollmentIds.length) {
+    return [] as ClassSessionAttendanceRow[]
+  }
+
   const supabase = createAdminClient()
 
   try {
-    return await fetchAllRows<ClassSessionAttendanceRow>((from, to) =>
-      supabase
+    return await fetchAllRows<ClassSessionAttendanceRow>((from, to) => {
+      let query = supabase
         .from("ClassSessionAttendance")
         .select("attendance_id,session_id,enrollment_id,athlete_id,is_makeup,attendance_status,notes,reviewed_at,reviewed_by", { count: from === 0 ? "exact" : undefined })
+
+      if (enrollmentIds) {
+        query = query.in("enrollment_id", enrollmentIds)
+      }
+
+      return query
         .order("reviewed_at", { ascending: false })
         .order("attendance_id", { ascending: true })
         .range(from, to)
-    )
+    })
   } catch (error) {
     if (error instanceof Error && isMissingAttendanceTableError(error)) {
       return [] as ClassSessionAttendanceRow[]
@@ -1592,6 +1615,15 @@ function buildClassSessionRows({
   const { expectedByScheduleId, rosterByClassId, athleteCreatedDateByEnrollmentId } =
     buildClassSessionRosterIndexes(enrollments)
   const attendanceByKey = buildAttendanceBySessionEnrollment(attendanceRows)
+  const enrollmentById = new Map(enrollments.map((enrollment) => [enrollment.enrollmentId, enrollment]))
+  const attendanceBySession = new Map<string, ClassSessionAttendanceRow[]>()
+  attendanceRows.forEach((record) => {
+    const key = toId(record.session_id)
+    if (!key) return
+    const rows = attendanceBySession.get(key) ?? []
+    rows.push(record)
+    attendanceBySession.set(key, rows)
+  })
 
   return sessionRows.map((row) => {
     const scheduleId = toId(row.schedule_id)
@@ -1648,6 +1680,24 @@ function buildClassSessionRows({
         ...athlete,
         isMakeup: true,
       }))
+    // A saved attendance record must survive cancellation or a schedule transfer
+    // so staff can still review and correct the original session.
+    const historicalAthletes = (attendanceBySession.get(sessionId) ?? []).flatMap((record) => {
+      const enrollmentId = toId(record.enrollment_id)
+      if (!enrollmentId || displayedEnrollmentIds.has(enrollmentId)) return []
+      const enrollment = enrollmentById.get(enrollmentId)
+      if (!enrollment) return []
+      const createdDate = getAthleteCreatedDateKey(enrollment.athleteCreatedAt)
+      if (sessionDate && createdDate && createdDate > sessionDate) return []
+      return [applyAttendanceToSessionAthlete({
+        athleteId: enrollment.athleteId ?? "unknown", athleteName: enrollment.athleteName,
+        enrollmentId, enrollmentStatus: enrollment.status, scheduleId: enrollment.scheduleId,
+        scheduleLabel: enrollment.scheduleLabel, parentName: enrollment.parentName,
+        parentPhone: enrollment.parentPhone, parentEmail: enrollment.parentEmail,
+        isMakeup: false, attendanceStatus: null, attendanceNotes: null,
+        attendanceReviewedAt: null, attendanceReviewedBy: null,
+      }, record, record.is_makeup === true)]
+    })
 
     return {
       sessionId,
@@ -1663,7 +1713,7 @@ function buildClassSessionRows({
       endsAt: row.ends_at ?? null,
       status: row.status ?? "scheduled",
       type: row.type ?? null,
-      expectedAthletes: [...expectedAthletes, ...makeupAthletes],
+      expectedAthletes: [...expectedAthletes, ...makeupAthletes, ...historicalAthletes],
       makeupAthleteOptions,
     }
   })
@@ -2404,12 +2454,7 @@ export async function getCoachDashboardData(
   return { classSessions, timeClock }
 }
 
-export async function getParentAthleteEnrollments(
-  userId: string
-): Promise<{
-  athletes: ParentAthleteEnrollment[]
-  classOptions: ClassOption[]
-}> {
+async function fetchParentEnrollmentData(userId: string) {
   const [
     athletes,
     classes,
@@ -2457,6 +2502,14 @@ export async function getParentAthleteEnrollments(
     classScheduleRows,
     scheduleSeasons
   )
+  const classNameById = buildClassNameById(buildClassBillingRows(classes))
+  const classSchedules = buildClassScheduleRows(
+    classScheduleRows,
+    classNameById,
+    new Map(scheduleSeasons.map((season) => [season.seasonId, season])),
+    new Map(),
+    new Map()
+  )
 
   return {
     athletes: athletes.map((athlete) => {
@@ -2483,5 +2536,127 @@ export async function getParentAthleteEnrollments(
       }
     }),
     classOptions: buildClassOptions(classes, activeSeasonScheduleRows),
+    classSchedules,
+    cheerSchedules,
+    classNameById,
+    cheerTeamNameById,
+  }
+}
+
+export async function getParentAthleteEnrollments(
+  userId: string
+): Promise<{
+  athletes: ParentAthleteEnrollment[]
+  classOptions: ClassOption[]
+}> {
+  const { athletes, classOptions } = await fetchParentEnrollmentData(userId)
+  return { athletes, classOptions }
+}
+
+export async function getParentDashboardData(userId: string, todayDateKey: string) {
+  const [data, deadPeriods] = await Promise.all([
+    fetchParentEnrollmentData(userId),
+    getDeadPeriods(),
+  ])
+  // Ownership comes from fetchParentAthletes(userId); never load another family's roster.
+  const enrollments = data.athletes.flatMap((athlete) => athlete.enrollments)
+    .filter((enrollment) => !enrollment.selectionRequired &&
+      rosterEnrollmentStatuses.has(enrollment.status.toLowerCase()))
+  const cheerEnrollments = data.athletes.flatMap((athlete) => athlete.cheerEnrollments)
+    .filter((enrollment) => !enrollment.selectionRequired &&
+      rosterEnrollmentStatuses.has(enrollment.status.toLowerCase()))
+  const calendarDateRange = getCalendarDateRange(todayDateKey)
+  const weekStartsOn = shiftDateKey(todayDateKey, -new Date(`${todayDateKey}T00:00:00Z`).getUTCDay())
+  const weekEndsOn = shiftDateKey(weekStartsOn, 6)
+  const dateRange = {
+    ...calendarDateRange,
+    startsOn: weekStartsOn < calendarDateRange.startsOn ? weekStartsOn : calendarDateRange.startsOn,
+  }
+  const [classSessionRows, cheerSessionRows, attendanceRows] = await Promise.all([
+    enrollments.length ? fetchClassSessionRows(dateRange) : [],
+    cheerEnrollments.length ? fetchCheerSessionRows(dateRange) : [],
+    fetchClassSessionAttendanceRows(enrollments.map((enrollment) => enrollment.enrollmentId)),
+  ])
+  const classSessions = buildClassSessionRows({
+    sessionRows: classSessionRows,
+    schedules: data.classSchedules,
+    classNameById: data.classNameById,
+    enrollments,
+    attendanceRows,
+  }).flatMap<CalendarSession>((session) => {
+    const sessionDate = getDateKey(session.sessionDate)
+
+    if (!session.classId || !sessionDate || !session.expectedAthletes.length) {
+      return []
+    }
+
+    return [{
+      sessionId: `class:${session.sessionId}`,
+      classId: `class:${session.classId}`,
+      className: session.className,
+      sessionDate,
+      startsAt: session.startsAt,
+      endsAt: session.endsAt,
+      status: session.status,
+      type: session.type,
+      timeLabel: formatSessionTimeLabel(session.startsAt, session.endsAt),
+      athleteNames: Array.from(new Map(session.expectedAthletes.map(
+        (athlete) => [athlete.athleteId, athlete.athleteName]
+      )).values()).sort(),
+    }]
+  })
+  const cheerSessions = buildCheerSessionRows({
+    sessionRows: cheerSessionRows,
+    schedules: data.cheerSchedules,
+    teamNameById: data.cheerTeamNameById,
+  }).flatMap<CalendarSession>((session) => {
+    const sessionDate = getDateKey(session.sessionDate)
+    const athletes = cheerEnrollments.filter((enrollment) =>
+      enrollment.teamId === session.teamId &&
+      (!enrollment.scheduleId || !session.scheduleId || enrollment.scheduleId === session.scheduleId)
+    )
+
+    if (!session.teamId || !sessionDate || !athletes.length) {
+      return []
+    }
+
+    return [{
+      sessionId: `cheer:${session.sessionId}`,
+      classId: `cheer:${session.teamId}`,
+      className: `${session.teamName} (Cheer)`,
+      sessionDate,
+      startsAt: session.startsAt,
+      endsAt: session.endsAt,
+      status: session.status,
+      type: session.type,
+      timeLabel: formatSessionTimeLabel(session.startsAt, session.endsAt),
+      athleteNames: Array.from(new Map(athletes.map(
+        (athlete) => [athlete.athleteId, athlete.athleteName]
+      )).values()).sort(),
+    }]
+  })
+
+  const sessions = [...classSessions, ...cheerSessions]
+  const weeklyEventCount = sessions.filter((session) =>
+    session.sessionDate >= weekStartsOn && session.sessionDate <= weekEndsOn &&
+    !["canceled", "cancelled"].includes(session.status.trim().toLowerCase())
+  ).length
+
+  return {
+    athletes: data.athletes,
+    classOptions: data.classOptions,
+    weeklyEventCount,
+    calendar: {
+      sessions: sessions.filter((session) => session.sessionDate >= calendarDateRange.startsOn).sort((first, second) =>
+        first.sessionDate.localeCompare(second.sessionDate) ||
+        (first.startsAt ?? "").localeCompare(second.startsAt ?? "") ||
+        first.className.localeCompare(second.className)
+      ),
+      deadPeriods: deadPeriods.map((period) => ({
+        ...period,
+        startsAt: getDateKey(period.startsAt) || null,
+        endsAt: getDateKey(period.endsAt) || null,
+      })),
+    },
   }
 }

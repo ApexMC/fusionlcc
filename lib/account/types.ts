@@ -378,6 +378,8 @@ export type CheerScheduleDisplayRecord = {
 }
 
 export type ClassSessionExpectedAthlete = {
+  // Cheer attendance is keyed by athlete, including history with no enrollment link.
+  attendanceKey?: string
   athleteId: string
   athleteName: string
   enrollmentId: string

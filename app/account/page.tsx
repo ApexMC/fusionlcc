@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { SectionLink } from "@/components/navigation/section-link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatPhoneNumber } from "@/functions/shared_functions";
 import ManageAccountCard from "@/components/account/manage_account";
@@ -7,13 +8,16 @@ import AthleteCardList from "@/components/account/athletes/athlete_card";
 import { getAccountSession, getParentForUser } from "@/lib/account/auth";
 import { ParentEnrollments } from "@/components/account/parent_enrollments";
 import { ParentBilling } from "@/components/account/parent_billing";
+import { ParentSchedule } from "@/components/account/parent_schedule";
+import { getAthleteAttendanceData } from "@/lib/account/attendance-data";
+import { selectAttendanceSeason, summarizeAthleteAttendance, type AthleteAttendanceData } from "@/lib/account/attendance";
 import ManageAthleteCard from "@/components/account/athletes/manage_athlete";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     getAdminDashboardData,
     getCoachDashboardData,
-    getParentAthleteEnrollments,
+    getParentDashboardData,
 } from "@/lib/account/data";
 import type {
     AdminDashboardData,
@@ -49,6 +53,7 @@ import {
 
 const adminDashboardSections = [
     adminDashboardRoutes.customers,
+    adminDashboardRoutes.athletes,
     adminDashboardRoutes.staff,
     adminDashboardRoutes.enrollments,
     {
@@ -141,8 +146,12 @@ function actionBadge(
 }
 
 function getAdminDashboardLinks(
-    dashboardData: AdminDashboardData
+    dashboardData: AdminDashboardData,
+    attendanceData: AthleteAttendanceData
 ): DashboardNavItem[] {
+    const attendanceSeason = selectAttendanceSeason(attendanceData.seasons, attendanceData.today);
+    const attendanceSummaries = attendanceSeason ? summarizeAthleteAttendance(attendanceData, attendanceSeason) : [];
+    const attendanceAttention = attendanceSummaries.filter((athlete) => ["approaching", "at-limit", "over-limit"].includes(athlete.standing)).length;
     const reviewQueue = dashboardData.reviewQueue;
     const billingSetup = findActionItem(dashboardData, "Class billing setup");
     const unfilledAttendanceSessions = getUnfilledAttendanceSessionCount(
@@ -163,6 +172,15 @@ function getAdminDashboardLinks(
     );
 
     return adminDashboardSections.map((section) => {
+        if (section.href.endsWith("/athletes")) {
+            return {
+                ...section,
+                href: attendanceAttention ? `${section.href}?filter=attention` : section.href,
+                badge: attendanceData.notices.length ? "Attendance setup incomplete" : attendanceSeason ? `${attendanceAttention} approaching or at limits` : "Set up a season",
+                tone: attendanceAttention || !attendanceSeason || attendanceData.notices.length ? "warning" : "default",
+                detail: attendanceSeason?.name ?? "Add dates to track seasonal allowances",
+            };
+        }
         if (section.href.endsWith("/reporting")) {
             return {
                 ...section,
@@ -395,16 +413,11 @@ function getParentEnrollmentCounts(enrollments: ParentEnrollmentSummary[]) {
                 counts.approved += 1;
             }
 
-            if (enrollmentStatus === "pending") {
-                counts.pending += 1;
-            }
-
             return counts;
         },
         {
             active: 0,
             approved: 0,
-            pending: 0,
         }
     );
 }
@@ -413,10 +426,12 @@ function getParentDashboardStats({
     parent,
     athleteCount,
     enrollments,
+    weeklyEventCount,
 }: {
     parent: ParentRecord | null;
     athleteCount: number;
     enrollments: ParentEnrollmentSummary[];
+    weeklyEventCount: number;
 }): DashboardStat[] {
     const counts = getParentEnrollmentCounts(enrollments);
     const balance = parent?.balance;
@@ -441,13 +456,11 @@ function getParentDashboardStats({
             tone: counts.active ? "success" : "default",
         },
         {
-            label: "Pending requests",
-            value: counts.pending.toLocaleString(),
-            href: "#enrollments",
-            detail: counts.pending
-                ? "Awaiting staff review"
-                : "No pending requests",
-            tone: counts.pending ? "warning" : "success",
+            label: "Personal schedule",
+            value: weeklyEventCount.toLocaleString(),
+            href: "#schedule",
+            detail: `${countLabel(weeklyEventCount, "event")} this week`,
+            tone: "default",
         },
         {
             label: typeof balance === "number" && balance < 0 ? "Account Balance" : "Account Credit",
@@ -493,7 +506,8 @@ export default async function AccountPage() {
             ...athlete,
             athlete_id: Number(athlete.athlete_id),
         }));
-        const parentEnrollmentData = await getParentAthleteEnrollments(session.userId);
+        const todayDateKey = getDateKeyInTimeZone();
+        const parentEnrollmentData = await getParentDashboardData(session.userId, todayDateKey);
         const parentEnrollments = getParentEnrollments(parentEnrollmentData.athletes);
         const parentAddress = formatParentAddress(parent);
             
@@ -502,14 +516,14 @@ export default async function AccountPage() {
                 <DashboardHeader
                     eyebrow="Parent"
                     title="Parent Dashboard"
-                    description="A family view of athletes, enrollment requests, billing status, and the next class to request."
+                    description="A family view of your athletes, personal schedule, enrollment requests, and billing status."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             <Button asChild variant="outline">
-                                <a href="#billing">
+                                <SectionLink href="#billing">
                                     <CreditCard />
                                     Manage billing
-                                </a>
+                                </SectionLink>
                             </Button>
                             <Button asChild variant="outline">
                                 <Link href="/classes">
@@ -525,6 +539,7 @@ export default async function AccountPage() {
                         parent,
                         athleteCount: athleteCards.length,
                         enrollments: parentEnrollments,
+                        weeklyEventCount: parentEnrollmentData.weeklyEventCount,
                     })}
                 />
                 <section
@@ -659,13 +674,19 @@ export default async function AccountPage() {
                     </section>
                 </div>
                 <ParentBilling />
+                <ParentSchedule
+                    {...parentEnrollmentData.calendar}
+                    todayDateKey={todayDateKey}
+                />
             </AccountDashboardFrame>
         );
     }
 
     /*Owner & Admin Management Dashboard*/
     else if (session.isAdmin || session.isOwner) {
-        const dashboardData = await getAdminDashboardData();
+        const [dashboardData, attendanceData] = await Promise.all([
+            getAdminDashboardData(), getAthleteAttendanceData(),
+        ]);
 
         return (
             <AccountDashboardFrame>
@@ -676,7 +697,7 @@ export default async function AccountPage() {
                 />
                 <DashboardStatGrid stats={getAdminDashboardStats(dashboardData)} />
                 <div className="h-0.5 w-full bg-zinc-700"></div>
-                <DashboardLinkGrid items={getAdminDashboardLinks(dashboardData)} />
+                <DashboardLinkGrid items={getAdminDashboardLinks(dashboardData, attendanceData)} />
             </AccountDashboardFrame>
         );
     }

@@ -4,60 +4,21 @@ import * as React from "react"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import type {
-  PublicClassSession,
-  PublicDeadPeriod,
-} from "@/lib/classes/data"
+import type { PublicDeadPeriod } from "@/lib/classes/data"
+import { getCalendarDateRange, type CalendarSession } from "@/lib/calendar"
 import { getDateKeyInTimeZone } from "@/lib/date_keys"
 import { cn } from "@/lib/utils"
 
 const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-const classColors = [
-  {
-    chip: "border-fuchsia-200 bg-fuchsia-100 text-fuchsia-950 dark:border-fuchsia-800 dark:bg-fuchsia-950/70 dark:text-fuchsia-100",
-    dot: "bg-fuchsia-500",
-  },
-  {
-    chip: "border-violet-200 bg-violet-100 text-violet-950 dark:border-violet-800 dark:bg-violet-950/70 dark:text-violet-100",
-    dot: "bg-violet-500",
-  },
-  {
-    chip: "border-sky-200 bg-sky-100 text-sky-950 dark:border-sky-800 dark:bg-sky-950/70 dark:text-sky-100",
-    dot: "bg-sky-500",
-  },
-  {
-    chip: "border-teal-200 bg-teal-100 text-teal-950 dark:border-teal-800 dark:bg-teal-950/70 dark:text-teal-100",
-    dot: "bg-teal-500",
-  },
-  {
-    chip: "border-amber-200 bg-amber-100 text-amber-950 dark:border-amber-800 dark:bg-amber-950/70 dark:text-amber-100",
-    dot: "bg-amber-500",
-  },
-  {
-    chip: "border-emerald-200 bg-emerald-100 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-100",
-    dot: "bg-emerald-500",
-  },
-]
+const programChipClassName =
+  "border-[hsl(var(--program-hue)_65%_80%)] bg-[hsl(var(--program-hue)_75%_94%)] text-[hsl(var(--program-hue)_65%_16%)] dark:border-[hsl(var(--program-hue)_45%_30%)] dark:bg-[hsl(var(--program-hue)_50%_14%/0.7)] dark:text-[hsl(var(--program-hue)_75%_90%)]"
+const programDotClassName = "bg-[hsl(var(--program-hue)_70%_50%)]"
 
-function stableColorIndex(value: string) {
-  let hash = 0
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0
-  }
-
-  return hash % classColors.length
-}
-
-function getSessionColor(session: PublicClassSession) {
-  return classColors[stableColorIndex(session.classId)]
-}
-
-function isCanceledSession(session: PublicClassSession) {
+function isCanceledSession(session: CalendarSession) {
   return ["canceled", "cancelled"].includes(session.status.toLowerCase())
 }
 
-function isMakeupSession(session: PublicClassSession) {
+function isMakeupSession(session: CalendarSession) {
   return session.type?.toLowerCase() === "makeup"
 }
 
@@ -135,17 +96,19 @@ export default function MonthlyCalendar({
   sessions,
   deadPeriods,
   todayDateKey,
+  personal = false,
 }: {
-  sessions: PublicClassSession[]
+  sessions: CalendarSession[]
   deadPeriods: PublicDeadPeriod[]
   todayDateKey: string
+  personal?: boolean
 }) {
   const [currentTodayDateKey, setCurrentTodayDateKey] =
     React.useState(todayDateKey)
   const todayDateKeyRef = React.useRef(todayDateKey)
   const firstMonth = currentTodayDateKey.slice(0, 7)
-  const rangeStartDateKey = `${firstMonth}-01`
-  const rangeEndDateKey = shiftDate(currentTodayDateKey, 30)
+  const { startsOn: rangeStartDateKey, endsOn: rangeEndDateKey } =
+    getCalendarDateRange(currentTodayDateKey)
   const lastMonth = rangeEndDateKey.slice(0, 7)
   const [visibleMonth, setVisibleMonth] = React.useState(firstMonth)
   React.useEffect(() => {
@@ -180,7 +143,7 @@ export default function MonthlyCalendar({
     [visibleMonth]
   )
   const classKey = React.useMemo(() => {
-    const classes = new Map<string, PublicClassSession>()
+    const classes = new Map<string, CalendarSession>()
 
     sessions.forEach((session) => {
       const key = session.classId
@@ -191,11 +154,19 @@ export default function MonthlyCalendar({
     })
 
     return Array.from(classes.values()).sort((first, second) =>
-      first.className.localeCompare(second.className)
+      first.className.localeCompare(second.className) ||
+      first.classId.localeCompare(second.classId)
     )
   }, [sessions])
+  const programColors = React.useMemo(() => new Map(
+    classKey.map((session, index) => [
+      session.classId,
+      // Space program hues across the calendar, keeping red for dead periods.
+      { "--program-hue": 25 + ((185 + index * 300 / classKey.length) % 300) } as React.CSSProperties,
+    ])
+  ), [classKey])
   const sessionsByDate = React.useMemo(() => {
-    const result = new Map<string, PublicClassSession[]>()
+    const result = new Map<string, CalendarSession[]>()
 
     sessions.forEach((session) => {
       result.set(session.sessionDate, [
@@ -208,13 +179,13 @@ export default function MonthlyCalendar({
   }, [sessions])
 
   return (
-    <section className="w-full" aria-label="Class calendar">
+    <section className="min-w-0 w-full" aria-label={personal ? "Personal schedule calendar" : "Class calendar"}>
       <div className="mb-6 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="shrink-0">
             <div className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               <CalendarDays className="size-4 text-purple-500" aria-hidden="true" />
-              Class key
+              {personal ? "Program key" : "Class key"}
             </div>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               {formatDate(rangeStartDateKey)}–{formatDate(rangeEndDateKey)}
@@ -235,18 +206,19 @@ export default function MonthlyCalendar({
             </span>
             {classKey.length ? (
               classKey.map((session) => {
-                const color = getSessionColor(session)
+                const color = programColors.get(session.classId)
 
                 return (
                   <span
                     key={session.classId}
+                    style={color}
                     className={cn(
                       "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
-                      color.chip
+                      programChipClassName
                     )}
                   >
                     <span
-                      className={cn("size-2 rounded-full", color.dot)}
+                      className={cn("size-2 rounded-full", programDotClassName)}
                       aria-hidden="true"
                     />
                     {session.className}
@@ -255,7 +227,9 @@ export default function MonthlyCalendar({
               })
             ) : (
               <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                No class sessions are scheduled in this window.
+                {personal
+                  ? "No sessions are scheduled for your athletes in this window."
+                  : "No class sessions are scheduled in this window."}
               </span>
             )}
           </div>
@@ -401,16 +375,17 @@ export default function MonthlyCalendar({
                                   endsSegment && "mr-0 rounded-r-md border-r"
                                 )}
                               >
-                                <span className="truncate">No classes</span>
+                                <span className="truncate">{personal ? "No programs" : "No classes"}</span>
                               </div>
                             )
                           })}
 
                           {daySessions.map((session) => {
-                            const color = getSessionColor(session)
+                            const color = programColors.get(session.classId)
                             const isCanceled = isCanceledSession(session)
                             const isMakeup = isMakeupSession(session)
                             const sessionDetails = [
+                              session.athleteNames?.join(", "),
                               session.timeLabel,
                               isMakeup ? "Makeup" : null,
                               isCanceled ? "Canceled" : null,
@@ -421,11 +396,12 @@ export default function MonthlyCalendar({
                             return (
                               <div
                                 key={session.sessionId}
+                                style={color}
                                 title={`${session.className}, ${sessionDetails}`}
                                 aria-label={`${session.className}, ${sessionDetails}`}
                                 className={cn(
                                   "rounded-md border px-2 py-1.5 text-xs leading-tight shadow-xs",
-                                  color.chip,
+                                  programChipClassName,
                                   isCanceled && "border-dashed opacity-70"
                                 )}
                               >
@@ -437,6 +413,11 @@ export default function MonthlyCalendar({
                                 >
                                   {session.className}
                                 </div>
+                                {session.athleteNames?.length ? (
+                                  <div className="mt-1 break-words text-[11px] font-medium">
+                                    {session.athleteNames.join(", ")}
+                                  </div>
+                                ) : null}
                                 <div
                                   className={cn(
                                     "mt-0.5 truncate text-[11px] opacity-80",
@@ -470,7 +451,7 @@ export default function MonthlyCalendar({
       </div>
 
       <p className="mt-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
-        Dead periods appear as connected “No classes” bands across every
+        Dead periods appear as connected “{personal ? "No programs" : "No classes"}” bands across every
         affected day. Canceled sessions and their makeup sessions remain visible.
         <span className="md:hidden"> Scroll horizontally to see the full week on smaller screens.</span> 
       </p>

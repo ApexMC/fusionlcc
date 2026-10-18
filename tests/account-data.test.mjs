@@ -61,6 +61,19 @@ test("class session review preserves sorting, makeup attendance, and unassigned 
   assert.deepEqual(tables, originalRows)
 })
 
+test("saved class attendance remains reviewable after enrollment cancellation or schedule transfer", async () => {
+  const tableData = structuredClone(tables)
+  tableData.Enrollments[0].status = "canceled"
+  tableData.Enrollments[2].schedule_id = 10
+  tableData.ClassSessionAttendance[1].is_makeup = false
+  const { data } = await accountDataFixture({ tableData })
+  const sessions = await data.getClassSessionReviewData()
+  const historical = sessions[0].expectedAthletes.find((athlete) => athlete.enrollmentId === "1")
+  assert.equal(historical.attendanceStatus, "present")
+  assert.equal(historical.enrollmentStatus, "canceled")
+  assert.equal(sessions[0].expectedAthletes.filter((athlete) => athlete.enrollmentId === "3").length, 1)
+})
+
 test("schedule and enrollment pages preserve cheer team rosters and family details", async () => {
   const { data } = await accountDataFixture()
   const schedules = await data.getAdminSchedulesData()

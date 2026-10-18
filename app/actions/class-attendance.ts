@@ -68,7 +68,7 @@ export async function updateClassSessionAttendanceBatch({
   if (invalidEntry) {
     return {
       ok: false,
-      message: "Choose present, absent, excused, or late for every athlete.",
+      message: "Choose present, unexcused absence, excused absence, or late for every athlete.",
     }
   }
 
@@ -100,7 +100,7 @@ export async function updateClassSessionAttendanceBatch({
     }
   }
 
-  revalidatePath("/account")
+  revalidatePath("/account", "layout")
 
   return {
     ok: true,

@@ -10,6 +10,7 @@ const dependencies = Object.fromEntries(await Promise.all([
   ["@/lib/scheduling", "../lib/scheduling.ts"],
   ["@/lib/local_time", "../lib/local_time.ts"],
 ].map(async ([name, file]) => [name, await loadTypeScriptModule(file)])))
+dependencies["@/lib/calendar"] = await loadTypeScriptModuleWithMocks("../lib/calendar.ts", dependencies)
 
 const parent = { parent_id: 1, first_name: "Pat", last_name: "Parent", email: "parent@example.test", balance: -25 }
 const athletes = ["Zoe", "Amy", "Bea", "Una", "Canceled"].map((first_name, index) => ({
@@ -51,6 +52,7 @@ export const tables = {
     { session_id: 101, schedule_id: 11, date: "2026-10-06", status: "scheduled" },
   ],
   CheerSessions: [{ session_id: 200, schedule_id: 20, date: "2026-10-07", status: "scheduled" }],
+  DeadPeriods: [],
   ClassSessionAttendance: [
     { attendance_id: 1, session_id: 100, enrollment_id: 1, attendance_status: "present", notes: "Reviewed" },
     { attendance_id: 2, session_id: 100, enrollment_id: 3, attendance_status: "excused", is_makeup: true },
@@ -92,6 +94,14 @@ export async function accountDataFixture({
         is() { return this },
         eq(key, value) {
           filters.push(row => String(row[key]) === String(value))
+          return this
+        },
+        gte(key, value) {
+          filters.push(row => row[key] != null && String(row[key]) >= value)
+          return this
+        },
+        lte(key, value) {
+          filters.push(row => row[key] != null && String(row[key]) <= value)
           return this
         },
         in(key, values) {

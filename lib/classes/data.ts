@@ -2,10 +2,12 @@ import "server-only"
 
 import { normalizeProgramType } from "@/lib/programs"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getDateKey } from "@/lib/date_keys"
 import {
-  getDateKey,
-  shiftDateKey,
-} from "@/lib/date_keys"
+  formatSessionTimeLabel,
+  getCalendarDateRange,
+  type CalendarSession,
+} from "@/lib/calendar"
 import { formatLocalTime } from "@/lib/local_time"
 import {
   formatDay,
@@ -38,17 +40,7 @@ export type PublicClassSchedule = {
   timeLabel: string
 }
 
-export type PublicClassSession = {
-  sessionId: string
-  classId: string
-  className: string
-  sessionDate: string
-  startsAt: string | null
-  endsAt: string | null
-  status: string
-  type: string | null
-  timeLabel: string
-}
+export type PublicClassSession = CalendarSession
 
 export type PublicDeadPeriod = {
   periodId: string
@@ -111,20 +103,6 @@ function formatTimeLabel(
   endTime: string | null | undefined
 ) {
   return `${formatLocalTime(startTime)} - ${formatLocalTime(endTime)}`
-}
-
-function formatSessionTimeLabel(
-  startsAt: string | null | undefined,
-  endsAt: string | null | undefined
-) {
-  const startTime = startsAt ? formatLocalTime(startsAt) : null
-  const endTime = endsAt ? formatLocalTime(endsAt) : null
-
-  if (startTime && endTime) {
-    return `${startTime} - ${endTime}`
-  }
-
-  return startTime ?? endTime ?? "Time TBD"
 }
 
 function formatScheduleLabel(row: PublicClassScheduleRow) {
@@ -490,11 +468,10 @@ export async function getPublicClassSchedules() {
 }
 
 export async function getPublicClassCalendarData(todayDateKey: string) {
-  const rangeStartDateKey = `${todayDateKey.slice(0, 7)}-01`
-  const rangeEndDateKey = shiftDateKey(todayDateKey, 30)
+  const { startsOn, endsOn } = getCalendarDateRange(todayDateKey)
   const [classData, sessionRows, deadPeriods] = await Promise.all([
     getPublicClassData(),
-    fetchPublicClassSessionRows(rangeStartDateKey, rangeEndDateKey),
+    fetchPublicClassSessionRows(startsOn, endsOn),
     fetchPublicDeadPeriods(),
   ])
   const publicClassIds = new Set(

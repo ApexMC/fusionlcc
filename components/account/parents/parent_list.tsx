@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react";
+import Link from "next/link"
 import { MoreHorizontal } from "lucide-react"
 
 import { deleteAthlete } from "@/app/actions/athletes"
@@ -25,6 +26,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/components/ui/toast"
+import { Badge } from "@/components/ui/badge"
+import { standingLabels, type AttendanceStanding } from "@/lib/account/attendance"
+
+type CustomerAttendanceProps = {
+  attendanceSummaries?: Record<string, {
+    standing: AttendanceStanding; incomplete: number; policyApplies: boolean
+    cheer: { excused: number; unexcused: number }; gymnastics: { excused: number; unexcused: number }
+  }>
+  attendanceSeason?: string
+  attendanceSeasonId?: string
+  attendanceUnavailable?: boolean
+}
 
 function getAge(dob: string | null | undefined) {
   if (!dob) {
@@ -241,10 +254,14 @@ function ParentAthleteActions({
 function ParentAthleteDetails({
   parent,
   onAthleteDeleted,
+  attendanceSummaries,
+  attendanceSeason,
+  attendanceSeasonId,
+  attendanceUnavailable,
 }: {
   parent: Parent
   onAthleteDeleted: (parentId: string, athleteId: string) => void
-}) {
+} & CustomerAttendanceProps) {
   const athletes = parent.athletes ?? []
 
   if (!athletes.length) {
@@ -279,6 +296,20 @@ function ParentAthleteDetails({
                 onAthleteDeleted(String(parent.parent_id), athleteId)
               }
             />
+          </div>
+          <div className="mt-3 rounded-lg border p-3 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-medium">Attendance{attendanceSeason ? ` · ${attendanceSeason}` : ""}</h4>
+              <Link className="font-medium underline" href={`/account/admin/athletes?athlete=${encodeURIComponent(athlete.athleteId)}${attendanceSeasonId ? `&season=${encodeURIComponent(attendanceSeasonId)}` : ""}`}>View attendance</Link>
+            </div>
+            {attendanceUnavailable ? <p className="mt-2 text-muted-foreground">Attendance setup is incomplete.</p> : attendanceSummaries?.[athlete.athleteId] ? (() => {
+              const summary = attendanceSummaries[athlete.athleteId]
+              return <div className="mt-2 space-y-2">
+                <Badge variant={["at-limit", "approaching"].includes(summary.standing) ? "warning" : summary.standing === "over-limit" ? "destructive" : "outline"}>{standingLabels[summary.standing]}</Badge>
+                <p>Cheer: {summary.cheer.excused}{summary.policyApplies ? "/4" : ""} excused · {summary.cheer.unexcused}{summary.policyApplies ? "/2" : ""} unexcused</p>
+                <p>Gymnastics: {summary.gymnastics.excused}{summary.policyApplies ? "/4" : ""} excused · {summary.gymnastics.unexcused}{summary.policyApplies ? "/2" : ""} unexcused</p>
+                {summary.incomplete ? <p className="text-amber-700 dark:text-amber-300">{summary.incomplete} missing attendance marks</p> : null}
+              </div>
+            })() : <p className="mt-2 text-muted-foreground">Set up a season to view attendance allowances.</p>}
           </div>
           <div className="mt-3 space-y-2">
             <h4 className="text-sm font-medium">Class enrollments</h4>
@@ -318,7 +349,7 @@ function ParentAthleteDetails({
   )
 }
 
-export default function ParentList() {
+export default function ParentList(attendanceProps: CustomerAttendanceProps) {
   const [parents, setParents] = useState<Parent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -379,6 +410,7 @@ export default function ParentList() {
           <ParentAthleteDetails
             parent={parent}
             onAthleteDeleted={removeAthlete}
+            {...attendanceProps}
           />
         )}
       />

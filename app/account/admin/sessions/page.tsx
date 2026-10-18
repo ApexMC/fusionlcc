@@ -11,11 +11,13 @@ import { Button } from "@/components/ui/button"
 import { getAdminSessionsData } from "@/lib/account/data"
 import { requireAdminOwnerAccountSession } from "@/app/account/_lib/route-guards"
 import { adminDashboardRoutes } from "@/components/account/dashboard_routes"
+import { getCheerAttendanceData } from "@/lib/account/attendance-data"
 
-export default async function AdminSessionsPage() {
+export default async function AdminSessionsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireAdminOwnerAccountSession()
 
-  const sessionsData = await getAdminSessionsData()
+  const [sessionsData, attendance, query] = await Promise.all([getAdminSessionsData(), getCheerAttendanceData(), searchParams])
+  const sessionId = typeof query.session === "string" ? query.session : undefined
   const route = adminDashboardRoutes.sessions
 
   return (
@@ -37,8 +39,9 @@ export default async function AdminSessionsPage() {
       <ClassSessionReview
         sessions={sessionsData.classSessions}
         canCancelSessions
+        initialSessionId={query.kind === "class" ? sessionId : undefined}
       />
-      <CheerSessionReview sessions={sessionsData.cheerSessions} />
+      <CheerSessionReview sessions={sessionsData.cheerSessions} attendance={attendance} initialSessionId={query.kind === "cheer" ? sessionId : undefined} />
     </AccountDashboardFrame>
   )
 }

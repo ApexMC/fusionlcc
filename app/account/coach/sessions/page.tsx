@@ -4,12 +4,14 @@ import {
 } from "@/components/account/dashboard_navigation"
 import { ClassSessionReview } from "@/components/account/admin/class_session_review"
 import { requireCoachAccountSession } from "@/app/account/_lib/route-guards"
-import { getClassSessionReviewData } from "@/lib/account/data"
+import { getAdminSessionsData } from "@/lib/account/data"
 import { coachDashboardRoutes } from "@/components/account/dashboard_routes"
+import { getCheerAttendanceData } from "@/lib/account/attendance-data"
+import { CheerSessionReview } from "@/components/account/admin/cheer_session_review"
 
 export default async function CoachSessionsPage() {
   await requireCoachAccountSession()
-  const sessions = await getClassSessionReviewData()
+  const [sessions, attendance] = await Promise.all([getAdminSessionsData(), getCheerAttendanceData()])
   const route = coachDashboardRoutes.sessions
 
   return (
@@ -20,7 +22,8 @@ export default async function CoachSessionsPage() {
         icon={route.icon}
         backLabel="Dashboard"
       />
-      <ClassSessionReview sessions={sessions} />
+      <ClassSessionReview sessions={sessions.classSessions} />
+      <CheerSessionReview sessions={sessions.cheerSessions} attendance={attendance} />
     </AccountDashboardFrame>
   )
 }

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SectionLink } from "@/components/navigation/section-link";
 import { connection } from "next/server";
 import {
   ArrowRight,
@@ -80,13 +81,13 @@ export default async function CompetitiveCheer() {
               a focused path from placement to routine-ready training.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a
+              <SectionLink
                 href="#teams"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-purple-500 px-6 py-3 font-bold text-white transition hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300"
               >
                 Meet the Teams
                 <ArrowRight className="size-4" />
-              </a>
+              </SectionLink>
               <Link
                 href="/contact"
                 className="inline-flex items-center justify-center rounded-full border border-white/40 bg-white/10 px-6 py-3 font-bold text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/60"
