@@ -18,7 +18,11 @@ async function formFixture(t, result) {
   }
   const oldWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
   Object.defineProperty(globalThis, "window", { configurable: true, value: {
-    location: { origin: "https://fusion.test" }, Stripe(key) { assert.equal(key, "pk_test_demo"); return stripe },
+    location: { origin: "https://fusion.test" }, Stripe(key, options) {
+      assert.equal(key, "pk_test_demo")
+      assert.deepEqual(options, { stripeAccount: "acct_gym" })
+      return stripe
+    },
   } })
   t.after(() => { if (oldWindow) Object.defineProperty(globalThis, "window", oldWindow); else delete globalThis.window })
   const { BillingPaymentForm } = await loadModule("../components/account/billing_payment_form.tsx", {
@@ -39,7 +43,7 @@ async function formFixture(t, result) {
   })
   const render = () => {
     stateIndex = 0; refIndex = 0; effects.length = 0
-    return BillingPaymentForm({ clientSecret: "seti_demo_secret", publishableKey: "pk_test_demo", onSaved: async () => { saved++ } })
+    return BillingPaymentForm({ clientSecret: "seti_demo_secret", publishableKey: "pk_test_demo", stripeAccount: "acct_gym", onSaved: async () => { saved++ } })
   }
   const first = render()
   first.props.children.find(child => child?.type === "Script").props.onReady()

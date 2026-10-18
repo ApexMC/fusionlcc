@@ -234,10 +234,11 @@ export async function changeBillingSubscription(context: BillingContext, subscri
 export async function createBillingSetupIntent(context: BillingContext, customerId: string) {
   requireBillingCustomer(context, customerId)
   const publishableKey = getPublishableKey()
-  if (!publishableKey) throw new BillingError("Adding cards is not configured yet. Please contact us.")
+  const stripeAccount = process.env.STRIPE_CONNECTED_ACCOUNT_ID?.trim()
+  if (!publishableKey || !stripeAccount) throw new BillingError("Adding cards is not configured yet. Please contact us.")
   const intent = await getStripe().setupIntents.create({ customer: customerId, usage: "off_session", payment_method_types: ["card"],
     metadata: { user_id: context.userId, purpose: "dashboard_payment_method" } })
-  return { clientSecret: intent.client_secret, publishableKey }
+  return { clientSecret: intent.client_secret, publishableKey, stripeAccount }
 }
 
 function getPublishableKey() {

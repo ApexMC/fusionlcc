@@ -309,22 +309,27 @@ test("currency formatting uses the correct minor unit", () => {
 
 test("card setup uses the existing publishable-key setting and never exposes a secret key", async t => {
   const savedPublic = process.env.STRIPE_PUBLISHABLE_KEY
-  const savedExisting = process.env.STRIPE_PUBLISHABLE_KEY
+  const savedAccount = process.env.STRIPE_CONNECTED_ACCOUNT_ID
   t.after(() => {
     if (savedPublic === undefined) delete process.env.STRIPE_PUBLISHABLE_KEY
     else process.env.STRIPE_PUBLISHABLE_KEY = savedPublic
-    if (savedExisting === undefined) delete process.env.STRIPE_PUBLISHABLE_KEY
-    else process.env.STRIPE_PUBLISHABLE_KEY = savedExisting
+    if (savedAccount === undefined) delete process.env.STRIPE_CONNECTED_ACCOUNT_ID
+    else process.env.STRIPE_CONNECTED_ACCOUNT_ID = savedAccount
   })
-  delete process.env.STRIPE_PUBLISHABLE_KEY
   process.env.STRIPE_PUBLISHABLE_KEY = "pk_test_demo"
+  process.env.STRIPE_CONNECTED_ACCOUNT_ID = " acct_gym "
   const f = await fixture()
   await assert.rejects(f.billing.createBillingSetupIntent(context, "cus_foreign"), /does not belong/)
   const result = await f.billing.createBillingSetupIntent(context, "cus_family")
   assert.equal(result.publishableKey, "pk_test_demo")
+  assert.equal(result.stripeAccount, "acct_gym")
+  assert.deepEqual(Object.keys(result).sort(), ["clientSecret", "publishableKey", "stripeAccount"])
   assert.deepEqual(f.setups[0].payment_method_types, ["card"])
   assert.equal(f.setups[0].usage, "off_session")
   assert.equal(f.setups[0].customer, "cus_family")
+  delete process.env.STRIPE_CONNECTED_ACCOUNT_ID
+  await assert.rejects(f.billing.createBillingSetupIntent(context, "cus_family"), /not configured/)
+  process.env.STRIPE_CONNECTED_ACCOUNT_ID = "acct_gym"
   process.env.STRIPE_PUBLISHABLE_KEY = "sk_test_accident"
   await assert.rejects(f.billing.createBillingSetupIntent(context, "cus_family"), /not configured/)
   assert.equal(f.setups.length, 1)

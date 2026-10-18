@@ -47,7 +47,7 @@ export function ParentBilling() {
   const [history, setHistory] = React.useState(false)
   const [confirmation, setConfirmation] = React.useState<Confirmation | null>(null)
   const [invoice, setInvoice] = React.useState<BillingInvoiceDetail | null>(null)
-  const [cardSetup, setCardSetup] = React.useState<{ clientSecret: string; publishableKey: string; label: string } | null>(null)
+  const [cardSetup, setCardSetup] = React.useState<{ clientSecret: string; publishableKey: string; stripeAccount: string; label: string } | null>(null)
   const { toast } = useToast()
 
   const load = React.useCallback(async () => {
@@ -113,7 +113,7 @@ export function ParentBilling() {
   async function addCard(customerId: string, label: string) {
     setBusy(customerId)
     try {
-      const result = await billingRequest<{ clientSecret: string; publishableKey: string }>("", { action: "setup", customerId })
+      const result = await billingRequest<{ clientSecret: string; publishableKey: string; stripeAccount: string }>("", { action: "setup", customerId })
       setCardSetup({ ...result, label })
     } catch (err) { showError(err) }
     finally { setBusy(null) }
@@ -234,7 +234,7 @@ export function ParentBilling() {
         <DialogContent className="top-24 flex max-h-[calc(100dvh-7rem)] translate-y-0 flex-col overflow-hidden sm:max-w-lg">
           <DialogHeader className="shrink-0"><DialogTitle>Add a payment card</DialogTitle><DialogDescription>{cardSetup?.label}</DialogDescription></DialogHeader>
           <div className="min-h-0 overflow-y-auto overscroll-contain">
-            {cardSetup ? <BillingPaymentForm clientSecret={cardSetup.clientSecret} publishableKey={cardSetup.publishableKey} onSaved={async () => { setCardSetup(null); toast({ title: "Card saved", description: "Choose Make default to use this card for your subscriptions.", variant: "success" }); await load() }} /> : null}
+            {cardSetup ? <BillingPaymentForm clientSecret={cardSetup.clientSecret} publishableKey={cardSetup.publishableKey} stripeAccount={cardSetup.stripeAccount} onSaved={async () => { setCardSetup(null); toast({ title: "Card saved", description: "Choose Make default to use this card for your subscriptions.", variant: "success" }); await load() }} /> : null}
           </div>
         </DialogContent>
       </Dialog>

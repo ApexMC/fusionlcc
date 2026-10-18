@@ -14,11 +14,12 @@ type StripeClient = {
   confirmSetup: (options: { elements: Elements; confirmParams: { return_url: string }; redirect: "if_required" }) =>
     Promise<{ error?: { message?: string }; setupIntent?: { status: string; payment_method: string | { id: string } | null } }>
 }
-type StripeWindow = Window & { Stripe?: (key: string) => StripeClient | null }
+type StripeWindow = Window & { Stripe?: (key: string, options: { stripeAccount: string }) => StripeClient | null }
 
-export function BillingPaymentForm({ clientSecret, publishableKey, onSaved }: {
+export function BillingPaymentForm({ clientSecret, publishableKey, stripeAccount, onSaved }: {
   clientSecret: string
   publishableKey: string
+  stripeAccount: string
   onSaved: () => Promise<void>
 }) {
   const mountRef = React.useRef<HTMLDivElement>(null)
@@ -31,7 +32,7 @@ export function BillingPaymentForm({ clientSecret, publishableKey, onSaved }: {
 
   React.useEffect(() => {
     if (!scriptReady || !mountRef.current) return
-    const stripe = (window as StripeWindow).Stripe?.(publishableKey)
+    const stripe = (window as StripeWindow).Stripe?.(publishableKey, { stripeAccount })
     if (!stripe) return
     const elements = stripe.elements({ clientSecret, appearance: {
       theme: resolvedTheme === "dark" ? "night" : "stripe",
@@ -43,7 +44,7 @@ export function BillingPaymentForm({ clientSecret, publishableKey, onSaved }: {
     element.mount(mountRef.current)
     paymentRef.current = { stripe, elements }
     return () => { element.destroy(); paymentRef.current = null }
-  }, [scriptReady, clientSecret, publishableKey, resolvedTheme])
+  }, [scriptReady, clientSecret, publishableKey, stripeAccount, resolvedTheme])
 
   async function save(event: React.FormEvent) {
     event.preventDefault()

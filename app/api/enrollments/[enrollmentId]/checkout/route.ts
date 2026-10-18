@@ -12,6 +12,7 @@ import {
 } from "@/lib/account/payments"
 import { getStripe, getNextBillingAnchorUnix } from "@/lib/stripe/server"
 import { getCheckoutConfirmationPath } from "@/lib/account/checkout-confirmation"
+import { getClassCheckoutPricing } from "@/lib/account/class-checkout"
 
 function getOrigin(fallbackPath = "/account") {
   return async function origin() {
@@ -79,7 +80,13 @@ export async function POST(
     })
 
     const origin = await getOrigin()()
+    const billingAnchor = getNextBillingAnchorUnix(billingDay)
+    const pricing = await getClassCheckoutPricing({
+      priceId: stripePriceId,
+      couponId: stripeCouponId,
+    })
     const metadata = {
+      ...pricing.metadata,
       user_id: context.userId,
       parent_id: String(context.parent.parent_id),
       athlete_id: String(context.athlete.athlete_id),
@@ -91,13 +98,9 @@ export async function POST(
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: stripeCustomerId,
-      line_items: [
-        {
-          price: stripePriceId,
-          quantity: 1,
-        },
-      ],
-      discounts: stripeCouponId ? [{ coupon: stripeCouponId }] : undefined,
+      payment_method_collection: "always",
+      line_items: pricing.lineItems,
+      discounts: pricing.discounts,
       success_url: `${origin}${getCheckoutConfirmationPath({
         kind: "class",
         enrollmentId: String(context.enrollment.enrollment_id),
@@ -108,7 +111,7 @@ export async function POST(
       metadata,
       subscription_data: {
         application_fee_percent: 1.5,
-        billing_cycle_anchor: getNextBillingAnchorUnix(billingDay),
+        billing_cycle_anchor: billingAnchor,
         metadata,
         proration_behavior: "create_prorations",
       },

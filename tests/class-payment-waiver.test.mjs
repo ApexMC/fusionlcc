@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { createHash } from "node:crypto"
 import { accountDataFixture, tables } from "./fixtures/account-data.mjs"
 import { loadTypeScriptModule, loadTypeScriptModuleWithMocks as loadModule } from "./load-typescript.mjs"
 
@@ -152,6 +153,9 @@ async function billingFixture({ cheerStatus = "approved", subscriptionStatus = n
     "next/headers": { headers: async () => new Map([["origin", "https://fixture.example.test"]]) },
     "next/server": { NextResponse: { json: (value, options) => Response.json(value, options) } },
     "@/lib/account/payments": payments,
+    "@/lib/account/class-checkout": await loadModule("../lib/account/class-checkout.ts", {
+      "server-only": {}, "node:crypto": { createHash }, "@/lib/stripe/server": {},
+    }),
     "@/lib/account/checkout-confirmation": await loadModule("../lib/account/checkout-confirmation.ts", {
       "server-only": {},
       "@/lib/account/payments": payments,
