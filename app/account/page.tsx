@@ -31,6 +31,7 @@ import { getDateKey, getDateKeyInTimeZone } from "@/lib/date_keys";
 import {
     BadgeCheck,
     BookOpen,
+    CalendarDays,
     CreditCard,
     ListChecks,
     Mail,
@@ -519,6 +520,12 @@ export default async function AccountPage() {
                     description="A family view of your athletes, personal schedule, enrollment requests, and billing status."
                     actions={
                         <div className="flex flex-wrap gap-2">
+                            <Button asChild variant="outline">
+                                <SectionLink href="#schedule">
+                                    <CalendarDays />
+                                    My Calendar
+                                </SectionLink>
+                            </Button>
                             <Button asChild variant="outline">
                                 <SectionLink href="#billing">
                                     <CreditCard />

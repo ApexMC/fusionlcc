@@ -1,6 +1,62 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { accountDataFixture, tables } from "./fixtures/account-data.mjs"
+import { loadTypeScriptModuleWithMocks } from "./load-typescript.mjs"
+
+async function calendarPageFixture(session) {
+  const calls = []
+  const calendar = { sessions: [], deadPeriods: [] }
+  const jsx = (type, props) => ({ type, props })
+  const guards = await loadTypeScriptModuleWithMocks("../app/account/_lib/route-guards.ts", {
+    "server-only": {},
+    "next/navigation": { redirect(path) { throw new Error(`Redirect: ${path}`) } },
+    "@/lib/account/auth": { getAccountSession: async () => session },
+  })
+  const { default: page } = await loadTypeScriptModuleWithMocks("../app/account/calendar/page.tsx", {
+    "react/jsx-runtime": { jsx, jsxs: jsx },
+    "lucide-react": { CalendarDays: "CalendarDays" },
+    "@/app/account/_lib/route-guards": guards,
+    "@/components/account/dashboard_navigation": {
+      AccountDashboardFrame: "AccountDashboardFrame",
+      AccountSectionHeader: "AccountSectionHeader",
+    },
+    "@/components/account/parent_schedule": { ParentSchedule: "ParentSchedule" },
+    "@/lib/date_keys": { getDateKeyInTimeZone: () => "2026-10-17" },
+    "@/lib/account/data": {
+      async getParentDashboardData(...args) {
+        calls.push(args)
+        return { calendar }
+      },
+    },
+  })
+  return { page, calls, calendar }
+}
+
+test("the dedicated calendar redirects unauthorized visitors before loading family data", async () => {
+  for (const [session, destination] of [
+    [null, "/login"],
+    [{ isCoach: true }, "/account"],
+    [{ isAdmin: true }, "/account"],
+    [{ isOwner: true }, "/account"],
+  ]) {
+    const fixture = await calendarPageFixture(session)
+    await assert.rejects(fixture.page(), error => error.message === `Redirect: ${destination}`)
+    assert.deepEqual(fixture.calls, [])
+  }
+})
+
+test("the dedicated calendar uses the signed-in parent's family and organization date", async () => {
+  for (const session of [
+    { userId: "parent", isParent: true },
+    { userId: "coach-parent", isParent: true, isCoach: true },
+  ]) {
+    const fixture = await calendarPageFixture(session)
+    const tree = await fixture.page()
+    assert.deepEqual(fixture.calls, [[session.userId, "2026-10-17"]])
+    const schedule = tree.props.children.find(child => child.type === "ParentSchedule")
+    assert.deepEqual(schedule.props, { ...fixture.calendar, todayDateKey: "2026-10-17" })
+  }
+})
 
 function familyTables() {
   const rows = structuredClone(tables)

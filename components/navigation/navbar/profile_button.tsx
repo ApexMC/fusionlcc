@@ -9,10 +9,12 @@ import createClient from "@/lib/supabase/client";
 export default function ProfileButton({
   user,
   showTimeClock = false,
+  showCalendar = false,
   requiresEnrollmentSelection = false,
 }: {
   user: User;
   showTimeClock?: boolean;
+  showCalendar?: boolean;
   requiresEnrollmentSelection?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -63,6 +65,11 @@ export default function ProfileButton({
           <Link href="/account" className="block px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700" onClick={() => setOpen(false)}>
             Account
           </Link>
+          {showCalendar ? (
+            <Link href="/account/calendar" className="block px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700" onClick={() => setOpen(false)}>
+              My Calendar
+            </Link>
+          ) : null}
           {showTimeClock ? (
             <Link href="/account/time-clock" className="block px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700" onClick={() => setOpen(false)}>
               Time Clock

@@ -4,6 +4,20 @@ import { redirect } from "next/navigation"
 
 import { getAccountSession } from "@/lib/account/auth"
 
+export async function requireParentAccountSession() {
+  const session = await getAccountSession()
+
+  if (!session) {
+    redirect("/login")
+  }
+
+  if (!session.isParent) {
+    redirect("/account")
+  }
+
+  return session
+}
+
 export async function requireAdminOwnerAccountSession() {
   const session = await getAccountSession()
 

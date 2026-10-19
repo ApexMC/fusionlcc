@@ -8,12 +8,14 @@ import createClient from "@/lib/supabase/client";
 
 type AccountRoleResponse = {
   isStaff?: boolean
+  isParent?: boolean
   requiresEnrollmentSelection?: boolean
 }
 
 export default function AuthButton() {
   const [user, setUser] = useState<User | null>(null);
   const [showTimeClock, setShowTimeClock] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [requiresEnrollmentSelection, setRequiresEnrollmentSelection] =
     useState(false);
   const supabase = useMemo(() => createClient(), []);
@@ -29,6 +31,7 @@ export default function AuthButton() {
         activeRequest = null;
         if (mounted) {
           setShowTimeClock(false);
+          setShowCalendar(false);
           setRequiresEnrollmentSelection(false);
         }
         return;
@@ -54,6 +57,7 @@ export default function AuthButton() {
 
         if (mounted && activeRequest === request) {
           setShowTimeClock(Boolean(data?.isStaff));
+          setShowCalendar(Boolean(data?.isParent));
           setRequiresEnrollmentSelection(
             Boolean(data?.requiresEnrollmentSelection)
           );
@@ -61,6 +65,7 @@ export default function AuthButton() {
       } catch {
         if (mounted && activeRequest === request && !request.controller.signal.aborted) {
           setShowTimeClock(false);
+          setShowCalendar(false);
           setRequiresEnrollmentSelection(false);
         }
       } finally {
@@ -75,6 +80,7 @@ export default function AuthButton() {
 
       if (currentUser?.id !== nextUser?.id) {
         setShowTimeClock(false);
+        setShowCalendar(false);
         setRequiresEnrollmentSelection(false);
       }
       currentUser = nextUser;
@@ -106,6 +112,7 @@ export default function AuthButton() {
     <ProfileButton
       user={user}
       showTimeClock={showTimeClock}
+      showCalendar={showCalendar}
       requiresEnrollmentSelection={requiresEnrollmentSelection}
     />
   ) : (

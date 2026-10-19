@@ -56,6 +56,7 @@ export async function GET() {
     isCoach: session.isCoach,
     isAdmin: session.isAdmin,
     isOwner: session.isOwner,
+    isParent: session.isParent,
     selectionRequiredEnrollmentCount,
     requiresEnrollmentSelection: selectionRequiredEnrollmentCount > 0,
   })
