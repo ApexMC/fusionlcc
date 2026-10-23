@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/table"
 import { useToast } from "@/components/ui/toast"
 import { formatPhoneNumber } from "@/functions/shared_functions"
+import { formatEnrollmentRequestDateTime } from "@/lib/account/enrollment_presentation"
 import type {
   AdminEnrollmentAthleteOption,
   CheerBillingRecord,
@@ -65,18 +66,6 @@ type CheerReassignmentDraft = {
 type CheerReassignmentTeamOption = {
   teamId: string
   teamName: string
-}
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "Unknown"
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value))
 }
 
 function matchesSearch(
@@ -608,6 +597,7 @@ export function CheerEnrollmentManagement({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Enrollment</TableHead>
+                      <TableHead>Requested</TableHead>
                       <TableHead>Athlete</TableHead>
                       <TableHead>Parent</TableHead>
                       <TableHead>Team</TableHead>
@@ -619,6 +609,9 @@ export function CheerEnrollmentManagement({
                       <TableRow key={enrollment.enrollmentId}>
                         <TableCell className="font-medium">
                           #{enrollment.enrollmentId}
+                        </TableCell>
+                        <TableCell>
+                          {formatEnrollmentRequestDateTime(enrollment.createdAt)}
                         </TableCell>
                         <TableCell>{enrollment.athleteName}</TableCell>
                         <TableCell>
@@ -731,7 +724,9 @@ export function CheerEnrollmentManagement({
                             <div className="text-xs font-medium text-muted-foreground">
                               Requested
                             </div>
-                            <div>{formatDate(enrollment.createdAt)}</div>
+                            <div>
+                              {formatEnrollmentRequestDateTime(enrollment.createdAt)}
+                            </div>
                           </div>
                           <div>
                             <div className="text-xs font-medium text-muted-foreground">
@@ -833,7 +828,9 @@ export function CheerEnrollmentManagement({
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>{formatDate(enrollment.createdAt)}</TableCell>
+                      <TableCell>
+                        {formatEnrollmentRequestDateTime(enrollment.createdAt)}
+                      </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
                           <ReassignCheerEnrollmentDialog

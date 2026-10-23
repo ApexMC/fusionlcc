@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/table"
 import { useToast } from "@/components/ui/toast"
 import { formatPhoneNumber } from "@/functions/shared_functions"
+import { formatEnrollmentRequestDateTime } from "@/lib/account/enrollment_presentation"
 import type {
   AdminEnrollmentAthleteOption,
   ClassScheduleDisplayRecord,
@@ -66,18 +67,6 @@ type ReassignmentDraft = {
 type ReassignmentClassOption = {
   classId: string
   className: string
-}
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "Unknown"
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value))
 }
 
 function getEnrollmentSchedules(schedules: ClassScheduleDisplayRecord[]) {
@@ -768,6 +757,10 @@ export function EnrollmentManagement({
                           <div className="truncate text-xs text-muted-foreground">
                             ID #{enrollment.enrollmentId}
                           </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Requested{" "}
+                            {formatEnrollmentRequestDateTime(enrollment.createdAt)}
+                          </div>
                         </div>
                         <EnrollmentStatusBadge status={enrollment.status} />
                       </div>
@@ -797,12 +790,6 @@ export function EnrollmentManagement({
                       {isExpanded ? (
                         <div className="mt-3">
                           <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                            <div>
-                              <div className="text-xs font-medium text-muted-foreground">
-                                Requested
-                              </div>
-                              <div>{formatDate(enrollment.createdAt)}</div>
-                            </div>
                             <div>
                               <div className="text-xs font-medium text-muted-foreground">
                                 Athlete
@@ -893,6 +880,7 @@ export function EnrollmentManagement({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Enrollment</TableHead>
+                      <TableHead>Requested</TableHead>
                       <TableHead>Athlete</TableHead>
                       <TableHead>Parent</TableHead>
                       <TableHead>Class</TableHead>
@@ -904,6 +892,9 @@ export function EnrollmentManagement({
                       <TableRow key={enrollment.enrollmentId}>
                         <TableCell className="font-medium">
                           #{enrollment.enrollmentId}
+                        </TableCell>
+                        <TableCell>
+                          {formatEnrollmentRequestDateTime(enrollment.createdAt)}
                         </TableCell>
                         <TableCell>{enrollment.athleteName}</TableCell>
                         <TableCell>
@@ -1041,7 +1032,9 @@ export function EnrollmentManagement({
                             <div className="text-xs font-medium text-muted-foreground">
                               Requested
                             </div>
-                            <div>{formatDate(enrollment.createdAt)}</div>
+                            <div>
+                              {formatEnrollmentRequestDateTime(enrollment.createdAt)}
+                            </div>
                           </div>
                           <div>
                             <div className="text-xs font-medium text-muted-foreground">
@@ -1184,7 +1177,9 @@ export function EnrollmentManagement({
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>{formatDate(enrollment.createdAt)}</TableCell>
+                      <TableCell>
+                        {formatEnrollmentRequestDateTime(enrollment.createdAt)}
+                      </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
                           <ReassignEnrollmentDialog
